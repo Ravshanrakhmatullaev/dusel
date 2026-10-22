@@ -39,6 +39,7 @@ def main():
     ap.add_argument("--front")
     ap.add_argument("--back")
     ap.add_argument("--combined")
+    ap.add_argument("--back-single", help="BITTA sahifa: 6 ta bir xil orqa (har list uchun takrorlanadi)")
     ap.add_argument("--sheets", default="")
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--duplex-marks", action="store_true")
@@ -52,8 +53,10 @@ def main():
         sheets = list(range(1, total_sheets + 1))
     elif a.sheets:
         sheets = parse_sheets(a.sheets, total_sheets)
+    elif a.back_single:
+        sheets = []
     else:
-        sys.exit("--all yoki --sheets kerak")
+        sys.exit("--all, --sheets yoki --back-single kerak")
 
     src = fitz.open(a.art)
     SW, SH = 450 * MM, 320 * MM
@@ -160,6 +163,11 @@ def main():
         os.remove(tmp)
         print("OK", path)
 
+    if a.back_single:
+        doc = fitz.open()
+        back_page(doc, 6)
+        finish(doc, a.back_single, "DUSEL — ORQA tomon, 6-up, bitta sahifa")
+        sheets = sheets or [1]
     if a.combined:
         doc = fitz.open()
         for s in sheets:

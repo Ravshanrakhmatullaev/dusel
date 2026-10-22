@@ -24,7 +24,7 @@ shards = (N + 999) // 1000
 for k in range(shards):
     part = {r["TICKET_NUMBER"]: [r["SECTOR"], r["ROW"], r["SEAT"], H[r["STATUS"]]] for r in rows[k * 1000:(k + 1) * 1000]}
     with open(os.path.join(d, f"s{k}.json"), "w", encoding="utf-8") as f:
-        json.dump({"v": 2, "source": "DUSEL_MASTER_11222.csv", "source_sha256": sha, "generated": gen,
+        json.dump({"v": 2, "source": os.path.basename(master), "source_sha256": sha, "generated": gen,
                    "fields": ["sektor", "qator", "joy", "holat"], "tickets": part}, f, ensure_ascii=False, separators=(",", ":"))
 # eski ortiqcha bo'laklarni olib tashlash
 for fn in os.listdir(d):
@@ -32,6 +32,6 @@ for fn in os.listdir(d):
     if m and int(m.group(1)) >= shards:
         os.remove(os.path.join(d, fn))
 with open(os.path.join(d, "manifest.json"), "w", encoding="utf-8") as f:
-    json.dump({"v": 2, "source": "DUSEL_MASTER_11222.csv", "source_sha256": sha, "generated": gen, "tickets": N,
+    json.dump({"v": 2, "source": os.path.basename(master), "source_sha256": sha, "generated": gen, "tickets": N,
                "shards": shards, "status_counts": {k: sum(r["STATUS"] == k for r in rows) for k in H}}, f, ensure_ascii=False, indent=1)
 print(f"OK {N} bilet, {shards} bo'lak, master sha256 {sha[:12]}…")

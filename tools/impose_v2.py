@@ -17,7 +17,8 @@ import segno
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MM = 72 / 25.4
-BASE_URL = "https://ravshanrakhmatullaev.github.io/dusel/?code="
+BASE_URL = "https://dusel.pages.dev/?code="
+QR_VERSION = 3
 
 # --- asl sahifa koordinatalari (PyMuPDF, chap-yuqori; asl PDF MediaBox [-1 -1 ...] hisobga olingan)
 FRONT = fitz.Rect(15.1732, 17.6947, 582.1024, 301.1592)   # 566.9292 x 283.4645 pt = 200.000 x 100.000 mm
@@ -39,7 +40,7 @@ REG = (1, 1, 1, 1)
 
 
 def qr_runs(url):
-    qr = segno.make(url, version=4, error="m", mode="byte", boost_error=False, micro=False)
+    qr = segno.make(url, version=QR_VERSION, error="m", mode="byte", boost_error=False, micro=False)
     m = [list(r) for r in qr.matrix_iter(scale=1, border=4)]
     runs = []
     for y, row in enumerate(m):

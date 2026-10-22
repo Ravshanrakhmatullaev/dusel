@@ -1,8 +1,8 @@
 import { chromium } from 'playwright';
 import fs from 'fs';
 const base=process.argv[2]||'http://localhost:8765/'; const ROOT=process.argv[3]||'/home/claude/work/final'; const out=ROOT+'/web'; fs.mkdirSync(out,{recursive:true});
-const lines=fs.readFileSync(ROOT+'/master/DUSEL_MASTER_11222.csv','utf8').replace(/^﻿/,'').trim().split('\n'); const hdr=lines[0].split(',');
-const M={}; for(const l of lines.slice(1)){const c=l.split(','); M[c[0]]={s:c[1],q:c[2],j:c[3],z:c[4],st:c[5]};}
+const lines=fs.readFileSync(ROOT+'/master/DUSEL_MASTER_FINAL.csv','utf8').replace(/^\uFEFF/,'').trim().split('\n'); const hdr=lines[0].split(',');
+const I=n=>hdr.indexOf(n); const M={}; for(const l of lines.slice(1)){const c=l.split(','); M[c[I('TICKET_NUMBER')]]={s:c[I('SECTOR')],q:c[I('ROW')],j:c[I('SEAT')],z:c[I('ZONE')],st:c[I('STATUS')]};}
 const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'}).catch(()=>chromium.launch());
 const R=[]; const ok=(n,c,d='')=>{R.push({test:n,ok:!!c,detail:String(d)});console.log((c?'PASS ':'FAIL ')+n+(d?' — '+d:''))};
 const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true});
@@ -42,5 +42,9 @@ for(const c of cs){await pc.goto(base+'?code='+c); await pc.waitForFunction(()=>
   const r=await pc.evaluate(()=>({inv:document.getElementById('ticket').classList.contains('invalid'),S:vS.textContent,Q:vQ.textContent,J:vJ.textContent,cls:document.getElementById('seats').className}));
   const m=M[c]; if(r.inv||r.S!==m.s||r.Q!==m.q||r.J!==m.j) bad.push(c);}
 ok(`${cs.length} ta URL (00001–10000 eski + 10001–11222 yangi): sahifa ochiladi, joy = master`, !bad.length, bad.join(','));
+// 404 sahifa: ildizda (Cloudflare) to'g'ri qaytaradi
+const p4=await (await b.newContext()).newPage();
+await p4.goto(base+'404.html'); await p4.waitForURL(/code=invalid/,{timeout:5000}).catch(()=>{});
+ok("404 sahifa ildizda (dusel.pages.dev) bosh sahifaga qaytaradi", new URL(p4.url()).pathname==='/' && p4.url().includes('code=invalid'), p4.url());
 await b.close(); fs.writeFileSync(out+'/site_tests_final.json',JSON.stringify(R,null,1));
 console.log(`${R.filter(r=>r.ok).length}/${R.length} PASS`);

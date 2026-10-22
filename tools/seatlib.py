@@ -34,6 +34,7 @@ def parse(path):
     wb = load_workbook(path)
     rows, sectors, floor_stated = [], [], {}
     vip = 0
+    vip_list = []
     for ws in wb.worksheets:
         sheet = ws.title
         for row in ws.iter_rows():
@@ -46,6 +47,7 @@ def parse(path):
                     if isinstance(c.value, str) and re.match(r"^(Ложа|VIP|Президент)", c.value.strip()):
                         v = ws.cell(c.row + 2, c.column).value
                         vip += int(v or 0)
+                        vip_list.append(dict(name=c.value.strip(), seats=int(v or 0), cell=f"{sheet}!{c.coordinate}"))
             continue
         mm = _merged_map(ws)
         for row in ws.iter_rows():
@@ -90,5 +92,5 @@ def parse(path):
                     r += 1
                 sectors.append(dict(sheet=sheet, sector_original=code, sector=code.translate(CYR2LAT),
                                     title=title, stated=stated, computed=computed, header=c.coordinate))
-    return dict(rows=rows, sectors=sectors, floor_stated=floor_stated, vip_seats=vip,
+    return dict(rows=rows, sectors=sectors, floor_stated=floor_stated, vip_seats=vip, vip_list=vip_list,
                 sheets=[w.title for w in wb.worksheets])

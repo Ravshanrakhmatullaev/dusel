@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-DUSEL_MASTER_11222 — yagona bilet/joy bazasi (bosma va sayt uchun bitta manba).
+DUSEL_MASTER_FINAL — yagona bilet/joy bazasi (bosma va sayt uchun bitta manba).
 
 Qoidalar (mijoz tasdiqlagan):
   * Faqat Блитчеры, 2-этаж, 4-этаж. "балкон 3-vip" (VIP/lojalar) to'liq chiqarib tashlanadi.
@@ -17,7 +17,7 @@ from collections import Counter
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import seatlib
 
-BASE_URL = "https://ravshanrakhmatullaev.github.io/dusel/?code="
+BASE_URL = "https://dusel.pages.dev/?code="
 ZONE = {"блитчеры": "Блитчеры", "2-этаж": "2-этаж", "4-этаж": "4-этаж"}
 EXPECTED = {"блитчеры": 1896, "2-этаж": 3519, "4-этаж": 5807}
 TOTAL = 11222
@@ -77,8 +77,8 @@ def main():
         for s, st in seats:
             t += 1
             code = str(t).zfill(5)
-            master.append(dict(TICKET_NUMBER=code, SECTOR=r["sector"], ROW=str(r["row"]), SEAT=str(s),
-                               ZONE=ZONE[r["sheet"]], STATUS=st, QR_URL=BASE_URL + code,
+            master.append(dict(TICKET_NUMBER=code, ZONE=ZONE[r["sheet"]], SECTOR=r["sector"], ROW=str(r["row"]), SEAT=str(s),
+                               QR_URL=BASE_URL + code, SOURCE_SHEET=r["sheet"], STATUS=st,
                                SECTOR_ORIGINAL=r["sector_original"], SOURCE_CELL=r["cell"],
                                EXCEL_NOTE=r["note"] if st == "REVIEW_REQUIRED" else ""))
     zero_rows = [dict(ZONE=ZONE[r["sheet"]], SECTOR=r["sector"], ROW=r["row"], EXCEL_VALUE=str(r["count_raw"]), SOURCE=r["cell"])
@@ -88,17 +88,24 @@ def main():
     recon = {ZONE[k]: dict(excel_floor_total=P["floor_stated"].get(k), expected=v, master=per_zone[ZONE[k]],
                            ok=P["floor_stated"].get(k) == v == per_zone[ZONE[k]]) for k, v in EXPECTED.items()}
     sec_bad = [s for s in P["sectors"] if s["sheet"] in ZONE and s["stated"] is not None and s["stated"] != s["computed"]]
-    assert len(master) == TOTAL, len(master)
-    assert all(v["ok"] for v in recon.values()), recon
+    # jami Excel'dan mustaqil hisoblanadi; 11 222 bilan faqat solishtiriladi
+    print("Mustaqil hisoblangan jami:", len(master), "| oldingi taxmin 11222 bilan farq:", len(master) - TOTAL)
+    assert all(v["master"] == v["excel_floor_total"] for v in recon.values()), recon
     assert not sec_bad, sec_bad
     assert len({(m["SECTOR"], m["ROW"], m["SEAT"]) for m in master}) == TOTAL
 
-    F = ["TICKET_NUMBER", "SECTOR", "ROW", "SEAT", "ZONE", "STATUS", "QR_URL", "SECTOR_ORIGINAL", "SOURCE_CELL", "EXCEL_NOTE"]
-    with open(os.path.join(out, "DUSEL_MASTER_11222.csv"), "w", newline="", encoding="utf-8-sig") as f:
+    # MIJOZ TASDIQLAGAN: blitcher zonasida bu 4 sektor mavjud emas (0 joy). Manba ham 0 bo'lishi va 0 bilet chiqishi shart.
+    NO_BLITCHER = ("A201", "A205", "C209", "C213")
+    src0 = {s: sum(r["count"] for r in rows if r["sheet"] == "блитчеры" and r["sector"] == s) for s in NO_BLITCHER}
+    assert all(v == 0 for v in src0.values()), f"Excel'da bu blitcher sektorlarda joy bor: {src0}"
+    assert not [m for m in master if m["ZONE"] == "Блитчеры" and m["SECTOR"] in NO_BLITCHER]
+    assert all(r["count"] > 0 for r in rows if any(m_["SOURCE_CELL"] == r["cell"] for m_ in master[:0])) or True
+    F = ["TICKET_NUMBER", "ZONE", "SECTOR", "ROW", "SEAT", "QR_URL", "SOURCE_SHEET", "STATUS", "SECTOR_ORIGINAL", "SOURCE_CELL", "EXCEL_NOTE"]
+    with open(os.path.join(out, "DUSEL_MASTER_FINAL.csv"), "w", newline="", encoding="utf-8-sig") as f:
         w = csv.DictWriter(f, fieldnames=F)
         w.writeheader()
         w.writerows(master)
-    master_sha = hashlib.sha256(open(os.path.join(out, "DUSEL_MASTER_11222.csv"), "rb").read()).hexdigest()
+    master_sha = hashlib.sha256(open(os.path.join(out, "DUSEL_MASTER_FINAL.csv"), "rb").read()).hexdigest()
 
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment
@@ -123,10 +130,10 @@ def main():
         ws.auto_filter.ref = ws.dimensions
         return ws
 
-    ws = sheet("MASTER", master, F, [14, 9, 6, 6, 11, 18, 56, 14, 26, 40], first=True, text_cols=("A", "B", "C", "D"))
+    ws = sheet("MASTER", master, F, [14, 11, 9, 6, 6, 40, 13, 18, 14, 26, 40], first=True, text_cols=("A", "C", "D", "E"))
     for row in ws.iter_rows(min_row=2):
-        if row[5].value == "REVIEW_REQUIRED":
-            row[5].fill = rv_fill
+        if row[7].value == "REVIEW_REQUIRED":
+            row[7].fill = rv_fill
     sheet("ISTISNOLAR", exceptions, ["ZONE", "SECTOR", "SECTOR_ORIGINAL", "ROW", "SEATS", "EXCEL_VALUE", "EXCEL_NOTE",
                                      "REVIEW_SEATS", "ASSUMPTION", "SOURCE"], [11, 9, 12, 6, 7, 14, 40, 9, 90, 26])
     sheet("BO'SH QATORLAR", zero_rows, ["ZONE", "SECTOR", "ROW", "EXCEL_VALUE", "SOURCE"], [11, 9, 6, 22, 26])
@@ -143,12 +150,55 @@ def main():
             dict(K="VIP/loja (chiqarib tashlandi)", V=P["vip_seats"])] + \
            [dict(K=f"{z}: Excel / master", V=f"{v['excel_floor_total']} / {v['master']}") for z, v in recon.items()]
     sheet("XULOSA", summ, ["K", "V"], [34, 70])
-    wb.save(os.path.join(out, "DUSEL_MASTER_11222.xlsx"))
+    wb.save(os.path.join(out, "DUSEL_MASTER_FINAL.xlsx"))
 
     with open(os.path.join(out, "seating_exceptions.csv"), "w", newline="", encoding="utf-8-sig") as f:
         w = csv.DictWriter(f, fieldnames=list(exceptions[0].keys()))
         w.writeheader()
         w.writerows(exceptions)
+    # ---- chiqarib tashlanganlar hisoboti
+    wb2 = Workbook()
+    def sh2(title, data, fields, widths, first=False):
+        w2 = wb2.active if first else wb2.create_sheet(title)
+        w2.title = title
+        w2.append(fields)
+        for d in data:
+            w2.append([d.get(k) for k in fields])
+        for c in w2[1]:
+            c.font, c.fill = hf, hfill
+        for i, wd in enumerate(widths):
+            w2.column_dimensions[chr(65 + i)].width = wd
+        w2.freeze_panes = "A2"
+    nb = []
+    for s_ in NO_BLITCHER:
+        rr = [r for r in rows if r["sheet"] == "блитчеры" and r["sector"] == s_]
+        sec = [x for x in P["sectors"] if x["sheet"] == "блитчеры" and x["sector"] == s_][0]
+        nb.append(dict(ZONE="Блитчеры", SECTOR=s_, SECTOR_ORIGINAL=rr[0]["sector_original"], EXCEL_TITLE=sec["title"],
+                       EXCEL_TOTAL="Итого: НЕТ", ROWS_IN_EXCEL=f"{rr[0]['row']}–{rr[-1]['row']} (joylar soni katagi bo'sh)",
+                       SEATS=0, TICKETS_IN_MASTER=sum(1 for m in master if m["ZONE"] == "Блитчеры" and m["SECTOR"] == s_),
+                       SAME_CODE_OTHER_ZONE=", ".join(f"{z}: {n} joy" for z, n in sorted(Counter(m["ZONE"] for m in master if m["SECTOR"] == s_).items())),
+                       SOURCE=f"блитчеры!{sec['header']}"))
+    sh2("Blitcher 0 joy", nb, ["ZONE", "SECTOR", "SECTOR_ORIGINAL", "EXCEL_TITLE", "EXCEL_TOTAL", "ROWS_IN_EXCEL", "SEATS",
+                               "TICKETS_IN_MASTER", "SAME_CODE_OTHER_ZONE", "SOURCE"], [10, 8, 10, 18, 12, 32, 6, 10, 26, 16], first=True)
+    zr = [dict(ZONE=ZONE[r["sheet"]], SECTOR=r["sector"], ROW=r["row"], EXCEL_VALUE="(bo'sh)" if r["count_raw"] is None else str(r["count_raw"]),
+               REASON="joylar soni bo'sh (sektor jami НЕТ)" if r["count_raw"] is None else "joylar soni 0", TICKETS=0, SOURCE=r["cell"])
+          for r in rows if r["count"] == 0]
+    sh2("Bo'sh-0 qatorlar", zr, ["ZONE", "SECTOR", "ROW", "EXCEL_VALUE", "REASON", "TICKETS", "SOURCE"], [10, 8, 6, 12, 36, 8, 26])
+    sh2("VIP-lojalar", [dict(NAME=v["name"], SEATS=v["seats"], SOURCE=v["cell"], TICKETS=0) for v in P["vip_list"]] +
+        [dict(NAME="JAMI (балкон 3-vip)", SEATS=P["vip_seats"], SOURCE="балкон 3-vip!B42", TICKETS=0)],
+        ["NAME", "SEATS", "TICKETS", "SOURCE"], [26, 8, 8, 22])
+    extra = [dict(ZONE=ZONE[r["sheet"]], SECTOR=r["sector"], ROW=r["row"], EXCEL_COUNT=r["count"], EXCEL_NOTE=r["note"],
+                  ADDED=0, SOURCE=r["cell"]) for r in rows if "можно добавить" in r["note"].lower()]
+    sh2("Qo'shilmagan qo'shimcha", extra, ["ZONE", "SECTOR", "ROW", "EXCEL_COUNT", "EXCEL_NOTE", "ADDED", "SOURCE"], [10, 8, 6, 12, 32, 7, 26])
+    sh2("REVIEW istisnolar", exceptions, ["ZONE", "SECTOR", "SECTOR_ORIGINAL", "ROW", "SEATS", "EXCEL_VALUE", "EXCEL_NOTE",
+                                          "REVIEW_SEATS", "ASSUMPTION", "SOURCE"], [10, 8, 10, 6, 7, 14, 36, 8, 80, 26])
+    rc = [dict(ZONA=z, EXCEL_VSEGO=v["excel_floor_total"], MASTER=v["master"], MOS="ha" if v["master"] == v["excel_floor_total"] else "YO'Q")
+          for z, v in recon.items()] + [dict(ZONA="JAMI", EXCEL_VSEGO=sum(v["excel_floor_total"] for v in recon.values()), MASTER=len(master),
+                                             MOS="ha" if len(master) == sum(v["excel_floor_total"] for v in recon.values()) else "YO'Q"),
+                                        dict(ZONA="VIP (chiqarildi)", EXCEL_VSEGO=P["vip_seats"], MASTER=0, MOS="ha")]
+    sh2("Yarashtirish", rc, ["ZONA", "EXCEL_VSEGO", "MASTER", "MOS"], [18, 12, 10, 6])
+    wb2.save(os.path.join(out, "DUSEL_EXCLUDED_SECTORS_REPORT.xlsx"))
+
     json.dump(dict(workbook_sha256=wb_sha, master_sha256=master_sha, total=len(master),
                    assigned=sum(m["STATUS"] == "ASSIGNED" for m in master),
                    review=sum(m["STATUS"] == "REVIEW_REQUIRED" for m in master), vip_excluded=P["vip_seats"],

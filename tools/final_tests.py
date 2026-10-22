@@ -17,7 +17,7 @@ SITE = sys.argv[2]           # dusel repo
 WB = sys.argv[3]             # места.xlsx
 SRC_PDF = sys.argv[4]        # Bilet_final.pdf
 MM = 72 / 25.4
-BASE = "https://ravshanrakhmatullaev.github.io/dusel/?code="
+BASE = "https://dusel.pages.dev/?code="
 N = 11222
 R = []
 
@@ -34,7 +34,7 @@ def dec_png(path):
 
 
 def main():
-    M = list(csv.DictReader(open(os.path.join(ROOT, "master/DUSEL_MASTER_11222.csv"), encoding="utf-8-sig")))
+    M = list(csv.DictReader(open(os.path.join(ROOT, "master/DUSEL_MASTER_FINAL.csv"), encoding="utf-8-sig")))
     codes = [str(i).zfill(5) for i in range(1, N + 1)]
     # ---------------- A. MASTER
     S = "MASTER"
@@ -67,6 +67,20 @@ def main():
           ft["блитчеры"] == zc["Блитчеры"] == 1896 and ft["2-этаж"] == zc["2-этаж"] == 3519 and ft["4-этаж"] == zc["4-этаж"] == 5807,
           dict(zc))
     check(S, "VIP (балкон 3-vip, 571 joy) chiqarib tashlangan", P["vip_seats"] == 571 and "балкон" not in "".join(zc))
+    NOB = ("A201", "A205", "C209", "C213")
+    src_nob = {s_: sum(r["count"] for r in rows if r["sheet"] == "блитчеры" and r["sector"] == s_) for s_ in NOB}
+    got_nob = {s_: sum(1 for m in M if m["ZONE"] == "Блитчеры" and m["SECTOR"] == s_) for s_ in NOB}
+    check(S, "Blitcher A201, A205, C209, C213: Excel'da 0 joy va masterda 0 bilet", all(v == 0 for v in src_nob.values()) and all(v == 0 for v in got_nob.values()),
+          f"Excel {src_nob}; master {got_nob}; shu kodlar faqat 2-этаж da: " + ", ".join(f"{s_}={sum(1 for m in M if m['SECTOR']==s_ and m['ZONE']=='2-этаж')}" for s_ in NOB))
+    zkey = {"блитчеры": "Блитчеры", "2-этаж": "2-этаж", "4-этаж": "4-этаж"}
+    zero = {(zkey[r["sheet"]], r["sector"], r["row"]) for r in rows if r["count"] == 0}
+    used = {(m["ZONE"], m["SECTOR"], int(m["ROW"])) for m in M}
+    pos = {(zkey[r["sheet"]], r["sector"], r["row"]): r["count"] for r in rows}
+    check(S, "Bo'sh/0/НЕТ qatorlarning birortasi masterda yo'q; har bir master qatori Excel'dagi musbat sonli qatordan",
+          not (zero & used) and all(pos.get(k, 0) > 0 for k in used), f"{len(zero)} ta bo'sh qator chiqarildi, {len(used)} ta qator ishlatildi")
+    check(S, "SOURCE_SHEET faqat блитчеры / 2-этаж / 4-этаж va ZONE ga mos",
+          all(zkey[m["SOURCE_SHEET"]] == m["ZONE"] for m in M))
+    check(S, "Barcha QR URL https://dusel.pages.dev/ ; github.io yo'q", all(u.startswith("https://dusel.pages.dev/?code=") for u in urls) and not any("github.io" in u for u in urls))
     ex = list(csv.DictReader(open(os.path.join(ROOT, "master/seating_exceptions.csv"), encoding="utf-8-sig")))
     noted = {(r["sector"], r["row"]) for r in rows if r["note"] or r["special"]}
     exk = {(e["SECTOR"], int(e["ROW"])) for e in ex}
@@ -111,13 +125,13 @@ def main():
             bads.append(c)
     check(S, "SVG namunasi (305 ta, chegaralar bilan) dekodlandi", not bads, bads[:5])
     s = open(os.path.join(ROOT, "qr/QR_SVG/00001.svg")).read()
-    check(S, "SVG 17 mm, 41 modul (v4-M, 4 modul oq himoya maydoni); PNG 984 px, 300 dpi metama'lumot",
-          'width="17.0mm"' in s and 'viewBox="0 0 41 41"' in s and Image.open(os.path.join(ROOT, "qr/QR_PNG/00001.png")).size == (984, 984))
-    for zn, sub, ext in (("DUSEL_QR_SVG_11222.zip", "QR_SVG", "svg"), ("DUSEL_QR_PNG_11222.zip", "QR_PNG", "png")):
-        with zipfile.ZipFile(os.path.join(ROOT, "qr", zn)) as z:
-            names = z.namelist()
-            okz = z.testzip() is None and names == [f"{sub}/{c}.{ext}" for c in codes]
-        check(S, f"{zn}: 11 222 fayl, CRC xatosiz", okz)
+    check(S, "SVG 17 mm, 37 modul (v3-M, 4 modul oq himoya maydoni, modul 0.46 mm); PNG 888 px, 300 dpi metama'lumot",
+          'width="17.0mm"' in s and 'viewBox="0 0 37 37"' in s and Image.open(os.path.join(ROOT, "qr/QR_PNG/00001.png")).size == (888, 888))
+    with zipfile.ZipFile(os.path.join(ROOT, "out/DUSEL_QR_FINAL_CLOUDFLARE.zip")) as z:
+        names = set(z.namelist())
+        okz = z.testzip() is None and {f"QR_SVG/{c}.svg" for c in codes} | {f"QR_PNG/{c}.png" for c in codes} <= names
+        zsvg = z.read("QR_SVG/11222.svg").decode()
+    check(S, "DUSEL_QR_FINAL_CLOUDFLARE.zip: 11 222 SVG + 11 222 PNG, CRC xatosiz, ichidagi fayl = generatsiya", okz and zsvg == open(os.path.join(ROOT, "qr/QR_SVG/11222.svg")).read(), f"{len(names)} fayl")
 
     # ---------------- C. SAYT MA'LUMOTI
     S = "SAYT"
@@ -127,22 +141,24 @@ def main():
         d = json.load(open(f))
         shas.add(d["source_sha256"])
         web.update(d["tickets"])
-    msha = hashlib.sha256(open(os.path.join(ROOT, "master/DUSEL_MASTER_11222.csv"), "rb").read()).hexdigest()
+    msha = hashlib.sha256(open(os.path.join(ROOT, "master/DUSEL_MASTER_FINAL.csv"), "rb").read()).hexdigest()
     H = {"ASSIGNED": "ok", "REVIEW_REQUIRED": "review"}
     exp = {m["TICKET_NUMBER"]: [m["SECTOR"], m["ROW"], m["SEAT"], H[m["STATUS"]]] for m in M}
     check(S, "Sayt JSON = master (11 222 yozuv, sektor/qator/joy/holat har biri mos)", web == exp, f"{len(web)} yozuv")
     check(S, "Barcha JSON bo'laklari bitta master SHA-256 dan", shas == {msha}, msha[:16])
     html = open(os.path.join(SITE, "index.html"), encoding="utf-8").read()
-    check(S, "Sayt 00001–11222 qabul qiladi, URL formati o'zgarmagan (?code=NNNNN)", "MAX=11222" in html and "get('code')" in html)
+    check(S, f"Sayt 00001–{N} qabul qiladi (MAX={N}), URL formati ?code=NNNNN, ma'lumot nisbiy yo'ldan (data/seats/)",
+          f"MAX={N}" in html and "get('code')" in html and "'data/seats/s'" in html and "github.io" not in html)
     check(S, "TEST NAMUNA banneri yo'q; 'tasdiqlangan/haqiqiy bilet' da'vosi yo'q",
           "TEST NAMUNA" not in html and not re.search(r"(?i)verified|haqiqiy bilet|tasdiqlangan bilet", html))
 
     # ---------------- D. BOSMA PDF
     S = "PDF"
-    F = fitz.open(os.path.join(ROOT, "print/DUSEL_FRONT_11222_CMYK.pdf"))
-    B = fitz.open(os.path.join(ROOT, "print/DUSEL_BACK_11222_CMYK.pdf"))
-    check(S, "FRONT: 1871 list", F.page_count == 1871, F.page_count)
-    check(S, "BACK: 1871 list", B.page_count == 1871, B.page_count)
+    F = fitz.open(os.path.join(ROOT, "out/DUSEL_FRONT_FINAL_CMYK.pdf"))
+    B = fitz.open(os.path.join(ROOT, "out/DUSEL_BACK_6UP_SINGLE_PAGE_CMYK.pdf"))
+    NS = -(-N // 6)
+    check(S, f"FRONT: {NS} list (= ceil({N}/6))", F.page_count == NS, F.page_count)
+    check(S, "BACK: AYNAN 1 sahifa", B.page_count == 1, B.page_count)
     sz = {(round(p.mediabox.width / MM, 3), round(p.mediabox.height / MM, 3), round(p.trimbox.width / MM, 3)) for doc in (F, B) for p in doc}
     check(S, "Har bir sahifa 450 × 320 mm (MediaBox = TrimBox)", sz == {(450.0, 320.0, 450.0)}, sz)
     tw, th = IV.FRONT.width, IV.FRONT.height
@@ -166,15 +182,15 @@ def main():
                     geo_bad.append((p.number, "pozitsiya", list(bb)))
             cnt.append(n)
     check(S, "Har bir bilet 200 × 100 mm, masshtab 1:1, 6-up to'r pozitsiyalarida (barcha sahifalar)", not geo_bad, geo_bad[:3])
-    check(S, "1870 list × 6 + oxirgi list 2 bilet (old va orqa)",
-          counts_f[:-1] == [6] * 1870 and counts_f[-1] == 2 and counts_b == counts_f, f"oxirgi: front {counts_f[-1]}, back {counts_b[-1]}")
+    check(S, f"FRONT: {NS - 1} list × 6 + oxirgi list {N - (NS - 1) * 6} bilet; BACK: 1 sahifada 6 ta orqa",
+          counts_f[:-1] == [6] * (NS - 1) and counts_f[-1] == N - (NS - 1) * 6 and counts_b == [6], f"oxirgi front {counts_f[-1]}, back {counts_b}")
     # orqa tomon oxirgi listda: front slot 1,2 (yuqori qator) -> orqa yuqori qator
     HH = 320 * MM  # get_xobjects bbox PDF koordinatada (pastdan) -> yuqoridan hisoblash
-    lastb = [(round(bb[0], 2), round(HH - bb[3], 2)) for (x, nm, inv, bb) in B[-1].get_xobjects() if inv == 0 and nm.startswith("fzFrm")]
-    lastf = [(round(bb[0], 2), round(HH - bb[3], 2)) for (x, nm, inv, bb) in F[-1].get_xobjects() if inv == 0 and nm.startswith("fzFrm")]
-    check(S, "Oxirgi listda orqa tomon aynan 2 ta old bilet orqasida (yuqori qator, chap-o'ng ko'zgu)",
-          sorted(lastf) == sorted((round(x, 2), round(y, 2)) for x, y in slots[:2]) and
-          sorted(lastb) == sorted((round(450 * MM - x - tw, 2), round(y, 2)) for x, y in slots[:2]), f"old {lastf}, orqa {lastb}")
+    bpos = sorted((round(bb[0], 1), round(HH - bb[3], 1)) for (x, nm, inv, bb) in B[0].get_xobjects() if inv == 0 and nm.startswith("fzFrm"))
+    fpos = [(bb[0], HH - bb[3]) for (x, nm, inv, bb) in F[0].get_xobjects() if inv == 0 and nm.startswith("fzFrm")]
+    mirrored = sorted((round(450 * MM - x - tw, 1), round(y, 1)) for x, y in fpos)
+    check(S, "Orqa 6 ta pozitsiya = old pozitsiyalarning chap-o'ng ko'zgusi (chapdan-o'ngga aylantirishda ustma-ust)",
+          bpos == mirrored and len(bpos) == 6, f"{bpos}")
     # matn: raqam + sektor/qator/joy BARCHA biletlar
     printed = {}
     for p in F:
@@ -197,7 +213,7 @@ def main():
           f"{len(printed)} raqam")
     check(S, "Bosilgan SEKTOR/QATOR/JOY = master (barcha 11 222 bilet)", seat_ok and len(printed) == N)
     # QR dekodlash: birinchi, o'rta, oxirgi + tasodifiy listlar
-    pages = sorted({0, 935, 1870} | set(random.Random(5).sample(range(1871), 25)))
+    pages = sorted({0, NS // 2, NS - 1} | set(random.Random(5).sample(range(NS), 25)))
     qbad, qn = [], 0
     for pi in pages:
         p = F[pi]
@@ -217,8 +233,8 @@ def main():
           qbad[:3] or f"{qn} QR")
     # kesish belgilari va ramka
     cm_bad = []
-    for pi in (0, 935, 1870):
-        for doc in (F, B):
+    for pi in (0, NS // 2, NS - 1):
+        for doc in ((F, B) if pi == 0 else (F,)):
             dr = doc[pi].get_drawings()
             lines = [it for g in dr if g.get("width") and abs(g["width"] - 0.25) < 1e-3 for it in g["items"] if it[0] == "l"]
             hair = [g for g in dr if g.get("width") and abs(g["width"] - 0.216) < 0.01]
@@ -230,7 +246,7 @@ def main():
     check(S, "Varaq hoshiyasida texnik yozuv yo'q", not stray, stray[:5])
     # CMYK + shriftlar
     sys.path.insert(0, os.path.join(ROOT, "tools"))
-    for name, doc_path in (("FRONT", "print/DUSEL_FRONT_11222_CMYK.pdf"), ("BACK", "print/DUSEL_BACK_11222_CMYK.pdf")):
+    for name, doc_path in (("FRONT", "out/DUSEL_FRONT_FINAL_CMYK.pdf"), ("BACK", "out/DUSEL_BACK_6UP_SINGLE_PAGE_CMYK.pdf")):
         dd = fitz.open(os.path.join(ROOT, doc_path))
         kinds, rgb_ops, kvals = set(), 0, set()
         for x in range(1, dd.xref_length()):
@@ -285,7 +301,7 @@ def main():
     for x, y in slots:
         rp.show_pdf_page(fitz.Rect(x, y, x + tw, y + th), cm, 0, clip=IV.FRONT)
     tot_changed = 0
-    for pi in (0, 935):
+    for pi in (0, NS // 2):
         pa = F[pi].get_pixmap(dpi=120, colorspace=fitz.csCMYK)
         pb = rp.get_pixmap(dpi=120, colorspace=fitz.csCMYK)
         A = np.frombuffer(pa.samples, np.uint8).reshape(pa.h, pa.w, pa.n)[:, :, :4].astype(int)
@@ -304,9 +320,22 @@ def main():
         tot_changed += int((D[~mask] > 2).sum())
     check(S, "Ishlab chiqarish listlari (1, 936): o'zgaruvchan maydonlardan tashqarida artwork 0 piksel farq (CMYK siyoh qiymatlari)", tot_changed == 0, f"o'zgargan piksel: {tot_changed}")
     # proof = production list 1
-    pr = fitz.open(os.path.join(ROOT, "proof/DUSEL_PROOF_6UP_CMYK.pdf"))
-    check(S, "6 biletli proof = ishlab chiqarish FRONT 1-list va BACK 1-list (piksel bo'yicha bir xil)",
-          pr[0].get_pixmap(dpi=60).samples == F[0].get_pixmap(dpi=60).samples and pr[1].get_pixmap(dpi=60).samples == B[0].get_pixmap(dpi=60).samples)
+    pr = fitz.open(os.path.join(ROOT, "out/DUSEL_TEST_6UP.pdf"))
+    check(S, "DUSEL_TEST_6UP.pdf = FRONT 1-list (piksel bo'yicha bir xil)", pr.page_count == 1 and pr[0].get_pixmap(dpi=60).samples == F[0].get_pixmap(dpi=60).samples)
+    # orqa: asl orqa artwork o'zgarmagan (faqat-artwork etalon bilan 0 farq)
+    refb = fitz.open()
+    rb = refb.new_page(width=450 * MM, height=320 * MM)
+    for (x, y) in slots:
+        mx = 450 * MM - x - tw
+        rb.show_pdf_page(fitz.Rect(mx, y, mx + tw, y + th), cm, 0, clip=IV.BACK)
+    pa = B[0].get_pixmap(dpi=120, colorspace=fitz.csCMYK)
+    pb = rb.get_pixmap(dpi=120, colorspace=fitz.csCMYK)
+    A_ = np.frombuffer(pa.samples, np.uint8).reshape(pa.h, pa.w, pa.n).astype(int)
+    B_ = np.frombuffer(pb.samples, np.uint8).reshape(pb.h, pb.w, pb.n).astype(int)
+    gx0, gy0 = int(ox * 120 / 72) + 1, int(oy * 120 / 72) + 1
+    gx1, gy1 = int((ox + 2 * tw) * 120 / 72) - 1, int((oy + 3 * th) * 120 / 72) - 1
+    bd = int((np.abs(A_ - B_).max(2)[gy0:gy1, gx0:gx1] > 2).sum())
+    check(S, "BACK: orqa artwork o'zgarmagan (bilet maydonida 0 piksel farq, CMYK)", bd == 0, f"o'zgargan piksel: {bd}")
     passed = sum(r["ok"] for r in R)
     print(f"\n{passed}/{len(R)} PASS")
     json.dump(R, open(os.path.join(ROOT, "final_test_results.json"), "w"), ensure_ascii=False, indent=1)

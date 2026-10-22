@@ -1,10 +1,10 @@
 {
-  "base_url": "https://ravshanrakhmatullaev.github.io/dusel/?code=",
+  "base_url": "https://dusel.pages.dev/?code=",
   "first": 1,
   "last": 11222,
   "digits": 5,
   "qr": {
-    "version": 4,
+    "version": 3,
     "error": "M",
     "quiet_zone_modules": 4,
     "svg_size_mm": 17.0,

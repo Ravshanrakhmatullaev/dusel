@@ -187,7 +187,7 @@ button.where:focus-visible,.maps a:focus-visible{outline:3px solid var(--ink);ou
       <p class="sr" id="srnum" aria-live="polite"></p>
       <div class="err" id="err">
         <h2>Bilet raqami topilmadi</h2>
-        <p>Havolada <code>00001</code>–<code>10000</code> oralig'idagi 5 xonali raqam bo'lishi kerak. Biletdagi QR kodni qayta skanerlang.</p>
+        <p>Havolada <code>00001</code>–<code>11222</code> oralig'idagi 5 xonali raqam bo'lishi kerak. Biletdagi QR kodni qayta skanerlang.</p>
       </div>
       <section class="seats loading" id="seats" aria-label="Joy ma'lumoti" aria-live="polite">
         <div class="seat-grid">
@@ -214,7 +214,7 @@ button.where:focus-visible,.maps a:focus-visible{outline:3px solid var(--ink);ou
 </main>
 <script>
 (function(){
-  var MIN=1, MAX=10000;
+  var MIN=1, MAX=11222;
   var raw=(new URLSearchParams(location.search).get('code')||'');
   var ok=/^\d{5}$/.test(raw) && +raw>=MIN && +raw<=MAX;
   var t=document.getElementById('ticket'), num=document.getElementById('num');

@@ -1,0 +1,23 @@
+﻿ZONE,SECTOR,SECTOR_ORIGINAL,ROW,SEATS,EXCEL_VALUE,EXCEL_NOTE,REVIEW_SEATS,ASSUMPTION,SOURCE
+2-этаж,A202,А202,16,22,22,с 16го нет номеров,22,"Izoh: 'с 16го нет номеров'. Joylar 1–22 ketma-ket, fizik raqamlash tekshirilishi kerak.",2-этаж!F12:H12
+2-этаж,A202,А202,17,18,18,,18,16-qatordagi izoh 'с 16го нет номеров' ('16-dan boshlab raqam yo'q') ehtiyotkorlik uchun 17–18 qatorlarga ham tatbiq etildi. Joylar 1–18 ketma-ket.,2-этаж!F13:H13
+2-этаж,A202,А202,18,21,21,,21,16-qatordagi izoh 'с 16го нет номеров' ('16-dan boshlab raqam yo'q') ehtiyotkorlik uchun 17–18 qatorlarga ham tatbiq etildi. Joylar 1–21 ketma-ket.,2-этаж!F14:H14
+2-этаж,A203,А203,15,24,Хумо А 24,нет номеров,24,"Maxsus yozuv 'Хумо А 24': 24 joy, o'rindiqlarda raqam yo'q (нет номеров). Qator belgisi Excel'dagi 'Ряд' ustunidan (15). Joylar 1–24 ketma-ket (mijoz tasdiqlagan qoida).",2-этаж!J11:L11
+2-этаж,B206,В206,15,15,15,можно добавить ещё 2 места,15,"Izoh: 'можно добавить ещё 2 места'. Joylar 1–15 ketma-ket, fizik raqamlash tekshirilishi kerak. Izohdagi qo'shimcha joylar Excel sonida yo'q — QO'SHILMADI.",2-этаж!F25:H25
+2-этаж,B206,В206,16,16,16,можно добавить ещё 2 места,16,"Izoh: 'можно добавить ещё 2 места'. Joylar 1–16 ketma-ket, fizik raqamlash tekshirilishi kerak. Izohdagi qo'shimcha joylar Excel sonida yo'q — QO'SHILMADI.",2-этаж!F26:H26
+2-этаж,B206,В206,18,18,18,помле 16 идёт 18-19,18,"Izoh: 'помле 16 идёт 18-19'. Joylar 1–18 ketma-ket, fizik raqamlash tekshirilishi kerak.",2-этаж!F28:H28
+2-этаж,B207,В207,16,24,24,неправильно расставлены + нет номеров,24,"Izoh: 'неправильно расставлены + нет номеров'. Joylar 1–24 ketma-ket, fizik raqamlash tekshirilishi kerak.",2-этаж!J26:L26
+2-этаж,B207,В207,17,24,24,неправильно расставлены + нет номеров,24,"Izoh: 'неправильно расставлены + нет номеров'. Joylar 1–24 ketma-ket, fizik raqamlash tekshirilishi kerak.",2-этаж!J27:L27
+2-этаж,B207,В207,18,28,28,неправильно расставлены + нет номеров,28,"Izoh: 'неправильно расставлены + нет номеров'. Joylar 1–28 ketma-ket, fizik raqamlash tekshirilishi kerak.",2-этаж!J28:L28
+2-этаж,B208,В208,16,15,15,можно добавить первые 4 места,15,"Izoh: 'можно добавить первые 4 места'. Joylar 1–15 ketma-ket, fizik raqamlash tekshirilishi kerak. Izohdagi qo'shimcha joylar Excel sonida yo'q — QO'SHILMADI.",2-этаж!N26:P26
+2-этаж,C210,С210,16,22,22,последние 4 места без цифр,4,Izoh: 'последние 4 места без цифр'. 1–18 joylar raqamli (ASSIGNED); oxirgi 4 joy (19–22) raqamsiz — REVIEW_REQUIRED.,2-этаж!F40:H40
+2-этаж,C211,С211,14,24, ХУМО С 24 ,"наклейки на подлокотниках, без номеров на сиденьях",24,"Maxsus yozuv 'ХУМО С 24': 24 joy, o'rindiqlarda raqam yo'q (наклейки на подлокотниках, без номеров на сиденьях). Qator belgisi Excel'dagi 'Ряд' ustunidan (14). Joylar 1–24 ketma-ket (mijoz tasdiqlagan qoida).",2-этаж!J38:L38
+Блитчеры,C212,С212,4,25,25,номера расставлены не правильно,25,"Izoh: 'номера расставлены не правильно'. Joylar 1–25 ketma-ket, fizik raqamlash tekshirilishi kerak. Izoh birlashtirilgan katakda (P31:P34) — shu oraliqdagi barcha qatorlarga tegishli deb olindi.",блитчеры!N31:P31
+Блитчеры,C212,С212,5,25,25,номера расставлены не правильно,25,"Izoh: 'номера расставлены не правильно'. Joylar 1–25 ketma-ket, fizik raqamlash tekshirilishi kerak. Izoh birlashtirilgan katakda (P31:P34) — shu oraliqdagi barcha qatorlarga tegishli deb olindi.",блитчеры!N32:P32
+Блитчеры,C212,С212,6,25,25,номера расставлены не правильно,25,"Izoh: 'номера расставлены не правильно'. Joylar 1–25 ketma-ket, fizik raqamlash tekshirilishi kerak. Izoh birlashtirilgan katakda (P31:P34) — shu oraliqdagi barcha qatorlarga tegishli deb olindi.",блитчеры!N33:P33
+Блитчеры,C212,С212,7,25,25,номера расставлены не правильно,25,"Izoh: 'номера расставлены не правильно'. Joylar 1–25 ketma-ket, fizik raqamlash tekshirilishi kerak. Izoh birlashtirilgan katakda (P31:P34) — shu oraliqdagi barcha qatorlarga tegishli deb olindi.",блитчеры!N34:P34
+2-этаж,C212,С212,16,22,22,цифры не правильно расставлены,22,"Izoh: 'цифры не правильно расставлены'. Joylar 1–22 ketma-ket, fizik raqamlash tekshirilishi kerak.",2-этаж!N40:P40
+4-этаж,A405,А405,13,28,28,нет номеров,28,"Izoh: 'нет номеров'. Joylar 1–28 ketma-ket, fizik raqamlash tekshirilishi kerak.",4-этаж!B32:D32
+4-этаж,B406,В406,13,15,15,нет номеров,15,"Izoh: 'нет номеров'. Joylar 1–15 ketma-ket, fizik raqamlash tekshirilishi kerak.",4-этаж!F32:H32
+4-этаж,B408,В408,13,12,12,нет номеров,12,"Izoh: 'нет номеров'. Joylar 1–12 ketma-ket, fizik raqamlash tekshirilishi kerak.",4-этаж!N32:P32
+4-этаж,C409,С409,13,34,34,нет номеров,34,"Izoh: 'нет номеров'. Joylar 1–34 ketma-ket, fizik raqamlash tekshirilishi kerak.",4-этаж!B52:D52

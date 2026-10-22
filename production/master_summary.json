@@ -1,0 +1,38 @@
+{
+ "workbook_sha256": "dfe3d2185d22485d8c1a199bcda543aebd002682723a23569ebcac58e5b021c9",
+ "master_sha256": "af6e72c1f20db569f9a2128ad869b94b0bdd9ef125372a4f952446aa8d6c11c1",
+ "total": 11222,
+ "assigned": 10758,
+ "review": 464,
+ "vip_excluded": 571,
+ "reconciliation": {
+  "Блитчеры": {
+   "excel_floor_total": 1896,
+   "expected": 1896,
+   "master": 1896,
+   "ok": true
+  },
+  "2-этаж": {
+   "excel_floor_total": 3519,
+   "expected": 3519,
+   "master": 3519,
+   "ok": true
+  },
+  "4-этаж": {
+   "excel_floor_total": 5807,
+   "expected": 5807,
+   "master": 5807,
+   "ok": true
+  }
+ },
+ "exception_rows": 22,
+ "zero_rows": 40,
+ "sector_sections": 48,
+ "row_records": 481,
+ "sheets": [
+  "блитчеры",
+  "2-этаж",
+  "балкон 3-vip",
+  "4-этаж"
+ ]
+}

@@ -1,0 +1,137 @@
+[
+ {
+  "test": "00001: sayt A201/9/1 = master A201/9/1 (ASSIGNED)",
+  "ok": true,
+  "detail": "izohsiz"
+ },
+ {
+  "test": "00002: sayt A201/9/2 = master A201/9/2 (ASSIGNED)",
+  "ok": true,
+  "detail": "izohsiz"
+ },
+ {
+  "test": "00003: sayt A201/9/3 = master A201/9/3 (ASSIGNED)",
+  "ok": true,
+  "detail": "izohsiz"
+ },
+ {
+  "test": "00006: sayt A201/9/6 = master A201/9/6 (ASSIGNED)",
+  "ok": true,
+  "detail": "izohsiz"
+ },
+ {
+  "test": "05611: sayt A401/7/10 = master A401/7/10 (ASSIGNED)",
+  "ok": true,
+  "detail": "izohsiz"
+ },
+ {
+  "test": "10000: sayt C413/11/26 = master C413/11/26 (ASSIGNED)",
+  "ok": true,
+  "detail": "izohsiz"
+ },
+ {
+  "test": "10001: sayt C413/11/27 = master C413/11/27 (ASSIGNED)",
+  "ok": true,
+  "detail": "izohsiz"
+ },
+ {
+  "test": "11221: sayt D416/12/11 = master D416/12/11 (ASSIGNED)",
+  "ok": true,
+  "detail": "izohsiz"
+ },
+ {
+  "test": "11222: sayt D416/12/12 = master D416/12/12 (ASSIGNED)",
+  "ok": true,
+  "detail": "izohsiz"
+ },
+ {
+  "test": "01108: sayt A203/15/1 = master A203/15/1 (REVIEW_REQUIRED)",
+  "ok": true,
+  "detail": "neytral izoh ko‘rinadi"
+ },
+ {
+  "test": "03835: sayt C211/14/24 = master C211/14/24 (REVIEW_REQUIRED)",
+  "ok": true,
+  "detail": "neytral izoh ko‘rinadi"
+ },
+ {
+  "test": "03339: sayt C210/16/18 = master C210/16/18 (ASSIGNED)",
+  "ok": true,
+  "detail": "izohsiz"
+ },
+ {
+  "test": "03340: sayt C210/16/19 = master C210/16/19 (REVIEW_REQUIRED)",
+  "ok": true,
+  "detail": "neytral izoh ko‘rinadi"
+ },
+ {
+  "test": "03936: sayt C212/5/1 = master C212/5/1 (REVIEW_REQUIRED)",
+  "ok": true,
+  "detail": "neytral izoh ko‘rinadi"
+ },
+ {
+  "test": "#gmap → Humo Arena",
+  "ok": true,
+  "detail": "https://www.google.com/maps/search/?api=1&query=Humo+Arena+Tashkent"
+ },
+ {
+  "test": "#ymap → Humo Arena",
+  "ok": true,
+  "detail": "https://yandex.uz/maps/org/42137198861/"
+ },
+ {
+  "test": "Google/Yandex brend SVG ikonkalari, aria-label",
+  "ok": true,
+  "detail": "[22,22]"
+ },
+ {
+  "test": "Noto'g'ri havola \"?code=11223\" rad etiladi",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "test": "Noto'g'ri havola \"?code=00000\" rad etiladi",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "test": "Noto'g'ri havola \"?code=1234\" rad etiladi",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "test": "Noto'g'ri havola \"(bo'sh)\" rad etiladi",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "test": "320x568: siljish yo'q, kartalar sig'adi, raqam 11222",
+  "ok": true,
+  "detail": "scrollWidth 320"
+ },
+ {
+  "test": "360x740: siljish yo'q, kartalar sig'adi, raqam 11222",
+  "ok": true,
+  "detail": "scrollWidth 360"
+ },
+ {
+  "test": "375x667: siljish yo'q, kartalar sig'adi, raqam 11222",
+  "ok": true,
+  "detail": "scrollWidth 375"
+ },
+ {
+  "test": "412x915: siljish yo'q, kartalar sig'adi, raqam 11222",
+  "ok": true,
+  "detail": "scrollWidth 412"
+ },
+ {
+  "test": "1366x900: siljish yo'q, kartalar sig'adi, raqam 11222",
+  "ok": true,
+  "detail": "scrollWidth 1366"
+ },
+ {
+  "test": "159 ta URL (00001–10000 eski + 10001–11222 yangi): sahifa ochiladi, joy = master",
+  "ok": true,
+  "detail": ""
+ }
+]

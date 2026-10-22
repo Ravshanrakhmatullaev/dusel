@@ -1,0 +1,62 @@
+{
+  "base_url": "https://ravshanrakhmatullaev.github.io/dusel/?code=",
+  "first": 1,
+  "last": 11222,
+  "digits": 5,
+  "qr": {
+    "version": 4,
+    "error": "M",
+    "quiet_zone_modules": 4,
+    "svg_size_mm": 17.0,
+    "png_px_per_module": 24,
+    "png_dpi": 300
+  },
+  "imposition": {
+    "sheet_w_mm": 450,
+    "sheet_h_mm": 320,
+    "cols": 2,
+    "rows": 3,
+    "gap_x_mm": 0,
+    "gap_y_mm": 0,
+    "crop_marks": true,
+    "crop_mark_len_mm": 5,
+    "crop_mark_offset_mm": 2,
+    "slug_text": true,
+    "chunk_sheets": 0
+  },
+  "ticket": {
+    "source_pdf": "Bilet_final.pdf",
+    "front_rect_pt": [
+      15.2,
+      17.7,
+      582.1,
+      301.2
+    ],
+    "back_rect_pt": [
+      15.1,
+      315.6,
+      582.1,
+      599.2
+    ],
+    "qr_box_pt": [
+      425.2,
+      231.7,
+      474.0,
+      280.5
+    ],
+    "number_box_pt": [
+      425.2,
+      278.3,
+      474.0,
+      289.0
+    ],
+    "number_x_pt": 437.4,
+    "number_font_pt": 7.6,
+    "number_color_rgb": [
+      0,
+      0,
+      0
+    ],
+    "font_file": "fonts/Montserrat_700Bold.ttf"
+  }
+}

@@ -76,6 +76,55 @@ def main():
         page.insert_text((cx - w / 2, baseline), txt, fontname="MB", fontsize=s, color=K)
         return s
 
+    # ---- V5: o'zgaruvchan ma'lumot maydoni (asl oq quti) 4 ustunga qayta chiziladi: ZONA / QAVAT | SEKTOR | QATOR | JOY
+    # Asl quti yo'li (PDF koord.) aynan takrorlanadi va asl rang bilan bo'yaladi; asl 3 yorliq va 2 chiziq shu quti ostida qoladi.
+    BOX_PDF = [("m", (37.4769, 389.8069)), ("l", (189.2361, 389.8069)),
+               ("c", (190.3470, 389.8069), (191.2555, 388.8984), (191.2555, 387.7875)), ("l", (191.2555, 369.3915)),
+               ("c", (191.2555, 368.2806), (190.3470, 367.3721), (189.2361, 367.3721)), ("l", (37.4769, 367.3721)),
+               ("c", (36.3660, 367.3721), (35.4574, 368.2806), (35.4574, 369.3915)), ("l", (35.4574, 387.7875)),
+               ("c", (35.4574, 388.8984), (36.3660, 389.8069), (37.4769, 389.8069))]
+    BOX_FILL = (0.0078, 0.0039, 0.0157, 0.0)        # asl quti rangi (CS17, ISO Coated v2)
+    PAGE_H = 615.8698                                # asl sahifa: fitz_y = 615.8698 - pdf_y, fitz_x = pdf_x + 1
+    LAB = ("ZONA / QAVAT", "SEKTOR №", "QATOR №", "JOY №")
+    LAB_PT, VAL_PT = 6.0, 9.0
+    COLW = (52.5, 39.7, 37.0, 26.6)                  # jami 155.8 pt = asl quti eni
+    X0 = IV.SEAT_BOX.x0
+    edges = [X0]
+    for w_ in COLW:
+        edges.append(edges[-1] + w_)
+    LAB_BASE = IV.SEAT_LABEL_BASELINE                # asl yorliqlar tayanch chizig'i
+    VAL_BASE = (IV.SEAT_LABEL_BASELINE + IV.SEAT_BOX.y1) / 2 + 0.35 * VAL_PT
+    DIV_Y = (228.57, 245.99)                         # asl ajratuvchi chiziqlar balandligi
+    globals()["V5_INFO"] = dict(edges=edges, lab=LAB, lab_pt=LAB_PT, val_pt=VAL_PT, lab_base=LAB_BASE, val_base=VAL_BASE)
+
+    def P(pt, dx, dy):
+        return fitz.Point(pt[0] + 1 + dx, PAGE_H - pt[1] + dy)
+
+    def info_box(page, dx, dy, vals):
+        sh = page.new_shape()
+        cur = None
+        for seg in BOX_PDF:
+            if seg[0] == "m":
+                cur = P(seg[1], dx, dy)
+            elif seg[0] == "l":
+                nxt = P(seg[1], dx, dy)
+                sh.draw_line(cur, nxt)
+                cur = nxt
+            else:
+                c1, c2, nxt = P(seg[1], dx, dy), P(seg[2], dx, dy), P(seg[3], dx, dy)
+                sh.draw_bezier(cur, c1, c2, nxt)
+                cur = nxt
+        sh.finish(fill=BOX_FILL, color=None, width=0, even_odd=True, closePath=True)
+        for x in edges[1:-1]:
+            sh.draw_line((x + dx, DIV_Y[0] + dy), (x + dx, DIV_Y[1] + dy))
+        sh.finish(color=K, width=0.5669, closePath=False)
+        sh.commit()
+        for i_, (lab, v) in enumerate(zip(LAB, vals)):
+            cx = (edges[i_] + edges[i_ + 1]) / 2 + dx
+            mw = COLW[i_] - 4
+            text_center(page, cx, LAB_BASE + dy, lab, LAB_PT, mw)
+            text_center(page, cx, VAL_BASE + dy, v, VAL_PT, mw)
+
     def crop_marks(page):
         L, O = 5 * MM, 2 * MM
         xs = [ox, ox + tw, ox + 2 * tw]
@@ -112,10 +161,7 @@ def main():
             inner_top, inner_bot = IV.NUM_AREA.y0 + IV.STROKE / 2, IV.NUM_AREA.y1 - IV.STROKE / 2
             cx = (IV.NUM_AREA.x0 + 1.2 + IV.NUM_AREA.x1 - IV.STROKE / 2 - 1.2) / 2
             text_center(page, cx + dx, (inner_top + inner_bot) / 2 + 0.35 * IV.NUM_PT + dy, code, IV.NUM_PT, IV.NUM_AREA.width - 4)
-            cols = [(IV.SEAT_BOX.x0, IV.SEAT_DIVIDERS[0]), IV.SEAT_DIVIDERS, (IV.SEAT_DIVIDERS[1], IV.SEAT_BOX.x1)]
-            sb = (IV.SEAT_LABEL_BASELINE + IV.SEAT_BOX.y1) / 2 + 0.35 * IV.SEAT_PT
-            for (c0, c1), lc, v in zip(cols, IV.SEAT_LABEL_CENTERS, (r["SECTOR"], r["ROW"], r["SEAT"])):
-                text_center(page, lc + dx, sb + dy, v, IV.SEAT_PT, min(lc - c0, c1 - lc) * 2 - 6)
+            info_box(page, dx, dy, (r["ZONA_QAVAT"], r["SECTOR"], r["ROW"], r["SEAT"]))
         crop_marks(page)
         page.set_trimbox(page.rect)
         if a.duplex_marks:

@@ -133,7 +133,10 @@ button.where:focus-visible,.maps a:focus-visible{outline:3px solid var(--ink);ou
 .seat-msg{display:none;padding:12px 10px;border-radius:12px;border:1px dashed rgba(26,26,24,.22);
   font-size:14px;font-weight:700;color:#55554f;text-align:center}
 .seat-note{display:none;margin-top:8px;text-align:center;font-size:11.5px;line-height:1.45;font-weight:600;color:#77776f}
-.seats.none .seat-grid,.seats.error .seat-grid{display:none}
+.seat.zone{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;padding:10px 14px;text-align:left}
+.seat.zone b{margin-top:0;font-size:clamp(19px,5.6vw,23px);white-space:nowrap}
+.seats.loading .seat.zone b{width:38%;margin:0}
+.seats.none .seat-grid,.seats.error .seat-grid,.seats.none .zone,.seats.error .zone{display:none}
 .seats.none .seat-msg,.seats.error .seat-msg{display:block}
 .seats.review .seat-note{display:block}
 .invalid .seats{display:none}
@@ -190,6 +193,7 @@ button.where:focus-visible,.maps a:focus-visible{outline:3px solid var(--ink);ou
         <p>Havolada <code>00001</code>–<code>11222</code> oralig'idagi 5 xonali raqam bo'lishi kerak. Biletdagi QR kodni qayta skanerlang.</p>
       </div>
       <section class="seats loading" id="seats" aria-label="Joy ma'lumoti" aria-live="polite">
+        <div class="seat zone"><span class="k">Zona / Qavat</span><b id="vZ">—</b></div>
         <div class="seat-grid">
           <div class="seat"><span class="k">Sektor №</span><b id="vS">—</b></div>
           <div class="seat"><span class="k">Qator №</span><b id="vQ">—</b></div>
@@ -252,12 +256,13 @@ function loadSeat(code){
   var n=parseInt(code,10), shard='data/seats/s'+Math.floor((n-1)/1000)+'.json';
   fetch(shard,{cache:'no-cache'}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()}).then(function(d){
     var e=d&&d.tickets&&Object.prototype.hasOwnProperty.call(d.tickets,code)?d.tickets[code]:null;
-    var good=e&&e.length===4&&/^[A-Z]\d{3}$/.test(e[0])&&/^\d{1,3}$/.test(e[1])&&/^\d{1,3}$/.test(e[2])&&(e[3]==='ok'||e[3]==='review');
+    var good=e&&e.length===5&&/^(BLITCHER|2-QAVAT|4-QAVAT)$/.test(e[0])&&/^[A-Z]\d{3}$/.test(e[1])&&/^\d{1,3}$/.test(e[2])&&/^\d{1,3}$/.test(e[3])&&(e[4]==='ok'||e[4]==='review');
     if(!good){msg.textContent="Joy ma'lumoti hali tasdiqlanmagan";state('none');return}
-    document.getElementById('vS').textContent=e[0];
-    document.getElementById('vQ').textContent=e[1];
-    document.getElementById('vJ').textContent=e[2];
-    state(e[3]==='review'?'review':'ok');
+    document.getElementById('vZ').textContent=e[0];
+    document.getElementById('vS').textContent=e[1];
+    document.getElementById('vQ').textContent=e[2];
+    document.getElementById('vJ').textContent=e[3];
+    state(e[4]==='review'?'review':'ok');
   }).catch(function(){msg.textContent="Joy ma'lumotini yuklab bo'lmadi. Internetni tekshirib, sahifani yangilang.";state('error')});
 }
 (function(){

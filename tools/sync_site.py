@@ -15,23 +15,25 @@ rows = list(csv.DictReader(open(master, encoding="utf-8-sig")))
 N = len(rows)
 assert [r["TICKET_NUMBER"] for r in rows] == [str(i).zfill(5) for i in range(1, N + 1)]
 H = {"ASSIGNED": "ok", "REVIEW_REQUIRED": "review"}
+ZQ = {"BLITCHER", "2-QAVAT", "4-QAVAT"}
 for r in rows:
+    assert r["ZONA_QAVAT"] in ZQ, r
     assert re.fullmatch(r"[A-D]\d{3}", r["SECTOR"]) and r["ROW"].isdigit() and r["SEAT"].isdigit() and r["STATUS"] in H, r
 d = os.path.join(site, "data", "seats")
 os.makedirs(d, exist_ok=True)
 gen = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 shards = (N + 999) // 1000
 for k in range(shards):
-    part = {r["TICKET_NUMBER"]: [r["SECTOR"], r["ROW"], r["SEAT"], H[r["STATUS"]]] for r in rows[k * 1000:(k + 1) * 1000]}
+    part = {r["TICKET_NUMBER"]: [r["ZONA_QAVAT"], r["SECTOR"], r["ROW"], r["SEAT"], H[r["STATUS"]]] for r in rows[k * 1000:(k + 1) * 1000]}
     with open(os.path.join(d, f"s{k}.json"), "w", encoding="utf-8") as f:
-        json.dump({"v": 2, "source": os.path.basename(master), "source_sha256": sha, "generated": gen,
-                   "fields": ["sektor", "qator", "joy", "holat"], "tickets": part}, f, ensure_ascii=False, separators=(",", ":"))
+        json.dump({"v": 3, "source": os.path.basename(master), "source_sha256": sha, "generated": gen,
+                   "fields": ["zona_qavat", "sektor", "qator", "joy", "holat"], "tickets": part}, f, ensure_ascii=False, separators=(",", ":"))
 # eski ortiqcha bo'laklarni olib tashlash
 for fn in os.listdir(d):
     m = re.fullmatch(r"s(\d+)\.json", fn)
     if m and int(m.group(1)) >= shards:
         os.remove(os.path.join(d, fn))
 with open(os.path.join(d, "manifest.json"), "w", encoding="utf-8") as f:
-    json.dump({"v": 2, "source": os.path.basename(master), "source_sha256": sha, "generated": gen, "tickets": N,
+    json.dump({"v": 3, "source": os.path.basename(master), "source_sha256": sha, "generated": gen, "tickets": N,
                "shards": shards, "status_counts": {k: sum(r["STATUS"] == k for r in rows) for k in H}}, f, ensure_ascii=False, indent=1)
 print(f"OK {N} bilet, {shards} bo'lak, master sha256 {sha[:12]}…")

@@ -19,6 +19,7 @@ import seatlib
 
 BASE_URL = "https://dusel.pages.dev/?code="
 ZONE = {"блитчеры": "Блитчеры", "2-этаж": "2-этаж", "4-этаж": "4-этаж"}
+ZONA_QAVAT = {"блитчеры": "BLITCHER", "2-этаж": "2-QAVAT", "4-этаж": "4-QAVAT"}  # biletda va saytda ko'rinadigan yozuv
 EXPECTED = {"блитчеры": 1896, "2-этаж": 3519, "4-этаж": 5807}
 TOTAL = 11222
 
@@ -77,7 +78,7 @@ def main():
         for s, st in seats:
             t += 1
             code = str(t).zfill(5)
-            master.append(dict(TICKET_NUMBER=code, ZONE=ZONE[r["sheet"]], SECTOR=r["sector"], ROW=str(r["row"]), SEAT=str(s),
+            master.append(dict(TICKET_NUMBER=code, ZONE=ZONE[r["sheet"]], ZONA_QAVAT=ZONA_QAVAT[r["sheet"]], SECTOR=r["sector"], ROW=str(r["row"]), SEAT=str(s),
                                QR_URL=BASE_URL + code, SOURCE_SHEET=r["sheet"], STATUS=st,
                                SECTOR_ORIGINAL=r["sector_original"], SOURCE_CELL=r["cell"],
                                EXCEL_NOTE=r["note"] if st == "REVIEW_REQUIRED" else ""))
@@ -100,7 +101,7 @@ def main():
     assert all(v == 0 for v in src0.values()), f"Excel'da bu blitcher sektorlarda joy bor: {src0}"
     assert not [m for m in master if m["ZONE"] == "Блитчеры" and m["SECTOR"] in NO_BLITCHER]
     assert all(r["count"] > 0 for r in rows if any(m_["SOURCE_CELL"] == r["cell"] for m_ in master[:0])) or True
-    F = ["TICKET_NUMBER", "ZONE", "SECTOR", "ROW", "SEAT", "QR_URL", "SOURCE_SHEET", "STATUS", "SECTOR_ORIGINAL", "SOURCE_CELL", "EXCEL_NOTE"]
+    F = ["TICKET_NUMBER", "ZONE", "ZONA_QAVAT", "SECTOR", "ROW", "SEAT", "QR_URL", "SOURCE_SHEET", "STATUS", "SECTOR_ORIGINAL", "SOURCE_CELL", "EXCEL_NOTE"]
     with open(os.path.join(out, "DUSEL_MASTER_FINAL.csv"), "w", newline="", encoding="utf-8-sig") as f:
         w = csv.DictWriter(f, fieldnames=F)
         w.writeheader()
@@ -130,10 +131,10 @@ def main():
         ws.auto_filter.ref = ws.dimensions
         return ws
 
-    ws = sheet("MASTER", master, F, [14, 11, 9, 6, 6, 40, 13, 18, 14, 26, 40], first=True, text_cols=("A", "C", "D", "E"))
+    ws = sheet("MASTER", master, F, [14, 11, 12, 9, 6, 6, 40, 13, 18, 14, 26, 40], first=True, text_cols=("A", "D", "E", "F"))
     for row in ws.iter_rows(min_row=2):
-        if row[7].value == "REVIEW_REQUIRED":
-            row[7].fill = rv_fill
+        if row[8].value == "REVIEW_REQUIRED":
+            row[8].fill = rv_fill
     sheet("ISTISNOLAR", exceptions, ["ZONE", "SECTOR", "SECTOR_ORIGINAL", "ROW", "SEATS", "EXCEL_VALUE", "EXCEL_NOTE",
                                      "REVIEW_SEATS", "ASSUMPTION", "SOURCE"], [11, 9, 12, 6, 7, 14, 40, 9, 90, 26])
     sheet("BO'SH QATORLAR", zero_rows, ["ZONE", "SECTOR", "ROW", "EXCEL_VALUE", "SOURCE"], [11, 9, 6, 22, 26])

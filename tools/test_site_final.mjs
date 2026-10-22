@@ -2,23 +2,24 @@ import { chromium } from 'playwright';
 import fs from 'fs';
 const base=process.argv[2]||'http://localhost:8765/'; const ROOT=process.argv[3]||'/home/claude/work/final'; const out=ROOT+'/web'; fs.mkdirSync(out,{recursive:true});
 const lines=fs.readFileSync(ROOT+'/master/DUSEL_MASTER_FINAL.csv','utf8').replace(/^\uFEFF/,'').trim().split('\n'); const hdr=lines[0].split(',');
-const I=n=>hdr.indexOf(n); const M={}; for(const l of lines.slice(1)){const c=l.split(','); M[c[I('TICKET_NUMBER')]]={s:c[I('SECTOR')],q:c[I('ROW')],j:c[I('SEAT')],z:c[I('ZONE')],st:c[I('STATUS')]};}
+const I=n=>hdr.indexOf(n); const M={}; for(const l of lines.slice(1)){const c=l.split(','); M[c[I('TICKET_NUMBER')]]={zq:c[I('ZONA_QAVAT')],s:c[I('SECTOR')],q:c[I('ROW')],j:c[I('SEAT')],z:c[I('ZONE')],st:c[I('STATUS')]};}
 const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'}).catch(()=>chromium.launch());
 const R=[]; const ok=(n,c,d='')=>{R.push({test:n,ok:!!c,detail:String(d)});console.log((c?'PASS ':'FAIL ')+n+(d?' — '+d:''))};
 const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true});
 await ctx.route(/google\.com|yandex\./, r=>r.fulfill({status:200,contentType:'text/html',body:'<title>stub</title>'}));
 const p=await ctx.newPage();
-const st=async()=>p.evaluate(()=>{const s=document.getElementById('seats');return {cls:s.className,S:vS.textContent,Q:vQ.textContent,J:vJ.textContent,note:getComputedStyle(seatNote).display!=='none',msg:getComputedStyle(seatMsg).display!=='none'?seatMsg.textContent:'',body:document.body.innerText}});
+const st=async()=>p.evaluate(()=>{const s=document.getElementById('seats');return {cls:s.className,Z:vZ.textContent,S:vS.textContent,Q:vQ.textContent,J:vJ.textContent,note:getComputedStyle(seatNote).display!=='none',msg:getComputedStyle(seatMsg).display!=='none'?seatMsg.textContent:'',body:document.body.innerText}});
 const pick=(f)=>Object.keys(M).filter(k=>f(M[k]));
 const special=[...pick(m=>m.s==='A203'&&m.q==='15').slice(0,1),...pick(m=>m.s==='C211'&&m.q==='14').slice(-1),...pick(m=>m.s==='C210'&&m.q==='16'&&(m.j==='18'||m.j==='19')),...pick(m=>m.s==='C212'&&m.q==='5').slice(0,1)];
-const list=['00001','00002','00003','00006','05611','10000','10001','11221','11222',...special];
+const bl=pick(m=>m.zq==='BLITCHER'); const a201=pick(m=>m.s==='A201'); const list=['00001','00002','00003','00006','05611','10000','10001','11221','11222',bl[0],bl[bl.length-1],a201[a201.length-1],...special];
 for(const c of list){
   await p.goto(base+'?code='+c); await p.waitForFunction(()=>!document.getElementById('seats').classList.contains('loading'));
   const s=await st(); const m=M[c];
-  const right=s.S===m.s&&s.Q===m.q&&s.J===m.j; const noteOk=(m.st==='REVIEW_REQUIRED')===s.note;
-  ok(`${c}: sayt ${s.S}/${s.Q}/${s.J} = master ${m.s}/${m.q}/${m.j} (${m.st})`, right&&noteOk&&!/TEST NAMUNA/.test(s.body), m.st==='REVIEW_REQUIRED'?'neytral izoh ko‘rinadi':'izohsiz');
+  const right=s.Z===m.zq&&s.S===m.s&&s.Q===m.q&&s.J===m.j; const noteOk=(m.st==='REVIEW_REQUIRED')===s.note;
+  ok(`${c}: sayt ${s.Z}/${s.S}/${s.Q}/${s.J} = master ${m.zq}/${m.s}/${m.q}/${m.j} (${m.st})`, right&&noteOk&&!/TEST NAMUNA/.test(s.body), m.st==='REVIEW_REQUIRED'?'neytral izoh ko‘rinadi':'izohsiz');
 }
-await p.goto(base+'?code=00001'); await p.waitForTimeout(3300); await p.screenshot({path:out+'/ticket_00001.png'});
+await p.goto(base+'?code=00001'); await p.waitForFunction(()=>document.getElementById('ticket').classList.contains('done'),null,{timeout:20000}); await p.waitForTimeout(300); await p.screenshot({path:out+'/ticket_00001.png'});
+await p.goto(base+'?code='+bl[0]); await p.waitForFunction(()=>document.getElementById('ticket').classList.contains('done'),null,{timeout:20000}); await p.waitForTimeout(300); await p.screenshot({path:out+'/ticket_'+bl[0]+'_blitcher.png'});
 const rv=special[0]; await p.goto(base+'?code='+rv); await p.waitForTimeout(3300); await p.screenshot({path:out+`/ticket_${rv}_review.png`});
 await p.goto(base+'?code=11222'); await p.waitForTimeout(3300);
 await p.tap('#whereBtn'); await p.waitForTimeout(450); await p.screenshot({path:out+'/ticket_11222_maps.png'});
@@ -33,14 +34,15 @@ for (const [n,vp] of [['320x568',{width:320,height:568}],['360x740',{width:360,h
   const c=await b.newContext({viewport:vp,isMobile:vp.width<700,hasTouch:vp.width<700}); const pg=await c.newPage();
   await pg.goto(base+'?code=11222'); await pg.waitForFunction(()=>document.getElementById('ticket').classList.contains('done'),null,{timeout:20000}); await pg.waitForTimeout(200);
   const m=await pg.evaluate(()=>({sw:document.documentElement.scrollWidth,of:[...document.querySelectorAll('.seat b,.seat .k')].some(e=>e.scrollWidth>e.clientWidth+1),shown:[...document.querySelectorAll('.wheel')].map(w=>{const r=w.getBoundingClientRect();const sp=[...w.querySelectorAll('span')].find(s=>Math.abs(s.getBoundingClientRect().top-r.top)<2);return sp?sp.textContent:'?'}).join('')}));
-  ok(`${n}: siljish yo'q, kartalar sig'adi, raqam 11222`, m.sw<=vp.width&&!m.of&&m.shown==='11222', 'scrollWidth '+m.sw); await c.close();
+  if(vp.width===320) await pg.screenshot({path:out+'/ticket_11222_320px.png'});
+  ok(`${n}: siljish yo'q, kartalar (zona bilan) sig'adi, raqam 11222`, m.sw<=vp.width&&!m.of&&m.shown==='11222', 'scrollWidth '+m.sw); await c.close();
 }
 // eski va yangi URL mosligi: 150 tasodifiy + chegaralar, sayt qiymati = master
 const pc=await (await b.newContext()).newPage(); const bad=[]; const cs=['00001','01000','01001','09999','10000','10001','11000','11001','11222'];
 for(let i=0;i<150;i++) cs.push(String(1+Math.floor(Math.random()*11222)).padStart(5,'0'));
 for(const c of cs){await pc.goto(base+'?code='+c); await pc.waitForFunction(()=>!document.getElementById('seats').classList.contains('loading'));
-  const r=await pc.evaluate(()=>({inv:document.getElementById('ticket').classList.contains('invalid'),S:vS.textContent,Q:vQ.textContent,J:vJ.textContent,cls:document.getElementById('seats').className}));
-  const m=M[c]; if(r.inv||r.S!==m.s||r.Q!==m.q||r.J!==m.j) bad.push(c);}
+  const r=await pc.evaluate(()=>({inv:document.getElementById('ticket').classList.contains('invalid'),Z:vZ.textContent,S:vS.textContent,Q:vQ.textContent,J:vJ.textContent,cls:document.getElementById('seats').className}));
+  const m=M[c]; if(r.inv||r.Z!==m.zq||r.S!==m.s||r.Q!==m.q||r.J!==m.j) bad.push(c);}
 ok(`${cs.length} ta URL (00001–10000 eski + 10001–11222 yangi): sahifa ochiladi, joy = master`, !bad.length, bad.join(','));
 // 404 sahifa: ildizda (Cloudflare) to'g'ri qaytaradi
 const p4=await (await b.newContext()).newPage();

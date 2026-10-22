@@ -103,6 +103,20 @@ body{
 .where{display:flex;align-items:center;gap:6px;background:var(--red);color:#fff;border-radius:999px;
   padding:9px 14px 9px 11px;font-weight:800;font-size:clamp(13px,3.8vw,15px);letter-spacing:.04em;white-space:nowrap}
 .where svg{width:15px;height:15px;flex:none}
+button.where{border:0;font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;
+  box-shadow:0 6px 14px -6px rgba(200,0,0,.6);transition:transform .15s ease,box-shadow .15s ease}
+button.where:active{transform:scale(.97)}
+button.where:focus-visible,.maps a:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+.where .chev{width:12px;height:12px;margin-left:2px;transition:transform .2s ease}
+.where[aria-expanded="true"] .chev{transform:rotate(180deg)}
+.maps{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;max-width:330px;
+  overflow:hidden;max-height:0;opacity:0;margin-top:-12px;transition:max-height .25s ease,opacity .2s ease,margin-top .25s ease}
+.maps.open{max-height:80px;opacity:1;margin-top:0}
+.maps a{display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;border-radius:12px;
+  border:1.5px solid rgba(26,26,24,.14);background:#fff;color:var(--ink);text-decoration:none;
+  font-weight:700;font-size:14px;letter-spacing:.01em}
+.maps a:active{background:#fff3f3}
+.maps i{width:9px;height:9px;border-radius:50%;flex:none}
 
 .sheen{position:absolute;inset:0;pointer-events:none;
   background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.75) 50%,transparent 65%);
@@ -157,7 +171,11 @@ body{
       </div>
       <div class="meta">
         <div class="when">23 DEKABR 2026 <span>—</span> 18:00</div>
-        <div class="where"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a7.5 7.5 0 0 0-7.5 7.5C4.5 15 12 22 12 22s7.5-7 7.5-12.5A7.5 7.5 0 0 0 12 2Zm0 10.2a2.7 2.7 0 1 1 0-5.4 2.7 2.7 0 0 1 0 5.4Z"/></svg>HUMO ARENA</div>
+        <button type="button" class="where" id="whereBtn" aria-expanded="false" aria-controls="maps"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a7.5 7.5 0 0 0-7.5 7.5C4.5 15 12 22 12 22s7.5-7 7.5-12.5A7.5 7.5 0 0 0 12 2Zm0 10.2a2.7 2.7 0 1 1 0-5.4 2.7 2.7 0 0 1 0 5.4Z"/></svg>HUMO ARENA<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+        <div class="maps" id="maps" role="group" aria-label="Xaritada ochish">
+          <a id="gmap" href="https://www.google.com/maps/search/?api=1&amp;query=Humo+Arena+Tashkent" target="_blank" rel="noopener" tabindex="-1"><i style="background:#1a73e8"></i>Google Maps</a>
+          <a id="ymap" href="https://yandex.uz/maps/org/42137198861/" target="_blank" rel="noopener" tabindex="-1"><i style="background:#fc3f1d"></i>Yandex Maps</a>
+        </div>
       </div>
       <span class="sheen" aria-hidden="true"></span>
     </div>
@@ -196,6 +214,15 @@ body{
     setTimeout(function(){num.setAttribute('data-ready','');t.classList.add('done')}, reduce?0:2100);
   }
   if(reduce){settle()} else {requestAnimationFrame(function(){requestAnimationFrame(function(){setTimeout(settle,450)})})}
+})();
+(function(){
+  var b=document.getElementById('whereBtn'), m=document.getElementById('maps'), links=m.querySelectorAll('a');
+  function set(open){
+    b.setAttribute('aria-expanded',open?'true':'false'); m.classList.toggle('open',open);
+    for(var i=0;i<links.length;i++) links[i].tabIndex=open?0:-1;
+  }
+  b.addEventListener('click',function(){set(b.getAttribute('aria-expanded')!=='true')});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&m.classList.contains('open')){set(false);b.focus()}});
 })();
 (function(){
   if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;

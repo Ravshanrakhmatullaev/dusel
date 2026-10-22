@@ -116,7 +116,27 @@ button.where:focus-visible,.maps a:focus-visible{outline:3px solid var(--ink);ou
   border:1.5px solid rgba(26,26,24,.14);background:#fff;color:var(--ink);text-decoration:none;
   font-weight:700;font-size:14px;letter-spacing:.01em}
 .maps a:active{background:#fff3f3}
-.maps i{width:9px;height:9px;border-radius:50%;flex:none}
+.maps .mi{height:22px;width:auto;flex:none;display:block}
+
+/* seating */
+.seats{margin:0 0 16px}
+.seat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.seat{background:#fff;border:1px solid rgba(200,0,14,.16);border-radius:12px;padding:9px 4px 8px;text-align:center;
+  box-shadow:0 6px 14px -10px rgba(160,0,0,.45),inset 0 -2px 0 rgba(255,0,0,.06);min-width:0}
+.seat .k{display:block;font-size:10px;font-weight:700;letter-spacing:.16em;color:#8d8d88;text-transform:uppercase;white-space:nowrap}
+.seat b{display:block;margin-top:3px;font-weight:900;font-size:clamp(20px,6.2vw,26px);line-height:1.1;color:var(--red);
+  font-variant-numeric:tabular-nums;letter-spacing:.01em;overflow-wrap:anywhere}
+.seats.loading .seat b{color:transparent;background:linear-gradient(90deg,#f6e6e6,#fff3f3,#f6e6e6);background-size:200% 100%;
+  border-radius:6px;animation:shim 1.1s linear infinite;margin:5px auto 2px;width:60%}
+@keyframes shim{to{background-position:-200% 0}}
+.seat-msg{display:none;padding:12px 10px;border-radius:12px;border:1px dashed rgba(26,26,24,.22);
+  font-size:14px;font-weight:700;color:#55554f;text-align:center}
+.seat-flag{display:none;margin-top:8px;text-align:center;font-size:11px;font-weight:700;letter-spacing:.06em;color:#9a6a00}
+.seat-flag span{display:inline-block;padding:4px 10px;border-radius:999px;background:#fff6dd;border:1px solid #f1d48a}
+.seats.none .seat-grid,.seats.error .seat-grid{display:none}
+.seats.none .seat-msg,.seats.error .seat-msg{display:block}
+.seats.test .seat-flag{display:block}
+.invalid .seats{display:none}
 
 .sheen{position:absolute;inset:0;pointer-events:none;
   background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.75) 50%,transparent 65%);
@@ -169,12 +189,21 @@ button.where:focus-visible,.maps a:focus-visible{outline:3px solid var(--ink);ou
         <h2>Bilet raqami topilmadi</h2>
         <p>Havolada <code>00001</code>–<code>10000</code> oralig'idagi 5 xonali raqam bo'lishi kerak. Biletdagi QR kodni qayta skanerlang.</p>
       </div>
+      <section class="seats loading" id="seats" aria-label="Joy ma'lumoti" aria-live="polite">
+        <div class="seat-grid">
+          <div class="seat"><span class="k">Sektor №</span><b id="vS">—</b></div>
+          <div class="seat"><span class="k">Qator №</span><b id="vQ">—</b></div>
+          <div class="seat"><span class="k">Joy №</span><b id="vJ">—</b></div>
+        </div>
+        <p class="seat-msg" id="seatMsg">Joy ma'lumoti hali tasdiqlanmagan</p>
+        <p class="seat-flag" id="seatFlag"><span>TEST NAMUNA · joy hali tasdiqlanmagan</span></p>
+      </section>
       <div class="meta">
         <div class="when">23 DEKABR 2026 <span>—</span> 18:00</div>
         <button type="button" class="where" id="whereBtn" aria-expanded="false" aria-controls="maps"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a7.5 7.5 0 0 0-7.5 7.5C4.5 15 12 22 12 22s7.5-7 7.5-12.5A7.5 7.5 0 0 0 12 2Zm0 10.2a2.7 2.7 0 1 1 0-5.4 2.7 2.7 0 0 1 0 5.4Z"/></svg>HUMO ARENA<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
         <div class="maps" id="maps" role="group" aria-label="Xaritada ochish">
-          <a id="gmap" href="https://www.google.com/maps/search/?api=1&amp;query=Humo+Arena+Tashkent" target="_blank" rel="noopener" tabindex="-1"><i style="background:#1a73e8"></i>Google Maps</a>
-          <a id="ymap" href="https://yandex.uz/maps/org/42137198861/" target="_blank" rel="noopener" tabindex="-1"><i style="background:#fc3f1d"></i>Yandex Maps</a>
+          <a id="gmap" href="https://www.google.com/maps/search/?api=1&amp;query=Humo+Arena+Tashkent" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-label="Humo Arena — Google Maps'da ochish (yangi oynada)"><svg class="mi" viewBox="0 0 256 367" aria-hidden="true" focusable="false"><path fill="#34a853" d="M70.585 271.865a371 371 0 0 1 28.911 42.642c7.374 13.982 10.448 23.463 15.837 40.31c3.305 9.308 6.292 12.086 12.714 12.086c6.998 0 10.173-4.726 12.626-12.035c5.094-15.91 9.091-28.052 15.397-39.525c12.374-22.15 27.75-41.833 42.858-60.75c4.09-5.354 30.534-36.545 42.439-61.156c0 0 14.632-27.035 14.632-64.792c0-35.318-14.43-59.813-14.43-59.813l-41.545 11.126l-25.23 66.451l-6.242 9.163l-1.248 1.66l-1.66 2.078l-2.914 3.319l-4.164 4.163l-22.467 18.304l-56.17 32.432z"/><path fill="#fbbc04" d="M12.612 188.892c13.709 31.313 40.145 58.839 58.031 82.995l95.001-112.534s-13.384 17.504-37.662 17.504c-27.043 0-48.89-21.595-48.89-48.825c0-18.673 11.234-31.501 11.234-31.501l-64.489 17.28z"/><path fill="#4285f4" d="M166.705 5.787c31.552 10.173 58.558 31.53 74.893 63.023l-75.925 90.478s11.234-13.06 11.234-31.617c0-27.864-23.463-48.68-48.81-48.68c-23.969 0-37.735 17.475-37.735 17.475v-57z"/><path fill="#1a73e8" d="M30.015 45.765C48.86 23.218 82.02 0 127.736 0c22.18 0 38.89 5.823 38.89 5.823L90.29 96.516H36.205z"/><path fill="#ea4335" d="M12.612 188.892S0 164.194 0 128.414c0-33.817 13.146-63.377 30.015-82.649l60.318 50.759z"/></svg><span>Google Maps</span></a>
+          <a id="ymap" href="https://yandex.uz/maps/org/42137198861/" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-label="Humo Arena — Yandex Maps'da ochish (yangi oynada)"><svg class="mi" aria-hidden="true" focusable="false" viewBox="28 1 94 147"><path fill="#E00000" d="M119.78 52.50C115 82 104 95 70.5 145.5L78.5 88L75 48Z"/><circle cx="75" cy="48" r="45" fill="#FF3333"/><circle cx="75" cy="48" r="17.5" fill="#FFFFFF"/></svg><span>Yandex Maps</span></a>
         </div>
       </div>
       <span class="sheen" aria-hidden="true"></span>
@@ -196,6 +225,7 @@ button.where:focus-visible,.maps a:focus-visible{outline:3px solid var(--ink);ou
   }
   document.title='Bilet № '+raw+' — DUSEL GROUP · Yulduzli Kecha';
   document.getElementById('srnum').textContent='Bilet raqami '+raw;
+  loadSeat(raw);
   var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
   var strips=[];
   raw.split('').forEach(function(d){
@@ -215,6 +245,21 @@ button.where:focus-visible,.maps a:focus-visible{outline:3px solid var(--ink);ou
   }
   if(reduce){settle()} else {requestAnimationFrame(function(){requestAnimationFrame(function(){setTimeout(settle,450)})})}
 })();
+function loadSeat(code){
+  // Joy ma'lumoti faqat data/seats/*.json dan o'qiladi (ticket_seat_master.csv -> sync_seats.py). Sayt hech narsani hisoblamaydi.
+  var box=document.getElementById('seats'), msg=document.getElementById('seatMsg');
+  function state(c){box.className='seats '+c}
+  var n=parseInt(code,10), shard='data/seats/s'+Math.floor((n-1)/1000)+'.json';
+  fetch(shard,{cache:'no-cache'}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()}).then(function(d){
+    var e=d&&d.tickets&&Object.prototype.hasOwnProperty.call(d.tickets,code)?d.tickets[code]:null;
+    var good=e&&e.length===4&&/^[A-Z]\d{3}$/.test(e[0])&&/^\d{1,3}$/.test(e[1])&&/^\d{1,3}$/.test(e[2])&&(e[3]==='ok'||e[3]==='test');
+    if(!good){msg.textContent="Joy ma'lumoti hali tasdiqlanmagan";state('none');return}
+    document.getElementById('vS').textContent=e[0];
+    document.getElementById('vQ').textContent=e[1];
+    document.getElementById('vJ').textContent=e[2];
+    state(e[3]==='test'?'test':'ok');
+  }).catch(function(){msg.textContent="Joy ma'lumotini yuklab bo'lmadi. Internetni tekshirib, sahifani yangilang.";state('error')});
+}
 (function(){
   var b=document.getElementById('whereBtn'), m=document.getElementById('maps'), links=m.querySelectorAll('a');
   function set(open){

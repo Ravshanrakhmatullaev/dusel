@@ -1,0 +1,11 @@
+{
+  "v": 1,
+  "source": "ticket_seat_master.csv",
+  "fields": [
+    "sektor",
+    "qator",
+    "joy",
+    "holat"
+  ],
+  "tickets": {}
+}

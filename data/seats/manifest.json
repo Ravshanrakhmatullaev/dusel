@@ -1,14 +1,12 @@
 {
- "v": 1,
- "source": "ticket_seat_master.csv",
- "source_sha256": "f6905dd0021b2d2b96ce58f6ccbdb305fb8f1abcbdf3e57e7a2f92a03df8463f",
- "generated": "2026-10-22T08:42:31Z",
+ "v": 2,
+ "source": "DUSEL_MASTER_FINAL.csv",
+ "source_sha256": "db9caf7721d91cb31888e9b9b5b7b0fb981cdb0c7f8fa7e34295ce6ed1c4ea9a",
+ "generated": "2026-10-22T12:59:29Z",
+ "tickets": 11222,
+ "shards": 12,
  "status_counts": {
-  "TEST_SAMPLE": 6,
-  "DRAFT": 9994
- },
- "published": {
-  "APPROVED": 0,
-  "TEST_SAMPLE": 6
+  "ASSIGNED": 10758,
+  "REVIEW_REQUIRED": 464
  }
 }

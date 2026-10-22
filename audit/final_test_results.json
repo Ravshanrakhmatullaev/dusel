@@ -1,0 +1,314 @@
+[
+ {
+  "section": "MASTER",
+  "test": "11 222 ta noyob bilet raqami 00001–11222, tartibda, boshidagi nollar bilan",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "MASTER",
+  "test": "11 222 ta QR URL, hammasi noyob va raqamga mos",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "MASTER",
+  "test": "VIP/loja yo'q (faqat Блитчеры, 2-этаж, 4-этаж; sektor kodi A–D + 3 raqam)",
+  "ok": true,
+  "detail": "Counter({'4-этаж': 5807, '2-этаж': 3519, 'Блитчеры': 1896})"
+ },
+ {
+  "section": "MASTER",
+  "test": "Sektor tartibi: 201→216, 401→416 (kamaymaydi)",
+  "ok": true,
+  "detail": "A201 → A202 → A203 → A204 → A205 → B206 → B207 → B208 → C209 → C210 → C211 → C212 → C213 → D214 → D215 → D216 → A401 → A402 → A403 → A404 → A405 → B406 → B407 → B408 → C409 → C410 → C411 → C412 → C413 → D414 → D415 → D416"
+ },
+ {
+  "section": "MASTER",
+  "test": "Qator tartibi: har sektor ichida qator o'sib boradi",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "MASTER",
+  "test": "Joy raqami HAR qatorda 1 dan boshlanadi va uzluksiz (1..N)",
+  "ok": true,
+  "detail": "441 qator"
+ },
+ {
+  "section": "MASTER",
+  "test": "Takroriy sektor/qator/joy yo'q",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "MASTER",
+  "test": "Excel bilan har bir qator bo'yicha sig'im mos (ortiqcha joy yo'q, yetishmaydigan joy yo'q)",
+  "ok": true,
+  "detail": "441 ta joyli qator"
+ },
+ {
+  "section": "MASTER",
+  "test": "Qavat jamlari: Блитчеры 1896, 2-этаж 3519, 4-этаж 5807 = 11 222 (Excel 'Всего' bilan)",
+  "ok": true,
+  "detail": "{'2-этаж': 3519, 'Блитчеры': 1896, '4-этаж': 5807}"
+ },
+ {
+  "section": "MASTER",
+  "test": "VIP (балкон 3-vip, 571 joy) chiqarib tashlangan",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "MASTER",
+  "test": "Excel'dagi barcha izohli/maxsus qatorlar istisnolar ro'yxatida",
+  "ok": true,
+  "detail": "20 izohli, 22 istisno"
+ },
+ {
+  "section": "MASTER",
+  "test": "REVIEW_REQUIRED faqat istisno qatorlarida; kamchiliksiz qatorlar ASSIGNED",
+  "ok": true,
+  "detail": "Counter({'ASSIGNED': 10758, 'REVIEW_REQUIRED': 464})"
+ },
+ {
+  "section": "MASTER",
+  "test": "Maxsus 'Хумо А 24' (A203/15) va 'ХУМО С 24' (C211/14): 24 tadan joy, 1–24, REVIEW_REQUIRED",
+  "ok": true,
+  "detail": "A203/15: 01108–01131, C211/14: 03812–03835"
+ },
+ {
+  "section": "MASTER",
+  "test": "C210/16 'oxirgi 4 joy raqamsiz': 1–18 ASSIGNED, 19–22 REVIEW_REQUIRED",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "MASTER",
+  "test": "'можно добавить' qo'shimcha joylari qo'shilmagan (B206/15=15, B206/16=16, B208/16=15)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "MASTER",
+  "test": "Namuna 00001",
+  "ok": true,
+  "detail": "A201 / 9 / 1 (2-этаж, ASSIGNED)"
+ },
+ {
+  "section": "MASTER",
+  "test": "Namuna 05611",
+  "ok": true,
+  "detail": "A401 / 7 / 10 (4-этаж, ASSIGNED)"
+ },
+ {
+  "section": "MASTER",
+  "test": "Namuna 11222",
+  "ok": true,
+  "detail": "D416 / 12 / 12 (4-этаж, ASSIGNED)"
+ },
+ {
+  "section": "QR",
+  "test": "SVG 11 222 ta (00001.svg … 11222.svg)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "QR",
+  "test": "PNG 11 222 ta (00001.png … 11222.png)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "QR",
+  "test": "BARCHA 11 222 PNG haqiqiy dekoderda (zbar) o'qildi, URL = raqam",
+  "ok": true,
+  "detail": "11222/11222"
+ },
+ {
+  "section": "QR",
+  "test": "QR payloadlari takrorlanmaydi",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "QR",
+  "test": "SVG namunasi (305 ta, chegaralar bilan) dekodlandi",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "section": "QR",
+  "test": "SVG 17 mm, 41 modul (v4-M, 4 modul oq himoya maydoni); PNG 984 px, 300 dpi metama'lumot",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "QR",
+  "test": "DUSEL_QR_SVG_11222.zip: 11 222 fayl, CRC xatosiz",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "QR",
+  "test": "DUSEL_QR_PNG_11222.zip: 11 222 fayl, CRC xatosiz",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "SAYT",
+  "test": "Sayt JSON = master (11 222 yozuv, sektor/qator/joy/holat har biri mos)",
+  "ok": true,
+  "detail": "11222 yozuv"
+ },
+ {
+  "section": "SAYT",
+  "test": "Barcha JSON bo'laklari bitta master SHA-256 dan",
+  "ok": true,
+  "detail": "af6e72c1f20db569"
+ },
+ {
+  "section": "SAYT",
+  "test": "Sayt 00001–11222 qabul qiladi, URL formati o'zgarmagan (?code=NNNNN)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "SAYT",
+  "test": "TEST NAMUNA banneri yo'q; 'tasdiqlangan/haqiqiy bilet' da'vosi yo'q",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "PDF",
+  "test": "FRONT: 1871 list",
+  "ok": true,
+  "detail": "1871"
+ },
+ {
+  "section": "PDF",
+  "test": "BACK: 1871 list",
+  "ok": true,
+  "detail": "1871"
+ },
+ {
+  "section": "PDF",
+  "test": "Har bir sahifa 450 × 320 mm (MediaBox = TrimBox)",
+  "ok": true,
+  "detail": "{(450.0, 320.0, 450.0)}"
+ },
+ {
+  "section": "PDF",
+  "test": "Har bir bilet 200 × 100 mm, masshtab 1:1, 6-up to'r pozitsiyalarida (barcha sahifalar)",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "section": "PDF",
+  "test": "1870 list × 6 + oxirgi list 2 bilet (old va orqa)",
+  "ok": true,
+  "detail": "oxirgi: front 2, back 2"
+ },
+ {
+  "section": "PDF",
+  "test": "Oxirgi listda orqa tomon aynan 2 ta old bilet orqasida (yuqori qator, chap-o'ng ko'zgu)",
+  "ok": true,
+  "detail": "old [(70.87, 28.35), (637.8, 28.35)], orqa [(637.8, 28.35), (70.87, 28.35)]"
+ },
+ {
+  "section": "PDF",
+  "test": "Bosilgan raqamlar: 11 222 ta, 00001…11222, takrorsiz, list/pozitsiya ketma-ket",
+  "ok": true,
+  "detail": "11222 raqam"
+ },
+ {
+  "section": "PDF",
+  "test": "Bosilgan SEKTOR/QATOR/JOY = master (barcha 11 222 bilet)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "PDF",
+  "test": "PDF ichidagi QR (300 dpi) yonidagi bosilgan raqamga mos — 1, 936, 1871 + 25 tasodifiy list",
+  "ok": true,
+  "detail": "164 QR"
+ },
+ {
+  "section": "PDF",
+  "test": "Kesish belgilari 14 ta (to'rdan 2 mm tashqarida), bilet atrofida ramka yo'q",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "section": "PDF",
+  "test": "Varaq hoshiyasida texnik yozuv yo'q",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "section": "CMYK",
+  "test": "FRONT: rasm/gradientlar CMYK (ICC N=4) yoki kulrang niqob; RGB operator/DeviceRGB yo'q",
+  "ok": true,
+  "detail": "['/DeviceGray', 'ICCBased N=1', 'ICCBased N=4']"
+ },
+ {
+  "section": "CMYK",
+  "test": "FRONT: o'zgaruvchan ma'lumot 100K, kesish belgilari Registration",
+  "ok": true,
+  "detail": "[(0.0, 0.0, 0.0, 1.0), (1.0, 1.0, 1.0, 1.0)]"
+ },
+ {
+  "section": "CMYK",
+  "test": "FRONT: OutputIntent ISO Coated v2 (ECI) / FOGRA39",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "SHRIFT",
+  "test": "FRONT: barcha shriftlar joylashtirilgan",
+  "ok": true,
+  "detail": "Gilroy-Bold, Gilroy-Medium, Montserrat"
+ },
+ {
+  "section": "CMYK",
+  "test": "BACK: rasm/gradientlar CMYK (ICC N=4) yoki kulrang niqob; RGB operator/DeviceRGB yo'q",
+  "ok": true,
+  "detail": "['/DeviceGray', 'ICCBased N=1', 'ICCBased N=4']"
+ },
+ {
+  "section": "CMYK",
+  "test": "BACK: OutputIntent ISO Coated v2 (ECI) / FOGRA39",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "SHRIFT",
+  "test": "BACK: barcha shriftlar joylashtirilgan",
+  "ok": true,
+  "detail": "Gilroy-Bold, Gilroy-Medium, Montserrat"
+ },
+ {
+  "section": "ARTWORK",
+  "test": "Asl kontent oqimidan farq: faqat 2 bayt (texnik 0.216 pt kesish konturi 's'→'n')",
+  "ok": true,
+  "detail": "2"
+ },
+ {
+  "section": "ARTWORK",
+  "test": "CMYK artwork: vektorlar, rasmlar (o'lcham/ruxsat), matn — asl bilan bir xil tuzilma",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "ARTWORK",
+  "test": "Ishlab chiqarish listlari (1, 936): o'zgaruvchan maydonlardan tashqarida artwork 0 piksel farq (CMYK siyoh qiymatlari)",
+  "ok": true,
+  "detail": "o'zgargan piksel: 0"
+ },
+ {
+  "section": "ARTWORK",
+  "test": "6 biletli proof = ishlab chiqarish FRONT 1-list va BACK 1-list (piksel bo'yicha bir xil)",
+  "ok": true,
+  "detail": ""
+ }
+]

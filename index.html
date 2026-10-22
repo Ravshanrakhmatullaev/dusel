@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DUSEL GROUP — Yulduzli Kecha · Bilet</title>
+<meta name="description" content="DUSEL GROUP · Yulduzli Kecha — Gala konsert. 23 dekabr 2026, 18:00, Humo Arena.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#8a0008">
+<meta property="og:title" content="DUSEL GROUP — Yulduzli Kecha">
+<meta property="og:description" content="Gala konsert · 23 dekabr 2026, 18:00 · Humo Arena">
+<link rel="preload" href="assets/montserrat.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/artists.webp" as="image" fetchpriority="high">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23e00010'/%3E%3Ctext x='16' y='23' font-family='Arial' font-weight='900' font-size='20' fill='white' text-anchor='middle'%3ED%3C/text%3E%3C/svg%3E">
+<style>
+@font-face{font-family:"Mont";src:url(assets/montserrat.woff2) format("woff2");font-weight:100 900;font-display:swap}
+:root{
+  --red:#ff0000;        /* brend qizil (PDF) */
+  --ember:#d4000f;
+  --crimson:#7a0008;
+  --night:#2a0003;
+  --paper:#ffffff;
+  --ink:#1a1a18;        /* PDF matn rangi */
+  --gold:#f0c35a;       /* konfetti */
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;background:var(--night)}
+body{
+  min-height:100vh;min-height:100svh;
+  font-family:"Mont",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  color:var(--paper);
+  background:
+    radial-gradient(120% 70% at 50% 0%,rgba(255,40,40,.35),transparent 60%),
+    linear-gradient(180deg,rgba(60,0,4,.15),rgba(42,0,3,.75) 85%),
+    url(assets/bg.webp) center 30%/cover no-repeat fixed,
+    var(--crimson);
+  display:flex;flex-direction:column;align-items:center;
+  padding:max(18px,env(safe-area-inset-top)) 16px max(20px,env(safe-area-inset-bottom));
+  overflow-x:hidden;
+}
+@supports (-webkit-touch-callout:none){body{background-attachment:scroll}}
+
+/* ambient sparkles */
+.sparks{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.sparks i{position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;
+  box-shadow:0 0 8px 2px rgba(255,220,200,.8);opacity:0;animation:twinkle 4.8s ease-in-out infinite}
+@keyframes twinkle{0%,100%{opacity:0;transform:scale(.4)}50%{opacity:.9;transform:scale(1)}}
+
+.wrap{position:relative;z-index:1;width:100%;max-width:420px;display:flex;flex-direction:column;align-items:center}
+
+.brand{width:min(70vw,290px);margin:4px 0 18px;filter:drop-shadow(0 6px 18px rgba(0,0,0,.35));
+  opacity:0;transform:translateY(-10px);animation:rise .8s .05s cubic-bezier(.2,.7,.2,1) forwards}
+.brand svg{display:block;width:100%;height:auto}
+
+/* ---------- ticket ---------- */
+.ticket{position:relative;width:100%;border-radius:22px;
+  filter:drop-shadow(0 22px 40px rgba(20,0,0,.55)) drop-shadow(0 2px 0 rgba(255,255,255,.08));
+  opacity:0;transform:translateY(26px) scale(.98);animation:rise .9s .2s cubic-bezier(.2,.7,.2,1) forwards}
+@keyframes rise{to{opacity:1;transform:none}}
+
+.show{position:relative;height:clamp(210px,62vw,262px);border-radius:22px 22px 0 0;overflow:hidden;
+  background:linear-gradient(180deg,rgba(255,0,0,.15),rgba(170,0,10,.25)),url(assets/arena.webp) 30% 40%/cover,var(--ember)}
+.show::before{content:"";position:absolute;inset:0;
+  background:radial-gradient(90% 70% at 70% 20%,rgba(255,255,255,.18),transparent 60%)}
+.artists{position:absolute;right:-6%;bottom:-4%;width:88%;height:auto;
+  opacity:0;transform:translateY(14px);animation:rise 1s .45s cubic-bezier(.2,.7,.2,1) forwards}
+.show::after{content:"";position:absolute;inset:auto 0 0 0;height:62%;
+  background:linear-gradient(180deg,transparent,rgba(190,0,10,.75) 55%,#c8000e)}
+.title{position:absolute;left:18px;bottom:14px;z-index:2;line-height:.9}
+.title h1{font-weight:900;font-size:clamp(34px,10.4vw,44px);letter-spacing:-.01em;text-transform:uppercase;
+  text-shadow:0 3px 14px rgba(70,0,0,.45)}
+.title p{margin-top:8px;font-weight:500;font-size:clamp(13px,3.9vw,16px);letter-spacing:.32em;text-transform:uppercase}
+
+/* perforation */
+.perf{position:relative;height:24px;
+  background:
+    radial-gradient(circle at 0 50%,transparent 12px,var(--paper) 12.5px) left/51% 100% no-repeat,
+    radial-gradient(circle at 100% 50%,transparent 12px,var(--paper) 12.5px) right/51% 100% no-repeat}
+.perf::after{content:"";position:absolute;left:22px;right:22px;top:50%;border-top:2px dashed rgba(26,26,24,.16)}
+
+.stub{position:relative;background:var(--paper);color:var(--ink);border-radius:0 0 22px 22px;
+  padding:6px 18px 20px;overflow:hidden;text-align:center}
+.label{display:flex;align-items:center;justify-content:center;gap:10px;
+  font-weight:700;font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:#8d8d88}
+.label::before,.label::after{content:"";height:1px;width:28px;background:currentColor;opacity:.5}
+
+/* numbering-machine wheels */
+.num{display:flex;justify-content:center;gap:clamp(5px,1.6vw,8px);margin:12px 0 16px}
+.wheel{position:relative;width:clamp(50px,15.2vw,64px);height:clamp(70px,21vw,88px);border-radius:12px;overflow:hidden;
+  background:linear-gradient(180deg,#fff0f0,#fff 22%,#fff 78%,#ffeaea);
+  box-shadow:inset 0 0 0 2px var(--red),inset 0 8px 10px -6px rgba(160,0,0,.25),inset 0 -8px 10px -6px rgba(160,0,0,.25)}
+.strip{position:absolute;left:0;right:0;top:0;transform:translateY(0);will-change:transform;
+  transition:transform 1.5s cubic-bezier(.16,.84,.3,1)}
+.strip span{display:block;height:clamp(70px,21vw,88px);line-height:clamp(70px,21vw,88px);
+  font-weight:900;font-size:clamp(46px,14.4vw,60px);color:var(--red);font-variant-numeric:tabular-nums;letter-spacing:0}
+.num[data-ready] .wheel{animation:thunk .35s ease-out both}
+@keyframes thunk{50%{transform:translateY(2px)}}
+
+.meta{display:flex;flex-direction:column;align-items:center;gap:12px;
+  border-top:1px solid rgba(26,26,24,.1);padding-top:16px}
+.when{font-weight:800;font-size:clamp(17px,5.2vw,21px);letter-spacing:.01em;white-space:nowrap}
+.when span{color:var(--red);font-weight:600;margin:0 .15em}
+.where{display:flex;align-items:center;gap:6px;background:var(--red);color:#fff;border-radius:999px;
+  padding:9px 14px 9px 11px;font-weight:800;font-size:clamp(13px,3.8vw,15px);letter-spacing:.04em;white-space:nowrap}
+.where svg{width:15px;height:15px;flex:none}
+
+.sheen{position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.75) 50%,transparent 65%);
+  transform:translateX(-120%)}
+.ticket.done .sheen{animation:sheen 1.4s .1s ease-in-out}
+@keyframes sheen{to{transform:translateX(120%)}}
+
+/* error state */
+.err{display:none;padding:10px 4px 6px}
+.err h2{font-size:20px;font-weight:800;color:var(--red);margin-bottom:8px}
+.err p{font-size:14px;line-height:1.5;color:#55554f}
+.err code{font-family:inherit;font-weight:800;color:var(--ink);white-space:nowrap}
+.invalid .num,.invalid .label{display:none}
+.invalid .err{display:block}
+
+.note{margin-top:18px;max-width:360px;text-align:center;font-size:11.5px;line-height:1.5;color:rgba(255,255,255,.72);
+  opacity:0;animation:rise .8s 1.2s forwards}
+.note b{color:#fff;font-weight:700}
+
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+@media (min-width:700px){body{justify-content:center}}
+@media (max-height:640px){.show{height:190px}.brand{width:min(58vw,240px);margin-bottom:12px}}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .brand,.ticket,.artists,.note{opacity:1;transform:none}
+  .sparks{display:none}
+}
+</style>
+</head>
+<body>
+<div class="sparks" aria-hidden="true"></div>
+<main class="wrap">
+  <div class="brand" role="img" aria-label="DUSEL GROUP"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 334.49 95.01" fill="#fff"><path fill-rule="evenodd" d="M0 0.78C18.24 0.75 36.69 0 54.91 0.74C76.83 2.4 89.55 14.96 92.88 36.49C95.61 55.64 93.13 77.51 75.68 89.11C71.46 91.89 66.68 93.68 61.82 94.93L61.53 95.01L39.5 72.87C39.5 72.87 58.23 75.68 64.82 67.05C64.82 67.05 68.06 64.02 69.59 57.37L69.59 57.37L69.59 57.36C71.1 49.23 71.16 33.31 64.47 27.43C62.29 25.57 59.6 24.62 56.8 24.22C54.01 23.85 51.01 23.95 48.18 23.92C44.87 23.86 41.55 23.82 38.23 23.82L38.23 38.06L0 0.78L0 0.78"/><path fill-rule="evenodd" d="M11.79 27.11L11.79 45.3L38.06 71.57L38.06 51.21L11.79 27.11"/><path fill-rule="nonzero" d="M147.13 22.02C146.63 20.3 145.81 18.73 144.67 17.31C142.66 14.75 139.9 13.45 136.39 13.45L131.57 13.45L131.57 13.45L107.1 13.45L108.7 22.12L120.92 22.12L120.92 22.13L123.39 22.12L126.84 22.12C126.87 22.12 126.89 22.12 126.92 22.12L134.26 22.12L134.53 22.13C135.91 22.19 137.07 22.63 137.95 23.64C138.89 24.65 139.37 26.08 139.37 27.9L139.37 37.78C139.37 39.53 138.89 40.94 137.91 42C137 43.04 135.79 43.57 134.26 43.61L115.43 43.61L115.44 38.27L115.44 28.8L107.09 28.8L107.09 52.4L136.39 52.4C139.84 52.4 142.61 51.1 144.66 48.47C146.7 45.88 147.72 42.89 147.72 39.53L147.72 26.32C147.72 24.79 147.53 23.36 147.13 22.02L147.13 22.02"/><path fill-rule="nonzero" d="M192.98 13.45L192.98 39.43C192.98 42.85 191.96 45.85 189.9 48.47C187.85 51.09 185.11 52.39 181.65 52.39L167.33 52.39C163.92 52.39 161.19 51.09 159.07 48.47C157.02 45.85 156.01 42.85 156.01 39.43L156.01 13.45L164.41 13.45L164.41 37.85C164.41 39.58 164.89 40.97 165.83 41.99C166.82 43.07 168.03 43.6 169.48 43.6L179.55 43.6C181.05 43.6 182.26 43.07 183.21 41.99C184.14 40.97 184.63 39.58 184.63 37.85L184.64 13.45L192.98 13.45L192.98 13.45"/><path fill-rule="nonzero" d="M323.58 43.6L321.22 52.39L290.42 52.39L290.43 13.45L298.78 13.45L298.77 43.6L323.58 43.6"/><path fill-rule="nonzero" d="M279.84 22.11L282.13 13.45L263.62 13.45L247.33 13.45L247.33 13.45L247.33 22.11L254.06 22.11L263.62 22.11L279.84 22.11L279.84 22.11M255.65 36.74L257.6 36.74L270.05 36.74L278.97 36.74L278.97 28.79L261.46 28.79L247.33 28.78L247.33 28.8L247.32 52.38L269.82 52.38L269.82 52.37L282.13 52.37L279.84 43.71L269.82 43.71L255.65 43.71L255.65 36.74"/><path fill-rule="nonzero" d="M211.61 28.85C210.31 28.74 209.29 27.46 209.19 25.6C209.19 25.51 209.2 25.42 209.2 25.33C209.36 23.72 209.97 23 210.95 22.69C211.13 22.64 211.48 22.6 211.69 22.57L211.69 22.57C211.7 22.57 211.78 22.56 211.9 22.56L212.8 22.56C217.7 22.56 222.61 22.56 227.51 22.56C227.81 22.56 228.11 22.56 228.42 22.56C231.17 22.56 233.93 22.56 236.69 22.56L239.02 13.53C229.77 13.52 220.36 13.33 211.12 13.52C206.29 13.61 203.85 15.34 202.14 19.95L202.02 20.27L201.92 20.59L201.81 20.89C201.12 23.3 201.28 26.39 201.31 26.74C202.19 32.94 204.9 37.44 211.73 37.57C217.06 37.66 222.4 37.44 227.74 37.49C229.81 37.51 231.12 37.88 231.35 40.28C231.49 41.79 230.83 43.66 229.1 43.81C227.96 43.91 226.77 43.88 225.63 43.86C224.69 43.84 223.76 43.82 222.82 43.82C216.52 43.82 210.21 43.82 203.9 43.82L201.6 52.39C211.12 52.39 220.64 52.4 230.17 52.39C231.01 52.39 232.02 52.19 232.81 51.9C236.3 50.6 238.07 47.03 238.76 43.59C238.84 43.19 238.88 42.77 238.92 42.37C239.28 38.24 238.15 33.14 234.76 30.46L234.74 30.44C233.29 29.32 231.79 28.89 229.97 28.85C226.61 28.77 223.24 28.85 219.87 28.85C219.38 28.85 218.89 28.85 218.4 28.85C216.33 28.85 214.27 28.85 212.21 28.85L211.62 28.85L211.61 28.85"/><path fill-rule="evenodd" d="M326.92 8.35L327.94 8.35C328.61 8.35 329.02 8.32 329.19 8.26C329.35 8.21 329.48 8.11 329.58 7.97C329.67 7.83 329.72 7.66 329.72 7.46C329.72 7.22 329.66 7.04 329.53 6.9C329.41 6.76 329.24 6.67 329.01 6.63C328.9 6.61 328.56 6.6 328 6.6L326.92 6.6L326.92 8.34L326.92 8.35M328.12 4.16C330.78 4.16 332.94 6.32 332.94 8.98C332.94 10.24 332.46 11.39 331.67 12.25L330.87 10.97C330.53 10.43 330.27 10.06 330.08 9.85C329.88 9.64 329.64 9.45 329.33 9.28C329.94 9.19 330.39 8.98 330.69 8.64C330.99 8.31 331.15 7.88 331.15 7.37C331.15 6.96 331.05 6.6 330.85 6.29C330.65 5.97 330.38 5.75 330.05 5.63C329.72 5.51 329.18 5.44 328.45 5.44L325.53 5.44L325.53 12.31L326.92 12.31L326.92 9.44L327.2 9.44C327.52 9.44 327.75 9.47 327.9 9.52C328.04 9.57 328.18 9.67 328.32 9.8C328.45 9.94 328.69 10.28 329.05 10.81L330.05 12.31L331.61 12.31C330.74 13.23 329.5 13.81 328.12 13.81C325.46 13.81 323.29 11.65 323.29 8.98C323.29 6.32 325.46 4.16 328.12 4.16L328.12 4.16M328.12 2.61C331.64 2.61 334.49 5.46 334.49 8.98C334.49 12.5 331.63 15.35 328.12 15.35C324.6 15.35 321.75 12.5 321.75 8.98C321.75 5.46 324.6 2.61 328.12 2.61"/><path fill-rule="nonzero" d="M166.97 67.71C167.95 67.71 168.81 67.86 169.56 68.15C170.5 68.49 170.97 68.99 170.97 69.63L173.88 69.63C173.88 68.4 173.09 67.39 171.51 66.61C170.24 65.98 168.73 65.67 166.97 65.67C165.2 65.67 163.69 65.98 162.43 66.61C160.85 67.39 160.05 68.47 160.05 69.83L160.05 77.62C160.05 78.98 160.85 80.06 162.43 80.84C163.69 81.47 165.2 81.78 166.97 81.78C168.73 81.78 170.24 81.47 171.51 80.84C173.09 80.06 173.88 78.98 173.88 77.62L173.88 73.94C173.88 73.62 173.74 73.36 173.45 73.14C173.17 72.92 172.82 72.8 172.42 72.8L166.97 72.8L166.97 74.85L170.97 74.85L170.97 77.83C170.97 78.46 170.5 78.95 169.57 79.31C168.81 79.6 167.95 79.74 166.97 79.74C165.99 79.74 165.13 79.6 164.38 79.31C163.45 78.95 162.98 78.46 162.98 77.83L162.98 69.63C162.98 68.99 163.44 68.49 164.38 68.15C165.13 67.86 165.99 67.71 166.97 67.71L166.97 67.71M187.89 73.15L187.89 67.9L192.44 67.9C193.29 67.9 193.92 68.2 194.35 68.79C194.67 69.24 194.84 69.84 194.84 70.58C194.84 71.38 194.61 72.01 194.16 72.49C193.73 72.93 193.16 73.15 192.44 73.15L187.89 73.15L187.89 73.15M199.4 81.5L197.5 78.56C196.39 76.85 195.47 75.63 194.71 74.9C195.42 74.63 196.02 74.23 196.5 73.72C197.33 72.84 197.74 71.8 197.74 70.58C197.74 69.31 197.29 68.23 196.4 67.34C195.41 66.35 194.09 65.86 192.44 65.86L184.97 65.86L184.97 81.49L187.89 81.49L187.89 75.19L190.64 75.19C191.63 75.19 193.05 76.65 194.89 79.57L196.1 81.5L199.4 81.5L199.4 81.5M219.88 66.6C218.61 65.97 217.1 65.66 215.34 65.66C213.57 65.66 212.06 65.97 210.8 66.6C209.22 67.39 208.42 68.46 208.42 69.82L208.42 77.61C208.42 78.97 209.22 80.05 210.8 80.83C212.06 81.46 213.57 81.77 215.34 81.77C217.1 81.77 218.61 81.46 219.88 80.83C221.46 80.05 222.25 78.97 222.25 77.61L222.25 69.82C222.25 68.46 221.46 67.39 219.88 66.6M219.34 77.82C219.34 78.45 218.87 78.94 217.93 79.3C217.18 79.58 216.32 79.73 215.34 79.73C214.36 79.73 213.5 79.59 212.75 79.3C211.81 78.94 211.35 78.45 211.35 77.82L211.35 69.61C211.35 68.98 211.81 68.48 212.75 68.13C213.5 67.84 214.36 67.7 215.34 67.7C216.32 67.7 217.18 67.84 217.93 68.13C218.87 68.48 219.34 68.98 219.34 69.61L219.34 77.82M243.63 77.81C243.63 78.47 243.19 78.98 242.3 79.33C241.64 79.59 240.89 79.72 240.04 79.72C239.19 79.72 238.44 79.59 237.78 79.33C236.89 78.98 236.44 78.47 236.44 77.81L236.44 65.89L233.52 65.89L233.52 77.6C233.52 78.89 234.2 79.93 235.56 80.7C236.8 81.41 238.3 81.76 240.04 81.76C241.78 81.76 243.27 81.41 244.51 80.7C245.87 79.93 246.55 78.89 246.55 77.6L246.55 65.89L243.63 65.89L243.63 77.81M257.82 65.87L257.82 81.5L260.74 81.5L260.74 75.6L265.29 75.6C267.01 75.6 268.37 75.05 269.38 73.96C270.2 73.06 270.62 71.99 270.62 70.74C270.62 69.43 270.17 68.31 269.27 67.39C268.28 66.37 266.95 65.87 265.29 65.87L257.82 65.87L257.82 65.87M267.01 72.87C266.58 73.33 266.01 73.56 265.29 73.56L260.74 73.56L260.74 67.91L265.29 67.91C266.13 67.91 266.77 68.23 267.2 68.88C267.53 69.36 267.7 69.98 267.7 70.74C267.7 71.64 267.46 72.35 267.01 72.87"/></svg></div>
+
+  <article class="ticket" id="ticket" aria-labelledby="t">
+    <div class="show">
+      <img class="artists" src="assets/artists.webp" width="960" height="772" alt="" decoding="async" fetchpriority="high">
+      <div class="title">
+        <h1 id="t">Yulduzli<br>Kecha</h1>
+        <p>Gala konsert</p>
+      </div>
+    </div>
+    <div class="perf" aria-hidden="true"></div>
+    <div class="stub">
+      <div class="label" id="lbl">Bilet raqami</div>
+      <div class="num" id="num" aria-hidden="true"></div>
+      <p class="sr" id="srnum" aria-live="polite"></p>
+      <div class="err" id="err">
+        <h2>Bilet raqami topilmadi</h2>
+        <p>Havolada <code>00001</code>–<code>10000</code> oralig'idagi 5 xonali raqam bo'lishi kerak. Biletdagi QR kodni qayta skanerlang.</p>
+      </div>
+      <div class="meta">
+        <div class="when">23 DEKABR 2026 <span>—</span> 18:00</div>
+        <div class="where"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a7.5 7.5 0 0 0-7.5 7.5C4.5 15 12 22 12 22s7.5-7 7.5-12.5A7.5 7.5 0 0 0 12 2Zm0 10.2a2.7 2.7 0 1 1 0-5.4 2.7 2.7 0 0 1 0 5.4Z"/></svg>HUMO ARENA</div>
+      </div>
+      <span class="sheen" aria-hidden="true"></span>
+    </div>
+  </article>
+
+  <p class="note">Bu sahifa faqat bilet raqamini ko'rsatadi va biletning haqiqiyligini tasdiqlamaydi.<br><b>DUSEL GROUP</b> · Yulduzli Kecha 2026</p>
+</main>
+<script>
+(function(){
+  var MIN=1, MAX=10000;
+  var raw=(new URLSearchParams(location.search).get('code')||'');
+  var ok=/^\d{5}$/.test(raw) && +raw>=MIN && +raw<=MAX;
+  var t=document.getElementById('ticket'), num=document.getElementById('num');
+  if(!ok){
+    t.classList.add('invalid');
+    document.title='Bilet topilmadi — DUSEL GROUP';
+    return;
+  }
+  document.title='Bilet № '+raw+' — DUSEL GROUP · Yulduzli Kecha';
+  document.getElementById('srnum').textContent='Bilet raqami '+raw;
+  var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var strips=[];
+  raw.split('').forEach(function(d){
+    var w=document.createElement('div'); w.className='wheel';
+    var s=document.createElement('div'); s.className='strip';
+    // two full turns + target digit, like a numbering-machine wheel
+    for(var k=0;k<30;k++){var sp=document.createElement('span');sp.textContent=k%10;s.appendChild(sp)}
+    w.appendChild(s); num.appendChild(w); strips.push([s,+d]);
+  });
+  function settle(){
+    strips.forEach(function(p,i){
+      var target=20+p[1];
+      p[0].style.transitionDuration=reduce?'0s':(1.1+i*0.22)+'s';
+      p[0].style.transform='translateY(calc(-'+target+' * 100% / 30))';
+    });
+    setTimeout(function(){num.setAttribute('data-ready','');t.classList.add('done')}, reduce?0:2100);
+  }
+  if(reduce){settle()} else {requestAnimationFrame(function(){requestAnimationFrame(function(){setTimeout(settle,450)})})}
+})();
+(function(){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var box=document.querySelector('.sparks');
+  for(var i=0;i<26;i++){
+    var s=document.createElement('i');
+    s.style.left=(Math.random()*100)+'%'; s.style.top=(Math.random()*100)+'%';
+    s.style.animationDelay=(Math.random()*5)+'s'; s.style.animationDuration=(3.5+Math.random()*3)+'s';
+    var z=.5+Math.random()*1.2; s.style.width=s.style.height=(3*z)+'px';
+    box.appendChild(s);
+  }
+})();
+</script>
+</body>
+</html>

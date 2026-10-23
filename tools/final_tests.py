@@ -39,15 +39,17 @@ def main():
     # ---------------- A. MASTER
     S = "MASTER"
     check(S, "11 222 ta noyob bilet raqami 00001–11222, tartibda, boshidagi nollar bilan", [m["TICKET_NUMBER"] for m in M] == codes)
-    ZQ = {"Блитчеры": "BLITCHER", "2-этаж": "2-QAVAT", "4-этаж": "4-QAVAT"}
-    check(S, "Har bir biletda to'g'ri ZONA/QAVAT (BLITCHER / 2-QAVAT / 4-QAVAT, Excel varag'iga mos)",
-          all(m["ZONA_QAVAT"] == ZQ[m["ZONE"]] for m in M), Counter(m["ZONA_QAVAT"] for m in M))
+    lab = Counter(m["FIELD1_LABEL"] for m in M)
+    check(S, "1-maydon yorlig'i: blitcher varag'i -> BLITCHER (1 896), 2/4-этаж -> SEKTOR (9 326)",
+          all((m["FIELD1_LABEL"] == "BLITCHER") == (m["SOURCE_SHEET"] == "блитчеры") for m in M) and lab == {"BLITCHER": 1896, "SEKTOR": 9326}, dict(lab))
+    check(S, "1-maydon qiymati har doim haqiqiy sektor kodi (A–D + 3 raqam), 'BLITCHER' sektor kodi sifatida ishlatilmagan",
+          all(re.fullmatch(r"[A-D]\d{3}", m["SECTOR"]) for m in M))
     V4 = list(csv.DictReader(open(os.path.join(ROOT, "../v4/master/DUSEL_MASTER_FINAL.csv"), encoding="utf-8-sig")))
     keys4 = list(V4[0].keys())
     check(S, "Taqsimot V4 bilan aynan bir xil (raqam, zona, sektor, qator, joy, QR_URL, status — 11 222 qator)",
           len(V4) == len(M) and all(all(a[k] == b[k] for k in keys4) for a, b in zip(M, V4)))
-    s2 = {s_: sum(1 for m in M if m["SECTOR"] == s_ and m["ZONA_QAVAT"] == "2-QAVAT") for s_ in ("A201", "A205", "C209", "C213")}
-    check(S, "2-QAVAT dagi A201/A205/C209/C213 biletlari saqlangan (202/197/209/201)", s2 == {"A201": 202, "A205": 197, "C209": 209, "C213": 201}, s2)
+    s2 = {s_: sum(1 for m in M if m["SECTOR"] == s_ and m["SOURCE_SHEET"] == "2-этаж") for s_ in ("A201", "A205", "C209", "C213")}
+    check(S, "2-этаж dagi A201/A205/C209/C213 biletlari saqlangan (202/197/209/201)", s2 == {"A201": 202, "A205": 197, "C209": 209, "C213": 201}, s2)
     urls = [m["QR_URL"] for m in M]
     check(S, "11 222 ta QR URL, hammasi noyob va raqamga mos", len(set(urls)) == N and all(u == BASE + c for u, c in zip(urls, codes)))
     check(S, "VIP/loja yo'q (faqat Блитчеры, 2-этаж, 4-этаж; sektor kodi A–D + 3 raqam)",
@@ -152,7 +154,7 @@ def main():
         web.update(d["tickets"])
     msha = hashlib.sha256(open(os.path.join(ROOT, "master/DUSEL_MASTER_FINAL.csv"), "rb").read()).hexdigest()
     H = {"ASSIGNED": "ok", "REVIEW_REQUIRED": "review"}
-    exp = {m["TICKET_NUMBER"]: [m["ZONA_QAVAT"], m["SECTOR"], m["ROW"], m["SEAT"], H[m["STATUS"]]] for m in M}
+    exp = {m["TICKET_NUMBER"]: [m["FIELD1_LABEL"], m["SECTOR"], m["ROW"], m["SEAT"], H[m["STATUS"]]] for m in M}
     check(S, "Sayt JSON = master (11 222 yozuv, sektor/qator/joy/holat har biri mos)", web == exp, f"{len(web)} yozuv")
     check(S, "Barcha JSON bo'laklari bitta master SHA-256 dan", shas == {msha}, msha[:16])
     html = open(os.path.join(SITE, "index.html"), encoding="utf-8").read()
@@ -214,17 +216,28 @@ def main():
             if not num:
                 continue
             vals = []
-            E5 = [36.46, 88.96, 128.66, 165.66, 192.26]   # V5: ZONA/QAVAT | SEKTOR | QATOR | JOY
-            for c0, c1 in zip(E5[:-1], E5[1:]):
+            E6 = [IV.SEAT_BOX.x0, IV.SEAT_DIVIDERS[0], IV.SEAT_DIVIDERS[1], IV.SEAT_BOX.x1]   # V6: asl 3 ustun
+            la = fitz.Rect(IV.SEAT_BOX.x0 + dx, 227 + dy, IV.SEAT_DIVIDERS[0] + dx, IV.SEAT_LABEL_BASELINE + 1.2 + dy)
+            vals.append(" ".join(w[4] for w in words if fitz.Rect(w[:4]).intersects(la)))
+            for c0, c1 in zip(E6[:-1], E6[1:]):
                 ar = fitz.Rect(c0 + dx, IV.SEAT_LABEL_BASELINE + 2.5 + dy, c1 + dx, IV.SEAT_BOX.y1 + dy)
                 vals.append(" ".join(w[4] for w in words if fitz.Rect(w[:4]).intersects(ar)))
             printed[num[0]] = (p.number + 1, i + 1, vals)
     order_ok = [k for k in printed] == codes
-    seat_ok = all(printed[m["TICKET_NUMBER"]][2] == [m["ZONA_QAVAT"], m["SECTOR"], m["ROW"], m["SEAT"]] for m in M if m["TICKET_NUMBER"] in printed)
+    LBL = {"BLITCHER": "BLITCHER", "SEKTOR": "SEKTOR №"}
+    seat_ok = all(printed[m["TICKET_NUMBER"]][2] == [LBL[m["FIELD1_LABEL"]], m["SECTOR"], m["ROW"], m["SEAT"]] for m in M if m["TICKET_NUMBER"] in printed)
+    bad_lab = [c for c, v in printed.items() if v[2][0] not in ("BLITCHER", "SEKTOR №")]
     seq_ok = all(printed[c][:2] == ((int(c) - 1) // 6 + 1, (int(c) - 1) % 6 + 1) for c in printed)
     check(S, "Bosilgan raqamlar: 11 222 ta, 00001…11222, takrorsiz, list/pozitsiya ketma-ket", len(printed) == N and order_ok and seq_ok,
           f"{len(printed)} raqam")
-    check(S, "Bosilgan ZONA/QAVAT, SEKTOR, QATOR, JOY = master = sayt (barcha 11 222 bilet)", seat_ok and len(printed) == N)
+    check(S, "Bosilgan yorliq (BLITCHER / SEKTOR №) va SEKTOR, QATOR, JOY qiymatlari = master = sayt (barcha 11 222 bilet)", seat_ok and len(printed) == N)
+    floor_hits = 0
+    for p in F:
+        floor_hits += len(re.findall(r"QAVAT|ZONA|этаж|Zona|Qavat", p.get_text()))
+    check(S, "Hech bir biletda qavat/zona yozuvi yo'q (ZONA/QAVAT, 2-QAVAT, 4-QAVAT, 2-этаж, 4-этаж) — barcha 1871 sahifa matni", floor_hits == 0 and not bad_lab, f"topildi: {floor_hits}")
+    nbl = sum(1 for v in printed.values() if v[2][0] == "BLITCHER")
+    nse = sum(1 for v in printed.values() if v[2][0] == "SEKTOR №")
+    check(S, "Bosilgan yorliqlar: BLITCHER 1 896 ta, SEKTOR № 9 326 ta", nbl == 1896 and nse == 9326, f"BLITCHER {nbl}, SEKTOR № {nse}")
     # QR dekodlash: birinchi, o'rta, oxirgi + tasodifiy listlar
     pages = sorted({0, NS // 2, NS - 1} | set(random.Random(5).sample(range(NS), 25)))
     qbad, qn = [], 0
@@ -290,8 +303,8 @@ def main():
         check("CMYK", f"{name}: rasm/gradientlar CMYK (ICC N=4) yoki kulrang niqob; RGB operator/DeviceRGB yo'q",
               not any("N=3" in k for k in kinds) and rgb_ops == 0, sorted(kinds))
         if name == "FRONT":
-            check("CMYK", "FRONT: matn/QR/chiziqlar 100K, kesish belgilari Registration, ma'lumot qutisi asl rangda (C0.78 M0.39 Y1.57 K0 %)",
-                  kvals <= {(0, 0, 0, 1), (1, 1, 1, 1), (0.008, 0.004, 0.016, 0)}, sorted(kvals))
+            check("CMYK", "FRONT: o'zgaruvchan matn va QR 100K, kesish belgilari Registration",
+                  kvals <= {(0, 0, 0, 1), (1, 1, 1, 1)}, sorted(kvals))
         check("CMYK", f"{name}: OutputIntent ISO Coated v2 (ECI) / FOGRA39", has_oi)
         pf = subprocess.run(["pdffonts", "-l", "3", os.path.join(ROOT, doc_path)], capture_output=True, text=True).stdout.splitlines()[2:]
         check("SHRIFT", f"{name}: barcha shriftlar joylashtirilgan", all(l.split()[-5] == "yes" for l in pf if l.strip()),
@@ -304,6 +317,13 @@ def main():
     diffb = sum(1 for x, y in zip(a, b) if x != y)
     check(S, "Asl kontent oqimidan farq: faqat 2 bayt (texnik 0.216 pt kesish konturi 's'→'n')", len(a) == len(b) and diffb == 2, diffb)
     cm = fitz.open(os.path.join(ROOT, "artwork/src_cmyk.pdf"))
+    v6 = fitz.open(os.path.join(ROOT, "artwork/src_cmyk_v6.pdf"))
+    c0_, c1_ = v6.xref_stream(v6[0].get_contents()[0]), v6.xref_stream(v6[1].get_contents()[0])
+    orig_c = cm.xref_stream(cm[0].get_contents()[0])
+    st_ = orig_c.find(b"BT\r\n45.6687 381.6757 TD"); en_ = orig_c.find(b"ET\r\n", st_) + 4
+    check(S, "BLITCHER artwork varianti = asl artwork, faqat 'SEKTOR №' yorlig'i bloki (BT…ET, 288 bayt) olib tashlangan; rasmlar umumiy",
+          c0_ == orig_c and c1_ == orig_c[:st_] + orig_c[en_:] and en_ - st_ == 288 and
+          [i[0] for i in v6[0].get_images()] == [i[0] for i in v6[1].get_images()])
     same_struct = (len(cm[0].get_drawings()) == len(fx[0].get_drawings()) and
                    [i[2:4] for i in cm[0].get_images(full=True)] == [i[2:4] for i in fx[0].get_images(full=True)] and
                    cm[0].get_text() == fx[0].get_text())
@@ -315,7 +335,7 @@ def main():
     for x, y in slots:
         rp.show_pdf_page(fitz.Rect(x, y, x + tw, y + th), cm, 0, clip=IV.FRONT)
     tot_changed = 0
-    for pi in (0, NS // 2):
+    for pi in (0, 35, NS // 2):   # 1-list (SEKTOR), 36-list (BLITCHER), o'rta list
         pa = F[pi].get_pixmap(dpi=120, colorspace=fitz.csCMYK)
         pb = rp.get_pixmap(dpi=120, colorspace=fitz.csCMYK)
         A = np.frombuffer(pa.samples, np.uint8).reshape(pa.h, pa.w, pa.n)[:, :, :4].astype(int)
@@ -329,10 +349,14 @@ def main():
             ins = (X >= x) & (X < x + tw) & (Y >= y) & (Y < y + th)
             mask &= ~ins
             lx, ly = X - x + IV.FRONT.x0, Y - y + IV.FRONT.y0
-            for r_ in (IV.QR_BOX, IV.NUM_AREA, IV.SEAT_BOX):   # V5: butun ma'lumot qutisi ruxsat etilgan maydon
+            ti = pi * 6 + slots.index((x, y))
+            regs = [IV.QR_BOX, IV.NUM_AREA, fitz.Rect(IV.SEAT_BOX.x0, IV.SEAT_LABEL_BASELINE + 0.8, IV.SEAT_BOX.x1, IV.SEAT_BOX.y1)]
+            if ti < N and M[ti]["FIELD1_LABEL"] == "BLITCHER":
+                regs.append(fitz.Rect(IV.SEAT_BOX.x0 + 2, 227.5, IV.SEAT_DIVIDERS[0] - 1, IV.SEAT_LABEL_BASELINE + 1.5))  # 1-ustun yorlig'i
+            for r_ in regs:
                 mask |= ins & (lx >= r_.x0 - 1) & (lx <= r_.x1 + 1) & (ly >= r_.y0 - 1) & (ly <= r_.y1 + 1)
         tot_changed += int((D[~mask] > 2).sum())
-    check(S, "Ishlab chiqarish listlari (1, 936): ruxsat etilgan maydonlar (ma'lumot qutisi, QR, raqam) tashqarisida artwork 0 piksel farq (CMYK)", tot_changed == 0, f"o'zgargan piksel: {tot_changed}")
+    check(S, "Listlar 1 (SEKTOR), 36 (BLITCHER), 936: ruxsat etilgan maydonlar (qiymatlar, BLITCHER yorlig'i, QR, raqam) tashqarisida asl artwork bilan 0 piksel farq (CMYK)", tot_changed == 0, f"o'zgargan piksel: {tot_changed}")
     # proof = production list 1
     pr = fitz.open(os.path.join(ROOT, "out/DUSEL_TEST_6UP.pdf"))
     check(S, "DUSEL_TEST_6UP.pdf = FRONT 1-list (piksel bo'yicha bir xil)", pr.page_count == 1 and pr[0].get_pixmap(dpi=60).samples == F[0].get_pixmap(dpi=60).samples)

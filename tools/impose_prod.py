@@ -145,7 +145,11 @@ def main():
         page.insert_font(fontname="MB", fontbuffer=font_buf)
         for i, r in enumerate(chunk):
             x, y = slots[i]
-            page.show_pdf_page(fitz.Rect(x, y, x + tw, y + th), src, 0, clip=IV.FRONT)
+            blitcher = r["FIELD1_LABEL"] == "BLITCHER"
+            assert r["FIELD1_LABEL"] in ("BLITCHER", "SEKTOR")
+            # V6: SEKTOR -> asl artwork (0-sahifa, asl "SEKTOR №" yorlig'i bilan);
+            #     BLITCHER -> 1-sahifa: aynan o'sha artwork, faqat "SEKTOR №" yorlig'i olib tashlangan
+            page.show_pdf_page(fitz.Rect(x, y, x + tw, y + th), src, 1 if blitcher else 0, clip=IV.FRONT)
             dx, dy = x - IV.FRONT.x0, y - IV.FRONT.y0
             code = r["TICKET_NUMBER"]
             assert r["QR_URL"] == IV.BASE_URL + code
@@ -161,7 +165,12 @@ def main():
             inner_top, inner_bot = IV.NUM_AREA.y0 + IV.STROKE / 2, IV.NUM_AREA.y1 - IV.STROKE / 2
             cx = (IV.NUM_AREA.x0 + 1.2 + IV.NUM_AREA.x1 - IV.STROKE / 2 - 1.2) / 2
             text_center(page, cx + dx, (inner_top + inner_bot) / 2 + 0.35 * IV.NUM_PT + dy, code, IV.NUM_PT, IV.NUM_AREA.width - 4)
-            info_box(page, dx, dy, (r["ZONA_QAVAT"], r["SECTOR"], r["ROW"], r["SEAT"]))
+            if blitcher:   # asl yorliq o'rnida, bir xil tayanch chiziq va markaz, kap balandligi asl Gilroy 6.6 pt ga teng
+                text_center(page, IV.SEAT_LABEL_CENTERS[0] + dx, IV.SEAT_LABEL_BASELINE + dy, "BLITCHER", 6.6, 48)
+            cols = [(IV.SEAT_BOX.x0, IV.SEAT_DIVIDERS[0]), IV.SEAT_DIVIDERS, (IV.SEAT_DIVIDERS[1], IV.SEAT_BOX.x1)]
+            sb = (IV.SEAT_LABEL_BASELINE + IV.SEAT_BOX.y1) / 2 + 0.35 * IV.SEAT_PT
+            for (c0, c1), lc, v in zip(cols, IV.SEAT_LABEL_CENTERS, (r["SECTOR"], r["ROW"], r["SEAT"])):
+                text_center(page, lc + dx, sb + dy, v, IV.SEAT_PT, min(lc - c0, c1 - lc) * 2 - 6)
         crop_marks(page)
         page.set_trimbox(page.rect)
         if a.duplex_marks:

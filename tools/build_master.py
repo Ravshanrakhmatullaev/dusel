@@ -19,7 +19,7 @@ import seatlib
 
 BASE_URL = "https://dusel.pages.dev/?code="
 ZONE = {"блитчеры": "Блитчеры", "2-этаж": "2-этаж", "4-этаж": "4-этаж"}
-ZONA_QAVAT = {"блитчеры": "BLITCHER", "2-этаж": "2-QAVAT", "4-этаж": "4-QAVAT"}  # biletda va saytda ko'rinadigan yozuv
+FIELD1_LABEL = {"блитчеры": "BLITCHER", "2-этаж": "SEKTOR", "4-этаж": "SEKTOR"}  # V6: biletdagi 1-maydon YORLIG'I (qiymat = sektor kodi)
 EXPECTED = {"блитчеры": 1896, "2-этаж": 3519, "4-этаж": 5807}
 TOTAL = 11222
 
@@ -78,7 +78,7 @@ def main():
         for s, st in seats:
             t += 1
             code = str(t).zfill(5)
-            master.append(dict(TICKET_NUMBER=code, ZONE=ZONE[r["sheet"]], ZONA_QAVAT=ZONA_QAVAT[r["sheet"]], SECTOR=r["sector"], ROW=str(r["row"]), SEAT=str(s),
+            master.append(dict(TICKET_NUMBER=code, ZONE=ZONE[r["sheet"]], FIELD1_LABEL=FIELD1_LABEL[r["sheet"]], SECTOR=r["sector"], ROW=str(r["row"]), SEAT=str(s),
                                QR_URL=BASE_URL + code, SOURCE_SHEET=r["sheet"], STATUS=st,
                                SECTOR_ORIGINAL=r["sector_original"], SOURCE_CELL=r["cell"],
                                EXCEL_NOTE=r["note"] if st == "REVIEW_REQUIRED" else ""))
@@ -101,7 +101,7 @@ def main():
     assert all(v == 0 for v in src0.values()), f"Excel'da bu blitcher sektorlarda joy bor: {src0}"
     assert not [m for m in master if m["ZONE"] == "Блитчеры" and m["SECTOR"] in NO_BLITCHER]
     assert all(r["count"] > 0 for r in rows if any(m_["SOURCE_CELL"] == r["cell"] for m_ in master[:0])) or True
-    F = ["TICKET_NUMBER", "ZONE", "ZONA_QAVAT", "SECTOR", "ROW", "SEAT", "QR_URL", "SOURCE_SHEET", "STATUS", "SECTOR_ORIGINAL", "SOURCE_CELL", "EXCEL_NOTE"]
+    F = ["TICKET_NUMBER", "ZONE", "FIELD1_LABEL", "SECTOR", "ROW", "SEAT", "QR_URL", "SOURCE_SHEET", "STATUS", "SECTOR_ORIGINAL", "SOURCE_CELL", "EXCEL_NOTE"]
     with open(os.path.join(out, "DUSEL_MASTER_FINAL.csv"), "w", newline="", encoding="utf-8-sig") as f:
         w = csv.DictWriter(f, fieldnames=F)
         w.writeheader()

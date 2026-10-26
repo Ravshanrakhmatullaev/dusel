@@ -1,3 +1,9 @@
-<!doctype html><html lang="uz"><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>Sahifa topilmadi — DUSEL GROUP</title>
-<meta http-equiv="refresh" content="0; url=/dusel/?code=invalid"><style>body{background:#7a0008;color:#fff;font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;margin:0;text-align:center}</style></head>
-<body><p>Sahifa topilmadi. <a style="color:#fff" href="/dusel/">Bosh sahifaga o'tish</a></p></body></html>
+<!doctype html><html lang="uz"><head><meta charset="utf-8"><meta name="robots" content="noindex"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Sahifa topilmadi — DUSEL GROUP</title>
+<style>body{background:#7a0008;color:#fff;font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;margin:0;text-align:center;padding:16px}a{color:#fff}</style></head>
+<body><p>Sahifa topilmadi. <a id="home" href="./">Bosh sahifaga o'tish</a></p>
+<script>
+// Cloudflare Pages (dusel.pages.dev) ildizda, GitHub Pages esa /dusel/ ostida — ikkalasida ham ishlaydi
+var base = location.pathname.indexOf('/dusel/') === 0 ? '/dusel/' : '/';
+document.getElementById('home').href = base;
+location.replace(base + '?code=invalid');
+</script></body></html>

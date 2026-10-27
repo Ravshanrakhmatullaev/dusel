@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DUSEL — Kupon</title>
+<meta name="description" content="DUSEL electrical — GOLD va SILVER lototron kuponi.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#120c04">
+<link rel="preload" href="assets/montserrat.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23e31e22'/%3E%3Ctext x='16' y='23' font-family='Arial' font-weight='900' font-size='20' fill='white' text-anchor='middle'%3ED%3C/text%3E%3C/svg%3E">
+<style>
+@font-face{font-family:"Mont";src:url(assets/montserrat.woff2) format("woff2");font-weight:100 900;font-display:swap}
+/* --- mavzu tokenlari: GOLD (standart) --- */
+:root{
+  --bg0:#0b0703; --bg1:#24170a; --glow:rgba(255,196,84,.28);
+  --m1:#7a5410; --m2:#c99a2e; --m3:#fff1b8; --m4:#e6b94a; --m5:#9c6c18;   /* metall gradient */
+  --ink:#fff6dc; --muted:rgba(255,236,196,.72); --line:rgba(255,214,120,.38);
+  --card:rgba(30,19,6,.62); --red:#e31e22;
+}
+html[data-type="silver"]{
+  --bg0:#06090f; --bg1:#18212e; --glow:rgba(170,205,255,.24);
+  --m1:#5f6b7a; --m2:#aeb8c6; --m3:#ffffff; --m4:#d5dde7; --m5:#7d8999;
+  --ink:#f3f7fc; --muted:rgba(222,232,246,.74); --line:rgba(210,224,242,.36);
+  --card:rgba(14,20,30,.6);
+}
+html[data-type="none"]{--bg0:#0b0b0d;--bg1:#1d1d22;--glow:rgba(255,255,255,.08);--m1:#666;--m2:#999;--m3:#eee;--m4:#bbb;--m5:#777;--ink:#f4f4f4;--muted:rgba(240,240,240,.7);--line:rgba(255,255,255,.2);--card:rgba(30,30,34,.7)}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;background:var(--bg0)}
+body{min-height:100vh;min-height:100svh;font-family:"Mont",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);
+  background:radial-gradient(120% 70% at 50% -10%,var(--glow),transparent 60%),radial-gradient(90% 60% at 50% 110%,var(--glow),transparent 65%),
+  linear-gradient(180deg,var(--bg1),var(--bg0) 70%);
+  display:flex;flex-direction:column;align-items:center;padding:max(18px,env(safe-area-inset-top)) 16px max(22px,env(safe-area-inset-bottom));overflow-x:hidden}
+canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.beam{position:fixed;inset:-20% -60%;pointer-events:none;z-index:0;opacity:.0;
+  background:linear-gradient(115deg,transparent 42%,rgba(255,255,255,.10) 48%,rgba(255,255,255,.22) 50%,rgba(255,255,255,.10) 52%,transparent 58%);
+  animation:beam 7s ease-in-out infinite}
+html[data-type="silver"] .beam{opacity:1}
+@keyframes beam{0%{transform:translateX(-40%)}55%,100%{transform:translateX(40%)}}
+.wrap{position:relative;z-index:1;width:100%;max-width:420px;display:flex;flex-direction:column;align-items:center}
+.logo{width:min(56vw,230px);margin:2px 0 16px;opacity:0;animation:rise .8s .05s cubic-bezier(.2,.7,.2,1) forwards}
+.logo svg{display:block;width:100%;height:auto}.logo .r{fill:var(--red)}.logo .k{fill:#fff}
+
+/* metall matn */
+.metal{background:linear-gradient(100deg,var(--m1) 0%,var(--m2) 18%,var(--m3) 32%,var(--m4) 46%,var(--m5) 60%,var(--m2) 74%,var(--m3) 86%,var(--m1) 100%);
+  background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 5.5s linear infinite}
+@keyframes shine{to{background-position:-220% 0}}
+
+.card{position:relative;width:100%;border-radius:24px;padding:1.5px;
+  background:linear-gradient(140deg,var(--m3),var(--m1) 30%,var(--m4) 55%,var(--m5) 80%,var(--m3));
+  box-shadow:0 30px 60px -20px rgba(0,0,0,.7),0 0 60px -10px var(--glow);opacity:0;transform:translateY(24px);animation:rise .9s .18s cubic-bezier(.2,.7,.2,1) forwards}
+.inner{border-radius:22.5px;overflow:hidden;background:var(--card);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.hero{position:relative;aspect-ratio:782/430;background:center/cover no-repeat}
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 35%,var(--bg0) 100%)}
+.head{position:relative;margin-top:-58px;z-index:2;text-align:center;padding:0 16px}
+.type{font-weight:900;font-size:clamp(58px,19vw,84px);line-height:.9;letter-spacing:.04em;filter:drop-shadow(0 4px 14px rgba(0,0,0,.55))}
+.lot{margin-top:6px;font-weight:800;font-size:clamp(13px,3.9vw,16px);letter-spacing:.42em;color:var(--ink);text-indent:.42em}
+.prize{display:inline-block;margin-top:10px;padding:6px 14px;border-radius:999px;font-weight:800;font-size:clamp(12px,3.5vw,14px);letter-spacing:.06em;
+  color:#fff;background:var(--red);box-shadow:0 8px 18px -8px rgba(227,30,34,.8)}
+.rule{height:1px;margin:20px 22px 0;background:linear-gradient(90deg,transparent,var(--line),transparent)}
+.numbox{padding:16px 18px 22px;text-align:center}
+.lbl{font-weight:700;font-size:11px;letter-spacing:.36em;color:var(--muted);text-transform:uppercase}
+.plate{position:relative;display:inline-block;margin-top:10px;padding:6px 18px 8px;border-radius:16px;overflow:hidden;
+  background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,0));box-shadow:inset 0 0 0 1px var(--line)}
+.num{display:block;font-weight:900;font-size:clamp(70px,24vw,104px);line-height:1;letter-spacing:.06em;font-variant-numeric:tabular-nums}
+.plate::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.55) 50%,transparent 65%);
+  transform:translateX(-130%);animation:sweep 3.8s 1.2s ease-in-out infinite}
+@keyframes sweep{0%{transform:translateX(-130%)}45%,100%{transform:translateX(130%)}}
+.chip{display:inline-flex;align-items:center;gap:8px;margin-top:14px;font-weight:800;font-size:13px;letter-spacing:.18em;color:var(--ink)}
+.chip i{width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,var(--m3),var(--m2));box-shadow:0 0 10px var(--glow)}
+.err{display:none;padding:30px 20px 34px;text-align:center}
+.err h1{font-size:24px;font-weight:900;margin-bottom:10px}
+.err p{font-size:14px;line-height:1.55;color:var(--muted)}
+.err code{font-family:inherit;font-weight:800;color:var(--ink);white-space:nowrap}
+html[data-type="none"] .ok{display:none}
+html[data-type="none"] .err{display:block}
+.note{margin-top:18px;max-width:360px;text-align:center;font-size:11.5px;line-height:1.5;color:var(--muted);opacity:0;animation:rise .8s 1s forwards}
+.note b{color:var(--ink)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@keyframes rise{to{opacity:1;transform:none}}
+@media (max-height:640px){.logo{width:min(46vw,190px);margin-bottom:10px}.head{margin-top:-46px}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.logo,.card,.note{opacity:1;transform:none}canvas#fx{display:none}}
+</style>
+</head>
+<body>
+<canvas id="fx" aria-hidden="true"></canvas>
+<div class="beam" aria-hidden="true"></div>
+<main class="wrap">
+  <div class="logo" role="img" aria-label="DUSEL electrical"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 111.57 31.64"><path class="r" fill-rule="evenodd" d="M0 0.26C6.09 0.25 12.24 0 18.31 0.25C25.63 0.8 29.87 4.98 30.98 12.15C31.89 18.53 31.07 25.81 25.24 29.67C23.84 30.6 22.24 31.19 20.62 31.61L20.52 31.64L13.18 24.27C13.18 24.27 19.42 25.2 21.62 22.33C21.62 22.33 22.7 21.32 23.21 19.1L23.21 19.1L23.21 19.1C23.71 16.39 23.74 11.09 21.51 9.13C20.78 8.51 19.88 8.2 18.94 8.07C18.01 7.94 17.01 7.98 16.07 7.96C14.97 7.95 13.86 7.93 12.75 7.93L12.75 12.67L0 0.26"/><path class="k" fill-rule="evenodd" d="M3.93 9.03L3.93 15.08L12.7 23.83L12.7 17.05L3.93 9.03"/><path class="r" fill-rule="nonzero" d="M49.08 7.33C48.91 6.76 48.64 6.24 48.26 5.76C47.59 4.91 46.66 4.48 45.5 4.48L43.89 4.48L35.72 4.48L36.26 7.37L40.33 7.37L40.33 7.37L41.16 7.37L42.31 7.37C42.32 7.37 42.33 7.37 42.34 7.37L44.78 7.37L44.88 7.37C45.33 7.39 45.72 7.54 46.01 7.87C46.33 8.21 46.49 8.69 46.49 9.29L46.49 12.58C46.49 13.16 46.33 13.63 46 13.99C45.7 14.33 45.29 14.51 44.78 14.52L38.5 14.52L38.51 12.75L38.51 9.59L35.72 9.59L35.72 17.45L45.5 17.45C46.65 17.45 47.57 17.02 48.25 16.14C48.93 15.28 49.27 14.28 49.27 13.16L49.27 8.77C49.27 8.25 49.21 7.78 49.08 7.33"/><path class="r" fill-rule="nonzero" d="M64.37 4.48L64.37 13.13C64.37 14.27 64.03 15.27 63.34 16.14C62.66 17.01 61.75 17.44 60.59 17.44L55.82 17.44C54.68 17.44 53.77 17.01 53.06 16.14C52.38 15.27 52.04 14.27 52.04 13.13L52.04 4.48L54.84 4.48L54.84 12.61C54.84 13.18 55 13.64 55.31 13.98C55.64 14.34 56.05 14.52 56.53 14.52L59.89 14.52C60.39 14.52 60.79 14.34 61.11 13.98C61.42 13.64 61.58 13.18 61.58 12.61L61.59 4.48L64.37 4.48"/><path class="r" fill-rule="nonzero" d="M107.93 14.52L107.15 17.44L96.87 17.44L96.88 4.48L99.66 4.48L99.66 14.52L107.93 14.52"/><path class="r" fill-rule="nonzero" d="M93.35 7.36L94.11 4.48L87.93 4.48L82.5 4.48L82.5 4.48L82.5 7.36L84.74 7.36L87.93 7.36L93.35 7.36M85.27 12.23L85.93 12.23L90.08 12.23L93.05 12.23L93.05 9.59L87.21 9.59L82.5 9.58L82.5 9.59L82.5 17.44L90 17.44L90 17.44L94.11 17.44L93.35 14.56L90 14.56L85.27 14.56L85.27 12.23"/><path class="r" fill-rule="nonzero" d="M70.59 9.61C70.15 9.57 69.81 9.15 69.78 8.52C69.78 8.49 69.78 8.46 69.78 8.43C69.83 7.9 70.04 7.66 70.37 7.56C70.43 7.54 70.54 7.52 70.61 7.52L70.61 7.52L70.61 7.52L70.61 7.52C70.61 7.52 70.64 7.51 70.68 7.51L70.98 7.51C72.62 7.51 74.25 7.51 75.89 7.51C75.99 7.51 76.09 7.51 76.19 7.51C77.11 7.51 78.03 7.51 78.95 7.51L79.73 4.5C76.64 4.5 73.5 4.44 70.42 4.5C68.81 4.53 68 5.11 67.43 6.64L67.39 6.75L67.35 6.86L67.32 6.96C67.09 7.76 67.14 8.79 67.15 8.9C67.44 10.97 68.35 12.47 70.62 12.51C72.4 12.54 74.18 12.47 75.96 12.48C76.66 12.49 77.09 12.61 77.17 13.41C77.22 13.92 77 14.54 76.42 14.59C76.04 14.62 75.64 14.61 75.26 14.6C74.95 14.6 74.64 14.59 74.32 14.59C72.22 14.59 70.12 14.59 68.01 14.59L67.25 17.45C70.42 17.45 73.6 17.45 76.77 17.45C77.06 17.45 77.39 17.38 77.66 17.28C78.82 16.85 79.41 15.66 79.64 14.52C79.67 14.38 79.68 14.24 79.69 14.11C79.81 12.73 79.44 11.04 78.31 10.14L78.3 10.14C77.82 9.76 77.32 9.62 76.71 9.61C75.59 9.58 74.46 9.61 73.34 9.61C73.18 9.61 73.01 9.61 72.85 9.61C72.16 9.61 71.47 9.61 70.78 9.61L70.59 9.61"/><path class="r" fill-rule="evenodd" d="M109.05 2.78L109.39 2.78C109.61 2.78 109.75 2.77 109.81 2.75C109.86 2.73 109.9 2.7 109.93 2.65C109.97 2.61 109.98 2.55 109.98 2.48C109.98 2.41 109.96 2.34 109.92 2.3C109.88 2.25 109.82 2.22 109.75 2.21C109.71 2.2 109.6 2.2 109.41 2.2L109.05 2.2L109.05 2.78M109.45 1.38C110.34 1.38 111.06 2.1 111.06 2.99C111.06 3.41 110.9 3.79 110.63 4.08L110.36 3.65C110.25 3.47 110.17 3.35 110.1 3.28C110.04 3.21 109.95 3.15 109.85 3.09C110.05 3.06 110.21 2.99 110.31 2.88C110.41 2.77 110.46 2.62 110.46 2.45C110.46 2.32 110.42 2.2 110.36 2.09C110.29 1.99 110.2 1.92 110.09 1.87C109.98 1.83 109.8 1.81 109.56 1.81L108.59 1.81L108.59 4.1L109.05 4.1L109.05 3.14L109.14 3.14C109.25 3.14 109.32 3.15 109.37 3.17C109.42 3.19 109.47 3.22 109.51 3.26C109.56 3.31 109.64 3.42 109.76 3.6L110.09 4.1L110.61 4.1C110.32 4.41 109.91 4.6 109.45 4.6C108.56 4.6 107.84 3.88 107.84 2.99C107.84 2.1 108.56 1.38 109.45 1.38M109.45 0.87C110.62 0.87 111.57 1.82 111.57 2.99C111.57 4.16 110.62 5.11 109.45 5.11C108.27 5.11 107.32 4.16 107.32 2.99C107.32 1.82 108.27 0.87 109.45 0.87"/><path class="k" fill-rule="nonzero" d="M47.45 24.2L50.85 24.2L50.85 23.98C50.85 23.47 50.75 23.12 50.55 22.93C50.35 22.75 49.95 22.65 49.35 22.65L48.93 22.65C48.34 22.65 47.94 22.75 47.74 22.93C47.55 23.12 47.45 23.47 47.45 23.98L47.45 24.2M48.95 27.57C48.05 27.57 47.42 27.41 47.06 27.08C46.7 26.76 46.52 26.2 46.52 25.39L46.52 24.08C46.52 23.27 46.7 22.71 47.06 22.38C47.41 22.06 48.04 21.9 48.93 21.9L49.35 21.9C50.25 21.9 50.88 22.06 51.24 22.38C51.6 22.71 51.78 23.27 51.78 24.08L51.78 24.92L47.45 24.92C47.44 24.98 47.44 25.04 47.44 25.11C47.44 25.17 47.44 25.27 47.44 25.39C47.44 25.96 47.54 26.34 47.73 26.54C47.93 26.73 48.33 26.83 48.93 26.83L49.35 26.83C49.89 26.83 50.26 26.76 50.47 26.61C50.68 26.47 50.8 26.23 50.84 25.87L51.77 25.87C51.72 26.47 51.51 26.9 51.14 27.17C50.76 27.44 50.17 27.57 49.36 27.57L48.95 27.57M53.35 27.49L53.35 19.69L54.24 19.69L54.24 27.49L53.35 27.49M56.73 24.2L60.13 24.2L60.13 23.98C60.13 23.47 60.03 23.12 59.83 22.93C59.63 22.75 59.23 22.65 58.63 22.65L58.21 22.65C57.62 22.65 57.22 22.75 57.02 22.93C56.83 23.12 56.73 23.47 56.73 23.98L56.73 24.2M58.23 27.57C57.33 27.57 56.7 27.41 56.34 27.08C55.98 26.76 55.8 26.2 55.8 25.39L55.8 24.08C55.8 23.27 55.98 22.71 56.34 22.38C56.69 22.06 57.32 21.9 58.21 21.9L58.63 21.9C59.53 21.9 60.16 22.06 60.52 22.38C60.88 22.71 61.06 23.27 61.06 24.08L61.06 24.92L56.73 24.92C56.72 24.98 56.72 25.04 56.72 25.11C56.72 25.17 56.72 25.27 56.72 25.39C56.72 25.96 56.82 26.34 57.01 26.54C57.21 26.73 57.61 26.83 58.21 26.83L58.63 26.83C59.17 26.83 59.54 26.76 59.75 26.61C59.96 26.47 60.08 26.23 60.12 25.87L61.05 25.87C61 26.47 60.79 26.9 60.42 27.17C60.04 27.44 59.45 27.57 58.64 27.57L58.23 27.57M64.8 27.57C63.9 27.57 63.28 27.41 62.92 27.08C62.56 26.76 62.38 26.2 62.38 25.39L62.38 24.08C62.38 23.27 62.56 22.71 62.92 22.38C63.27 22.06 63.9 21.9 64.79 21.9L65.21 21.9C66.06 21.9 66.67 22.05 67.05 22.35C67.43 22.65 67.62 23.14 67.64 23.82L66.71 23.83C66.69 23.38 66.58 23.07 66.38 22.9C66.18 22.74 65.79 22.65 65.21 22.65L64.79 22.65C64.18 22.65 63.78 22.75 63.59 22.93C63.4 23.12 63.31 23.57 63.31 24.27L63.31 25.21C63.31 25.91 63.4 26.36 63.59 26.54C63.78 26.73 64.18 26.83 64.79 26.83L65.21 26.83C65.8 26.83 66.19 26.74 66.4 26.55C66.61 26.37 66.71 26.03 66.71 25.55L66.71 25.45L67.64 25.45L67.64 25.56C67.64 26.28 67.45 26.79 67.08 27.1C66.71 27.41 66.09 27.57 65.22 27.57L64.8 27.57M68.61 22.67L68.61 21.98L69.35 21.98L69.35 20.73L70.24 20.73L70.24 21.98L73.19 21.98L73.19 22.67L70.24 22.67L70.24 25.71C70.24 26.14 70.31 26.44 70.47 26.59C70.62 26.75 70.92 26.83 71.35 26.83C71.78 26.83 72.07 26.75 72.22 26.6C72.37 26.45 72.45 26.15 72.45 25.71L72.45 25.55L73.35 25.55L73.35 25.6C73.35 26.37 73.21 26.9 72.93 27.16C72.65 27.43 72.07 27.57 71.19 27.57C70.5 27.57 70.02 27.42 69.75 27.14C69.48 26.86 69.35 26.34 69.35 25.6L69.35 22.67L68.61 22.67M74.93 27.49L74.93 21.98L75.8 21.98L75.8 22.73C75.92 22.44 76.12 22.23 76.39 22.1C76.65 21.97 77.01 21.9 77.45 21.9C78.11 21.9 78.57 22.05 78.83 22.34C79.09 22.63 79.23 23.14 79.23 23.88L79.23 23.92L78.33 23.92L78.33 23.76C78.33 23.32 78.25 23.02 78.1 22.87C77.95 22.72 77.66 22.64 77.24 22.64C76.74 22.64 76.38 22.77 76.16 23.03C75.94 23.28 75.83 23.7 75.83 24.29L75.83 27.49L74.93 27.49M80.38 20.61L80.38 19.69L81.27 19.69L81.27 20.61L80.38 20.61M80.38 27.49L80.38 21.98L81.27 21.98L81.27 27.49L80.38 27.49M85.26 27.57C84.36 27.57 83.74 27.41 83.38 27.08C83.02 26.76 82.84 26.2 82.84 25.39L82.84 24.08C82.84 23.27 83.02 22.71 83.37 22.38C83.73 22.06 84.36 21.9 85.25 21.9L85.67 21.9C86.52 21.9 87.13 22.05 87.51 22.35C87.89 22.65 88.08 23.14 88.1 23.82L87.17 23.83C87.15 23.38 87.04 23.07 86.84 22.9C86.64 22.74 86.25 22.65 85.67 22.65L85.25 22.65C84.64 22.65 84.24 22.75 84.05 22.93C83.86 23.12 83.77 23.57 83.77 24.27L83.77 25.21C83.77 25.91 83.86 26.36 84.05 26.54C84.24 26.73 84.64 26.83 85.25 26.83L85.67 26.83C86.25 26.83 86.65 26.74 86.86 26.55C87.07 26.37 87.17 26.03 87.17 25.55L87.17 25.45L88.1 25.45L88.1 25.56C88.1 26.28 87.91 26.79 87.54 27.1C87.17 27.41 86.55 27.57 85.68 27.57L85.26 27.57M93.6 26.09L93.6 25.51C93.6 25.24 93.45 25.05 93.16 24.93C92.87 24.81 92.41 24.75 91.77 24.75C91.19 24.75 90.8 24.81 90.6 24.95C90.41 25.08 90.31 25.34 90.31 25.72C90.31 26.15 90.41 26.44 90.62 26.59C90.83 26.73 91.24 26.81 91.87 26.81C92.43 26.81 92.85 26.74 93.15 26.62C93.45 26.5 93.6 26.32 93.6 26.09M93.64 26.91C93.51 27.14 93.29 27.31 92.99 27.41C92.69 27.52 92.28 27.57 91.74 27.57C90.8 27.57 90.17 27.44 89.85 27.2C89.53 26.95 89.37 26.49 89.37 25.82C89.37 25.43 89.41 25.13 89.48 24.91C89.56 24.69 89.68 24.51 89.85 24.38C90 24.27 90.21 24.19 90.49 24.14C90.77 24.09 91.17 24.07 91.7 24.07C92.24 24.07 92.66 24.11 92.95 24.19C93.24 24.27 93.45 24.41 93.6 24.6L93.6 23.65C93.6 23.2 93.5 22.91 93.31 22.78C93.12 22.64 92.64 22.58 91.88 22.58C91.32 22.58 90.95 22.63 90.77 22.74C90.59 22.84 90.49 23.04 90.48 23.34L89.59 23.34L89.59 23.21C89.59 22.74 89.76 22.4 90.09 22.2C90.43 22 91 21.9 91.82 21.9C92.45 21.9 92.94 21.93 93.27 21.97C93.6 22.02 93.85 22.1 94.01 22.21C94.18 22.34 94.31 22.49 94.38 22.68C94.45 22.86 94.49 23.18 94.49 23.63L94.49 27.49L93.68 27.49L93.64 26.91M96.24 27.49L96.24 19.69L97.13 19.69L97.13 27.49L96.24 27.49"/></svg></div>
+  <article class="card" aria-labelledby="ttl">
+    <div class="inner">
+      <div class="ok">
+        <div class="hero" id="hero" role="img" aria-label=""></div>
+        <div class="head">
+          <div class="type metal" id="ttl">GOLD</div>
+          <div class="lot">LOTOTRON</div>
+          <div class="prize" id="prize">10 TA AVTOMOBIL</div>
+        </div>
+        <div class="rule" aria-hidden="true"></div>
+        <div class="numbox">
+          <div class="lbl">Kupon raqami</div>
+          <div class="plate"><span class="num metal" id="num">0000</span></div>
+          <div><span class="chip"><i aria-hidden="true"></i><span id="chip">GOLD KUPON</span></span></div>
+        </div>
+      </div>
+      <div class="err" role="alert">
+        <h1>Kupon topilmadi</h1>
+        <p>Havolada kupon turi va 4 xonali raqam bo'lishi kerak:<br><b>GOLD</b> — <code>0001</code>–<code>2000</code>, <b>SILVER</b> — <code>0001</code>–<code>4000</code>.<br>Kupondagi QR kodni qayta skanerlang.</p>
+      </div>
+    </div>
+  </article>
+  <p class="note">Bu sahifa faqat kupon turi va raqamini ko'rsatadi, kuponning haqiqiyligini tasdiqlamaydi.<br><b>DUSEL</b> electrical · Lototron</p>
+</main>
+<script>
+(function(){
+  // KUPON mantiqi bilet sahifasidan butunlay alohida: /coupon?type=gold|silver&code=NNNN
+  var T={gold:{max:2000,name:'GOLD',prize:'10 TA AVTOMOBIL',hero:'assets/coupon/gold_hero.webp',alt:"Sovg'a avtomobillar"},
+         silver:{max:4000,name:'SILVER',prize:'100 TA CHET ELGA SAYOHAT',hero:'assets/coupon/silver_hero.webp',alt:'Chet elga sayohat'}};
+  var q=new URLSearchParams(location.search);
+  var type=(q.get('type')||'').toLowerCase(), code=q.get('code')||'';
+  var c=Object.prototype.hasOwnProperty.call(T,type)?T[type]:null;
+  var ok=!!c && /^\d{4}$/.test(code) && +code>=1 && +code<=c.max;
+  var root=document.documentElement;
+  if(!ok){root.setAttribute('data-type','none');document.title='Kupon topilmadi — DUSEL';return}
+  root.setAttribute('data-type',type);
+  document.querySelector('meta[name=theme-color]').setAttribute('content',type==='gold'?'#120c04':'#070b12');
+  document.getElementById('ttl').textContent=c.name;
+  document.getElementById('prize').textContent=c.prize;
+  document.getElementById('num').textContent=code;
+  document.getElementById('chip').textContent=c.name+' KUPON';
+  var h=document.getElementById('hero'); h.style.backgroundImage='url('+c.hero+')'; h.setAttribute('aria-label',c.alt);
+  document.title=c.name+' kupon № '+code+' — DUSEL';
+})();
+(function(){
+  // fon effekti: GOLD — ko'tariluvchi oltin uchqunlar; SILVER — sovuq kumush yulduzchalar
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var type=document.documentElement.getAttribute('data-type'); if(type==='none') return;
+  var cv=document.getElementById('fx'), x=cv.getContext('2d'), W, H, dpr=Math.min(window.devicePixelRatio||1,2), P=[];
+  var gold=type==='gold';
+  function size(){W=cv.width=innerWidth*dpr;H=cv.height=innerHeight*dpr}
+  size(); addEventListener('resize',size);
+  var n=Math.round(Math.min(110,Math.max(50,innerWidth*innerHeight/9000)));
+  function mk(init){return {x:Math.random()*W,y:init?Math.random()*H:H+20*dpr,r:(gold?1+Math.random()*2.6:0.6+Math.random()*1.8)*dpr,
+    vy:-(gold?0.25+Math.random()*0.7:0.08+Math.random()*0.25)*dpr,vx:(Math.random()-.5)*0.25*dpr,ph:Math.random()*6.28,tw:0.02+Math.random()*0.05}}
+  for(var i=0;i<n;i++)P.push(mk(true));
+  var run=true; document.addEventListener('visibilitychange',function(){run=!document.hidden;if(run)requestAnimationFrame(f)});
+  function f(){
+    if(!run) return;
+    x.clearRect(0,0,W,H);
+    for(var i=0;i<P.length;i++){var p=P[i]; p.x+=p.vx; p.y+=p.vy; p.ph+=p.tw;
+      var a=0.35+0.65*Math.abs(Math.sin(p.ph));
+      if(p.y<-20*dpr||p.x<-20*dpr||p.x>W+20*dpr) P[i]=mk(false);
+      var g=x.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*4);
+      if(gold){g.addColorStop(0,'rgba(255,241,190,'+a+')');g.addColorStop(.35,'rgba(240,190,80,'+a*.6+')');g.addColorStop(1,'rgba(200,140,30,0)')}
+      else{g.addColorStop(0,'rgba(255,255,255,'+a+')');g.addColorStop(.35,'rgba(200,220,255,'+a*.55+')');g.addColorStop(1,'rgba(150,180,230,0)')}
+      x.fillStyle=g; x.beginPath(); x.arc(p.x,p.y,p.r*4,0,6.283); x.fill();
+      if(!gold && a>0.92){x.strokeStyle='rgba(255,255,255,'+(a-0.9)*6+')';x.lineWidth=dpr*0.8;x.beginPath();x.moveTo(p.x-p.r*6,p.y);x.lineTo(p.x+p.r*6,p.y);x.moveTo(p.x,p.y-p.r*6);x.lineTo(p.x,p.y+p.r*6);x.stroke()}
+    }
+    requestAnimationFrame(f);
+  }
+  requestAnimationFrame(f);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,312 @@
+[
+ {
+  "name": "GOLD: CSV ustunlari TYPE/COUPON_NUMBER/QR_URL",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "GOLD: CSV soni = 2000",
+  "ok": true,
+  "detail": "2000"
+ },
+ {
+  "name": "GOLD: raqamlar 0001–2000 ketma-ket, 4 xonali",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "GOLD: raqamlar takrorlanmaydi",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "GOLD: TYPE ustuni hamma joyda GOLD",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "GOLD: QR_URL formati to'g'ri",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "GOLD: XLSX = CSV (2000 qator, raqamlar matn ko'rinishida)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "GOLD: PNG=2000, SVG=2000",
+  "ok": true,
+  "detail": "2000/2000"
+ },
+ {
+  "name": "GOLD: barcha 2000 PNG QR dekod = kutilgan URL",
+  "ok": true,
+  "detail": "o'lcham {(984, 984)}"
+ },
+ {
+  "name": "GOLD: SVG namuna (62 ta) dekod to'g'ri",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "GOLD: ZIP ichida 2000 SVG + 2000 PNG",
+  "ok": true,
+  "detail": "4001 fayl"
+ },
+ {
+  "name": "GOLD: ZIP butun (testzip)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "SILVER: CSV ustunlari TYPE/COUPON_NUMBER/QR_URL",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "SILVER: CSV soni = 4000",
+  "ok": true,
+  "detail": "4000"
+ },
+ {
+  "name": "SILVER: raqamlar 0001–4000 ketma-ket, 4 xonali",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "SILVER: raqamlar takrorlanmaydi",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "SILVER: TYPE ustuni hamma joyda SILVER",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "SILVER: QR_URL formati to'g'ri",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "SILVER: XLSX = CSV (4000 qator, raqamlar matn ko'rinishida)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "SILVER: PNG=4000, SVG=4000",
+  "ok": true,
+  "detail": "4000/4000"
+ },
+ {
+  "name": "SILVER: barcha 4000 PNG QR dekod = kutilgan URL",
+  "ok": true,
+  "detail": "o'lcham {(984, 984)}"
+ },
+ {
+  "name": "SILVER: SVG namuna (62 ta) dekod to'g'ri",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "SILVER: ZIP ichida 4000 SVG + 4000 PNG",
+  "ok": true,
+  "detail": "8001 fayl"
+ },
+ {
+  "name": "SILVER: ZIP butun (testzip)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Gold va Silver URL'lari kesishmaydi (6000 noyob payload)",
+  "ok": true,
+  "detail": "6000"
+ },
+ {
+  "name": "Bilet master 11222 ta (o'zgarmagan)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Kupon URL'lari bilet URL'lari bilan kesishmaydi",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Bilet: '/?code=NNNNN' (5 xona); Kupon: '/coupon?type=..&code=NNNN' (4 xona) — yo'llar ajratilgan",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "GOLD PRINT: sahifalar soni = 334",
+  "ok": true,
+  "detail": "334"
+ },
+ {
+  "name": "GOLD PRINT: barcha sahifalar 450×320 mm",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "GOLD PRINT: layout 2000 kupon, raqamlar 0001–2000",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "GOLD PRINT: har varaqdagi bosma raqamlar layout bilan mos (QR osti + koreshok)",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "GOLD PRINT: oxirgi varaqda 2 kupon",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "GOLD PRINT: shriftlar embed qilingan (subset)",
+  "ok": true,
+  "detail": "{'UGPQMX+Montserrat Bold'}"
+ },
+ {
+  "name": "GOLD PRINT: OutputIntent (ISO Coated v2) bor",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "GOLD PRINT: PDF ichidagi QR dekod = raqam (2000 ta, 300 dpi)",
+  "ok": true,
+  "detail": "90s"
+ },
+ {
+  "name": "GOLD PROOF: sahifalar soni = 1",
+  "ok": true,
+  "detail": "1"
+ },
+ {
+  "name": "GOLD PROOF: barcha sahifalar 450×320 mm",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "GOLD PROOF: layout 6 kupon, raqamlar 0001–0006",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "GOLD PROOF: har varaqdagi bosma raqamlar layout bilan mos (QR osti + koreshok)",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "GOLD PROOF: oxirgi varaqda 6 kupon",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "GOLD PROOF: shriftlar embed qilingan (subset)",
+  "ok": true,
+  "detail": "{'SYNOLJ+Montserrat Bold'}"
+ },
+ {
+  "name": "GOLD PROOF: OutputIntent (ISO Coated v2) bor",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "GOLD PROOF: PDF ichidagi QR dekod = raqam (6 ta, 300 dpi)",
+  "ok": true,
+  "detail": "0s"
+ },
+ {
+  "name": "GOLD: dizayn (o'zgaruvchi zonadan tashqari) designer fayl bilan bir xil",
+  "ok": true,
+  "detail": "max farq 0, >2 piksel: 0"
+ },
+ {
+  "name": "SILVER PRINT: sahifalar soni = 667",
+  "ok": true,
+  "detail": "667"
+ },
+ {
+  "name": "SILVER PRINT: barcha sahifalar 450×320 mm",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "SILVER PRINT: layout 4000 kupon, raqamlar 0001–4000",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "SILVER PRINT: har varaqdagi bosma raqamlar layout bilan mos (QR osti + koreshok)",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "SILVER PRINT: oxirgi varaqda 4 kupon",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "SILVER PRINT: shriftlar embed qilingan (subset)",
+  "ok": true,
+  "detail": "{'UGPQMX+Montserrat Bold'}"
+ },
+ {
+  "name": "SILVER PRINT: OutputIntent (ISO Coated v2) bor",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "SILVER PRINT: PDF ichidagi QR dekod = raqam (4000 ta, 300 dpi)",
+  "ok": true,
+  "detail": "143s"
+ },
+ {
+  "name": "SILVER PROOF: sahifalar soni = 1",
+  "ok": true,
+  "detail": "1"
+ },
+ {
+  "name": "SILVER PROOF: barcha sahifalar 450×320 mm",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "SILVER PROOF: layout 6 kupon, raqamlar 0001–0006",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "SILVER PROOF: har varaqdagi bosma raqamlar layout bilan mos (QR osti + koreshok)",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "SILVER PROOF: oxirgi varaqda 6 kupon",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "SILVER PROOF: shriftlar embed qilingan (subset)",
+  "ok": true,
+  "detail": "{'SYNOLJ+Montserrat Bold'}"
+ },
+ {
+  "name": "SILVER PROOF: OutputIntent (ISO Coated v2) bor",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "SILVER PROOF: PDF ichidagi QR dekod = raqam (6 ta, 300 dpi)",
+  "ok": true,
+  "detail": "0s"
+ },
+ {
+  "name": "SILVER: dizayn (o'zgaruvchi zonadan tashqari) designer fayl bilan bir xil",
+  "ok": true,
+  "detail": "max farq 0, >2 piksel: 0"
+ }
+]

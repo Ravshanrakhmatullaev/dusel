@@ -15,19 +15,20 @@ Kupon QR'lari alohida sahifaga olib boradi — bilet tizimiga tegmaydi:
 
 `coupon.html` faqat kupon turi va raqamini ko'rsatadi; kuponning haqiqiyligini tasdiqlamaydi.
 
-## GAL vaucherlar — "Ishonchli hamkorlar aksiyasi" (1 250 000 so'mlik)
+## QR yo'llari reyestri — har bir mahsulot o'z yo'lida (o'zgartirmang)
 
-- QR: `https://dusel.pages.dev/gal?code=000001` … `001000` (1000 ta, 6 xonali)
-- Sahifa: `gal.html` — faqat vaucher raqamini ko'rsatadi; haqiqiylikni tasdiqlamaydi.
+| Tizim | Yangi QR URL | Kod | Diapazon | Sahifa |
+|---|---|---|---|---|
+| Konsert bileti | `https://dusel.pages.dev/ticket?code=NNNNN` | 5 xona | 00001–11222 | `ticket.html` |
+| GAL vaucher | `https://dusel.pages.dev/gal?code=NNNNNN` | 6 xona | 000001–001000 | `gal.html` |
+| GOLD kupon | `https://dusel.pages.dev/gold?code=NNNN` | 4 xona | 0001–2000 | `gold.html` |
+| SILVER kupon | `https://dusel.pages.dev/silver?code=NNNN` | 4 xona | 0001–4000 | `silver.html` |
 
-## QR yo'llari reyestri (o'zgartirmang)
+Har sahifa faqat o'z yo'li, kod uzunligi va diapazonini qabul qiladi; noto'g'ri kodda **o'sha sahifaning o'zida** xato ko'rsatiladi — boshqa mahsulotga hech qachon yo'naltirilmaydi.
 
-| Tizim | URL | Diapazon | Sahifa |
-|---|---|---|---|
-| Bilet | `/?code=NNNNN` | 00001–11222 | `index.html` |
-| GOLD kupon | `/coupon?type=gold&code=NNNN` | 0001–2000 | `coupon.html` |
-| SILVER kupon | `/coupon?type=silver&code=NNNN` | 0001–4000 | `coupon.html` |
-| GAL vaucher | `/gal?code=NNNNNN` | 000001–001000 | `gal.html` |
+Eski havolalar (avval chop etilgan bo'lsa ishlashi uchun saqlangan, faqat o'z mahsuloti):
+- `/?code=NNNNN` → `index.html` — faqat bilet (5 xona, 00001–11222)
+- `/coupon?type=gold|silver&code=NNNN` → `coupon.html` — faqat GOLD/SILVER kupon
 
-`404.html`: `/gal…` va `/coupon…` ko'rinishidagi noto'g'ri yo'llar o'z sahifasiga qaytariladi (bilet sahifasiga emas); qolganlari avvalgidek `/?code=invalid`.
-Bosilgan QR'lar shu domen va yo'llarga bog'liq — `dusel.pages.dev`, `index.html`, `coupon.html`, `gal.html` nomlarini o'zgartirmang/o'chirmang.
+`404.html` — neytral "Sahifa topilmadi"; faqat o'sha yo'lning yozilishini to'g'rilaydi (`/GAL` → `/gal`, `/ticket/` → `/ticket`), boshqa mahsulotga yubormaydi.
+Bosilgan QR'lar shu domen va yo'llarga bog'liq — `dusel.pages.dev` va yuqoridagi fayl nomlarini o'zgartirmang/o'chirmang.

@@ -21,10 +21,12 @@ jobs:
             if [ "$code" != "200" ] || ! printf '%s' "$body" | grep -q "$2"; then echo "::error::$1 — HTTP $code yoki '$2' topilmadi"; fail=1; else echo "OK  $1"; fi
           }
           B=https://dusel.pages.dev
-          chk "$B/?code=00001"                        "Bilet raqami"
-          chk "$B/?code=11222"                        "Bilet raqami"
-          chk "$B/coupon?type=gold&code=0001"         "Kupon raqami"
-          chk "$B/coupon?type=silver&code=4000"       "Kupon raqami"
+          chk "$B/ticket?code=00001"                  "Bilet raqami"
+          chk "$B/ticket?code=11222"                  "Bilet raqami"
           chk "$B/gal?code=000001"                    "ISHONCHLI HAMKORLAR AKSIYASI"
           chk "$B/gal?code=001000"                    "ISHONCHLI HAMKORLAR AKSIYASI"
+          chk "$B/gold?code=0001"                     "Kupon raqami"
+          chk "$B/silver?code=4000"                   "Kupon raqami"
+          chk "$B/?code=00001"                        "Bilet raqami"
+          chk "$B/coupon?type=gold&code=0001"         "Kupon raqami"
           exit $fail

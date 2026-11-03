@@ -1,13 +1,15 @@
 <!doctype html><html lang="uz"><head><meta charset="utf-8"><meta name="robots" content="noindex"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Sahifa topilmadi — DUSEL GROUP</title>
-<style>body{background:#7a0008;color:#fff;font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;margin:0;text-align:center;padding:16px}a{color:#fff}</style></head>
-<body><p>Sahifa topilmadi. <a id="home" href="./">Bosh sahifaga o'tish</a></p>
+<style>body{background:#7a0008;color:#fff;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;display:grid;place-items:center;min-height:100vh;margin:0;text-align:center;padding:16px}h1{font-size:22px;margin:0 0 8px}p{margin:0;opacity:.85;line-height:1.5}</style></head>
+<body><main><h1>Sahifa topilmadi</h1><p>Bu manzil hech bir DUSEL bilet, kupon yoki vaucheriga tegishli emas.<br>QR kodni qayta skanerlang.</p></main>
 <script>
-// Cloudflare Pages (dusel.pages.dev) ildizda, GitHub Pages esa /dusel/ ostida — ikkalasida ham ishlaydi
-var base = location.pathname.indexOf('/dusel/') === 0 ? '/dusel/' : '/';
-document.getElementById('home').href = base;
-// Har bir QR tizimi o'z sahifasida qoladi: /gal… va /coupon… hech qachon bilet sahifasiga tushmaydi
-var rest = location.pathname.slice(base.length).toLowerCase();
-var m = rest.match(/^(gal|coupon)(\.html)?(\/.*)?$/);
-if (m) { if (location.pathname.slice(base.length) !== m[1]) location.replace(base + m[1] + location.search); /* sahifaning o'zi topilmasa — sikl bo'lmasligi uchun shu yerda qolamiz */ }
-else location.replace(base + '?code=invalid');
+// Hech qachon boshqa mahsulot sahifasiga yo'naltirmaydi. Faqat O'SHA mahsulot yo'lining yozilish farqini to'g'rilaydi:
+//   /Ticket, /ticket/, /ticket.html → /ticket   ·   /GAL → /gal   ·   /Gold/ → /gold   ·   /SILVER → /silver   ·   /Coupon → /coupon
+// (so'rov qismi — ?code=… — o'zgarmaydi; kod tekshiruvini o'sha sahifaning o'zi qiladi)
+(function () {
+  var base = location.pathname.indexOf('/dusel/') === 0 ? '/dusel/' : '/';
+  var raw = location.pathname.slice(base.length);
+  var key = raw.toLowerCase().replace(/\/+$/, '').replace(/\.html$/, '');
+  var ROUTES = ['ticket', 'gal', 'gold', 'silver', 'coupon'];
+  if (ROUTES.indexOf(key) !== -1 && raw !== key) location.replace(base + key + location.search);
+})();
 </script></body></html>

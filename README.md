@@ -1,6 +1,5 @@
-# DUSEL GROUP — Yulduzli Kecha · QR bilet sahifasi
+# DUSEL — eski GitHub Pages manzili (faqat yo'naltirish)
 
-Static sahifa (GitHub Pages). Har bir QR `https://ravshanrakhmatullaev.github.io/dusel/?code=NNNNN` ga olib boradi
-va sahifa markazda 5 xonali bilet raqamini ko'rsatadi. Faqat `00001`–`10000` qabul qilinadi.
-
-Sahifa biletning haqiqiyligini tasdiqlamaydi — faqat raqamni ko'rsatadi.
+Dastlabki bilet fayllaridagi QR'lar `https://ravshanrakhmatullaev.github.io/dusel/?code=NNNNN` ga ishora qilgan.
+Bu sahifa endi faqat shu bilet raqamini rasmiy bilet sahifasiga uzatadi: `https://dusel.pages.dev/ticket?code=NNNNN` (00001–11222).
+Boshqa mahsulotlarga (GAL, GOLD, SILVER) yo'naltirmaydi; noto'g'ri raqamda "Bilet topilmadi" ko'rsatiladi.

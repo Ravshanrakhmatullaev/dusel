@@ -1,0 +1,117 @@
+[
+ {
+  "name": "CSV ustunlari: VOUCHER_TYPE, VOUCHER_NUMBER, QR_URL, STATUS, ISSUE_DATE, RECIPIENT_NAME",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Vaucherlar soni = 1000",
+  "ok": true,
+  "detail": "1000"
+ },
+ {
+  "name": "Raqamlar 000001–001000, ketma-ket, tushib qolgan yo'q",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Har bir raqam aynan 6 xonali",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Takroriy raqam yo'q",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "VOUCHER_TYPE = GAL, STATUS = NOT_ISSUED, ISSUE_DATE va RECIPIENT_NAME bo'sh",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "QR_URL = https://dusel.pages.dev/gal?code=<raqam> (har bir qatorda raqam bilan mos)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "XLSX = CSV (1000 qator, raqam matn formatida, nollar saqlangan)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "1000 ta noyob QR payload",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Har bir QR: https, host dusel.pages.dev, yo'l /gal, faqat 'code' parametri",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Qisqartirgich/redirect xizmati, token yoki vaqtinchalik parametr yo'q",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Fayl nomlari GAL_000001 … GAL_001000 (.png va .svg)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Barcha 1000 PNG dekod qilindi va payload aynan kutilgan URL",
+  "ok": true,
+  "detail": "1000/1000, {(1230, 1230)}"
+ },
+ {
+  "name": "Barcha 1000 SVG rasterlanib dekod qilindi va payload to'g'ri",
+  "ok": true,
+  "detail": "1000/1000"
+ },
+ {
+  "name": "QR parametrlari: versiya 4 (33×33), xato tuzatish Q (~25%), 4 modul quiet zone, logotip yo'q",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "DUSEL_GAL_QR_1000.zip: 1000 SVG + 1000 PNG + master CSV, butun",
+  "ok": true,
+  "detail": "2001 fayl"
+ },
+ {
+  "name": "Bilet master: 11222 ta, o'zgarmagan",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Gold 2000 / Silver 4000 kupon master o'zgarmagan",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "4 tizim (bilet/gold/silver/GAL) URL'lari umuman kesishmaydi",
+  "ok": true,
+  "detail": "18222 noyob URL"
+ },
+ {
+  "name": "Har bir URL faqat o'z yo'liga tushadi (yo'l + raqam uzunligi bo'yicha: bilet 5, kupon 4, GAL 6 xona)",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "Bir xil son (1) har tizimda boshqa URL: /?code=00001 · /coupon?type=gold&code=0001 · /gal?code=000001",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "DUSEL_GAL_PROOF.pdf",
+  "ok": false,
+  "detail": "YARATILMAGAN — Vaucher(1).png dizayn fayli va bosma o'lchami kutilmoqda"
+ },
+ {
+  "name": "DUSEL_GAL_PRINT.pdf",
+  "ok": false,
+  "detail": "YARATILMAGAN — Vaucher(1).png dizayn fayli va bosma o'lchami kutilmoqda"
+ }
+]

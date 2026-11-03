@@ -1,0 +1,30 @@
+# DUSEL QR sahifalari — kunlik tekshiruv (bepul GitHub Actions).
+# Xato bo'lsa GitHub repo egasiga email yuboradi. Faqat `main`ga qo'shilgandan keyin ishlaydi.
+name: QR sahifalari tekshiruvi
+on:
+  schedule:
+    - cron: "17 2,14 * * *"   # kuniga 2 marta (07:17 va 19:17 Toshkent)
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bilet, GOLD, SILVER va GAL sahifalari
+        run: |
+          set -u
+          fail=0
+          chk () {  # url  sahifada bo'lishi kerak bo'lgan matn
+            body=$(curl -sSL --retry 3 --retry-delay 10 --max-time 30 -w '\n%{http_code}' "$1") || { echo "::error::$1 — ulanib bo'lmadi"; fail=1; return; }
+            code=$(printf '%s' "$body" | tail -n1)
+            if [ "$code" != "200" ] || ! printf '%s' "$body" | grep -q "$2"; then echo "::error::$1 — HTTP $code yoki '$2' topilmadi"; fail=1; else echo "OK  $1"; fi
+          }
+          B=https://dusel.pages.dev
+          chk "$B/?code=00001"                        "Bilet raqami"
+          chk "$B/?code=11222"                        "Bilet raqami"
+          chk "$B/coupon?type=gold&code=0001"         "Kupon raqami"
+          chk "$B/coupon?type=silver&code=4000"       "Kupon raqami"
+          chk "$B/gal?code=000001"                    "ISHONCHLI HAMKORLAR AKSIYASI"
+          chk "$B/gal?code=001000"                    "ISHONCHLI HAMKORLAR AKSIYASI"
+          exit $fail

@@ -6,154 +6,100 @@
 <title>DUSEL GROUP — 1 250 000 so'mlik vaucher</title>
 <meta name="description" content="DUSEL GROUP — Ishonchli hamkorlar aksiyasi. 1 250 000 so'mlik vaucher.">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#6e0009">
-<link rel="preload" href="assets/montserrat.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23c4000f'/%3E%3Ctext x='16' y='23' font-family='Arial' font-weight='900' font-size='20' fill='%23ffd66b' text-anchor='middle'%3ED%3C/text%3E%3C/svg%3E">
+<meta name="theme-color" content="#c50d01">
+<link rel="preload" href="assets/gal/hero.webp" as="image">
+<link rel="preload" href="assets/gal/interdisplay-medium.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23c50d01'/%3E%3Ctext x='16' y='23' font-family='Arial' font-weight='900' font-size='20' fill='%23ffd34d' text-anchor='middle'%3ED%3C/text%3E%3C/svg%3E">
 <style>
 @font-face{font-family:"Mont";src:url(assets/montserrat.woff2) format("woff2");font-weight:100 900;font-display:swap}
-:root{
-  --red0:#4a0006; --red1:#8e000c; --red2:#c4000f; --red3:#ff2a2a;
-  --g1:#7a4a0a; --g2:#c8901e; --g3:#fff0b0; --g4:#f2c14e; --g5:#a8721a;  /* metall oltin */
-  --cream:#fffaf0; --ink:#1d1210; --muted:#6b5752; --line:rgba(255,215,120,.45);
-}
+@font-face{font-family:"InterD";src:url(assets/gal/interdisplay-medium.woff2) format("woff2");font-weight:500;font-display:swap}
+:root{--red:#c50d01;--red2:#d93016;--red3:#e8461e;--deep:#9e0a00;--gold:#ffd34d;--ink:#111}
 *{box-sizing:border-box;margin:0;padding:0}
-html{-webkit-text-size-adjust:100%;background:var(--red0)}
+html{-webkit-text-size-adjust:100%;background:var(--red)}
+/* fon — dizayndagi kabi: markazda iliq yorug'lik, chetlarda to'q qizil */
 body{min-height:100vh;min-height:100svh;font-family:"Mont",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:#fff;
-  background:
-    radial-gradient(110% 60% at 50% -8%,rgba(255,196,84,.30),transparent 58%),
-    radial-gradient(80% 50% at 85% 105%,rgba(255,170,60,.18),transparent 60%),
-    radial-gradient(140% 90% at 50% 30%,var(--red2) 0%,var(--red1) 48%,var(--red0) 100%);
-  background-attachment:fixed;
-  display:flex;flex-direction:column;align-items:center;padding:max(18px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom));overflow-x:hidden}
+  background:var(--red);
+  display:flex;flex-direction:column;align-items:center;padding:max(16px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom));overflow-x:hidden}
 @supports (-webkit-touch-callout:none){body{background-attachment:scroll}}
 canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
-.glow{position:fixed;inset:-30%;pointer-events:none;z-index:0;
-  background:conic-gradient(from 0deg at 50% 40%,transparent 0 20deg,rgba(255,214,120,.07) 30deg,transparent 45deg 110deg,rgba(255,214,120,.06) 125deg,transparent 140deg 200deg,rgba(255,214,120,.07) 215deg,transparent 230deg 290deg,rgba(255,214,120,.05) 305deg,transparent 320deg);
-  animation:spin 60s linear infinite}
+.glow{position:fixed;left:50%;top:34%;width:140vmax;height:140vmax;margin:-70vmax 0 0 -70vmax;pointer-events:none;z-index:0;opacity:.55;
+  background:conic-gradient(from 0deg,transparent 0 14deg,rgba(255,214,120,.10) 20deg,transparent 28deg 74deg,rgba(255,214,120,.08) 80deg,transparent 88deg 134deg,rgba(255,214,120,.10) 140deg,transparent 148deg 194deg,rgba(255,214,120,.08) 200deg,transparent 208deg 254deg,rgba(255,214,120,.10) 260deg,transparent 268deg 314deg,rgba(255,214,120,.08) 320deg,transparent 328deg);
+  -webkit-mask:radial-gradient(closest-side,#000 20%,transparent 75%);mask:radial-gradient(closest-side,#000 20%,transparent 75%);animation:spin 80s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.wrap{position:relative;z-index:1;width:100%;max-width:440px;display:flex;flex-direction:column;align-items:center}
+.wrap{position:relative;z-index:1;width:100%;max-width:460px;display:flex;flex-direction:column;align-items:center;text-align:center}
+.r{opacity:0;transform:translateY(16px);animation:rise .8s cubic-bezier(.2,.7,.2,1) forwards}
+@keyframes rise{to{opacity:1;transform:none}}
 
-.logo{width:min(54vw,210px);margin:4px 0 14px;opacity:0;animation:rise .8s .05s cubic-bezier(.2,.7,.2,1) forwards}
-.logo img{display:block;width:100%;height:auto;filter:drop-shadow(0 4px 10px rgba(0,0,0,.35))}
+.logo{width:min(46vw,190px);margin:4px 0 10px;animation-delay:.05s}
+.logo img{display:block;width:100%;height:auto}
+.valid{font-weight:700;font-size:clamp(9.5px,2.7vw,11.5px);letter-spacing:.02em;line-height:1.35;color:#fff;max-width:330px;animation-delay:.12s}
 
-.metal{background:linear-gradient(100deg,var(--g1) 0%,var(--g2) 16%,var(--g3) 30%,var(--g4) 44%,var(--g5) 58%,var(--g2) 72%,var(--g3) 86%,var(--g1) 100%);
-  background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 6s linear infinite}
-@keyframes shine{to{background-position:-220% 0}}
+.title{position:relative;width:min(84%,370px);margin-top:10px;animation-delay:.2s}
+.title img,.amount img{display:block;width:100%;height:auto}
+/* oltin harflar ustidan o'tuvchi yaltirash — faqat harflar maskasi ichida */
+.shine::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.0) 42%,rgba(255,255,255,.75) 50%,rgba(255,255,255,0) 58%,transparent 62%);
+  background-size:260% 100%;background-position:130% 0;-webkit-mask:var(--m) center/100% 100% no-repeat;mask:var(--m) center/100% 100% no-repeat;
+  mix-blend-mode:soft-light;animation:shine 5.5s 1.4s ease-in-out infinite}
+.title.shine::after{--m:url(assets/gal/title_mask.webp)}
+.amount.shine::after{--m:url(assets/gal/amount_mask.webp);animation-delay:2.4s}
+@keyframes shine{0%{background-position:130% 0}45%,100%{background-position:-130% 0}}
 
-/* karta = sovg'a */
-.card{position:relative;width:100%;border-radius:26px;padding:2px;
-  background:linear-gradient(140deg,var(--g3),var(--g1) 28%,var(--g4) 52%,var(--g5) 78%,var(--g3));
-  box-shadow:0 34px 70px -24px rgba(0,0,0,.75),0 0 70px -14px rgba(255,190,80,.45);
-  opacity:0;transform:translateY(24px);animation:rise .9s .18s cubic-bezier(.2,.7,.2,1) forwards}
-.inner{position:relative;border-radius:24px;overflow:hidden;
-  background:radial-gradient(120% 70% at 50% 0%,#d4101c 0%,#a3000d 45%,#6c0008 100%)}
-.inner::before{content:"";position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(115deg,transparent 40%,rgba(255,255,255,.10) 47%,rgba(255,240,200,.22) 50%,rgba(255,255,255,.10) 53%,transparent 60%);
-  transform:translateX(-120%);animation:sheen 7s 1.4s ease-in-out infinite}
-@keyframes sheen{0%{transform:translateX(-120%)}50%,100%{transform:translateX(120%)}}
+.hero{position:relative;width:min(100%,430px);margin-top:10px;animation-delay:.6s}
+.hero::before{content:"";position:absolute;inset:8% 4% 6%;border-radius:50%;background:radial-gradient(closest-side,rgba(255,120,60,.35),transparent);filter:blur(8px);animation:pulse 5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
+.hero img{display:block;width:100%;height:auto;animation:float 6.5s ease-in-out infinite;transform-origin:50% 90%}
+@keyframes float{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-5px) rotate(-.25deg)}}
 
-/* lenta (tasma) va bant */
-.ribbon-v{position:absolute;top:0;bottom:0;right:13%;width:28px;pointer-events:none;
-  background:linear-gradient(90deg,#7d0009,#e4141f 22%,#ff5a55 46%,#d10c18 70%,#7d0009);
-  box-shadow:0 0 0 1.5px rgba(255,214,120,.55),0 0 18px rgba(0,0,0,.35);opacity:.9}
-.bow{position:absolute;top:2px;right:calc(13% - 48px);width:124px;height:auto;pointer-events:none;z-index:3;
-  transform-origin:50% 40%;animation:sway 5.5s ease-in-out infinite;filter:drop-shadow(0 8px 10px rgba(0,0,0,.35))}
-@keyframes sway{0%,100%{transform:rotate(-2.2deg)}50%{transform:rotate(2.2deg)}}
+.amount{position:relative;width:min(90%,390px);margin-top:6px;animation-delay:.3s}
 
-.head{position:relative;z-index:2;text-align:center;padding:78px 18px 4px}
-.camp{display:inline-block;font-weight:800;font-size:clamp(12px,3.5vw,14px);letter-spacing:.2em;line-height:1.45;color:#fff;
-  padding:7px 14px;border-radius:10px;background:linear-gradient(180deg,#8a000b,#5e0007);box-shadow:inset 0 0 0 1px var(--line),0 8px 16px -10px rgba(0,0,0,.6)}
-.amount{margin-top:14px;font-weight:900;font-size:clamp(36px,13.5vw,72px);line-height:.95;letter-spacing:.01em;white-space:nowrap;
-  filter:drop-shadow(0 3px 0 #5a2f05) drop-shadow(0 8px 16px rgba(0,0,0,.45))}
-.sub{margin-top:8px;font-weight:900;font-size:clamp(17px,5.4vw,23px);letter-spacing:.12em;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.35)}
-
-.numbox{position:relative;z-index:2;margin:18px 16px 0;padding:16px 14px 18px;border-radius:18px;text-align:center;color:var(--ink);
-  background:linear-gradient(180deg,#fff,var(--cream));box-shadow:0 0 0 2px var(--g4),0 14px 26px -14px rgba(0,0,0,.6)}
-.lbl{font-weight:800;font-size:11.5px;letter-spacing:.32em;color:var(--red1);text-transform:uppercase}
-.plate{position:relative;display:inline-block;margin-top:8px;padding:4px 14px 6px;border-radius:12px;overflow:hidden}
-.num{display:block;font-weight:900;font-size:clamp(46px,14.6vw,64px);line-height:1;letter-spacing:.05em;font-variant-numeric:tabular-nums;color:var(--red2)}
-.plate::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,226,150,.65) 50%,transparent 65%);
-  transform:translateX(-130%);animation:sweep 4.2s 1.3s ease-in-out infinite}
-@keyframes sweep{0%{transform:translateX(-130%)}45%,100%{transform:translateX(130%)}}
-.seriya{margin-top:6px;font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--muted)}
-
-.hero{position:relative;z-index:1;margin:16px 0 0;display:none}
-.hero img{display:block;width:100%;height:auto}
-html[data-hero="1"] .hero{display:block}
-
-.terms{position:relative;z-index:2;margin:16px 16px 18px;padding:14px 16px;border-radius:16px;background:#fff;color:var(--ink);
-  font-size:13px;line-height:1.55;box-shadow:0 12px 24px -16px rgba(0,0,0,.6)}
-.terms h2{font-size:12px;font-weight:800;letter-spacing:.18em;color:var(--red1);margin-bottom:6px}
-.terms ul{list-style:none}
-.terms li{position:relative;padding-left:14px}
-.terms li+li{margin-top:6px}
-.terms li::before{content:"";position:absolute;left:0;top:.62em;width:6px;height:6px;border-radius:50%;background:var(--red2)}
-.terms b{color:var(--red2)}
-
-.err{display:none;position:relative;z-index:2;padding:30px 20px 34px;text-align:center}
-.err h1{font-size:24px;font-weight:900;margin-bottom:10px}
-.err p{font-size:14px;line-height:1.55;color:rgba(255,236,220,.9)}
-.err code{font-family:inherit;font-weight:800;color:#fff;white-space:nowrap}
-html[data-state="invalid"] .ok,html[data-state="invalid"] .bow,html[data-state="invalid"] .ribbon-v{display:none}
-html[data-state="invalid"] .err{display:block}
+/* dizayndagi oq maydonlar */
+.box{width:100%;max-width:400px;margin-top:14px;background:#fff;color:var(--ink);border-radius:14px;
+  box-shadow:0 14px 30px -16px rgba(70,0,0,.75),0 0 0 1px rgba(255,255,255,.6),0 0 0 0 rgba(255,211,77,0);animation:rise .8s .4s cubic-bezier(.2,.7,.2,1) forwards,halo 3.6s 1.6s ease-in-out infinite;padding:14px 16px 16px;font-family:"InterD","Inter",system-ui,Arial,sans-serif;font-weight:500;animation-delay:.5s}
+.lbl{font-size:13px;letter-spacing:.02em;color:#333;text-transform:uppercase}
+.num{position:relative;display:inline-block;margin-top:4px;font-size:clamp(40px,12.6vw,54px);line-height:1.05;letter-spacing:.01em;font-variant-numeric:tabular-nums;color:#111;overflow:hidden;white-space:nowrap}
+.num b{font-weight:500}
+@keyframes halo{0%,100%{box-shadow:0 14px 30px -16px rgba(70,0,0,.75),0 0 0 1px rgba(255,255,255,.6),0 0 0 0 rgba(255,211,77,0)}50%{box-shadow:0 14px 30px -16px rgba(70,0,0,.75),0 0 0 1px rgba(255,255,255,.6),0 0 22px 2px rgba(255,211,77,.55)}}
 html[data-state="loading"] .num{color:transparent}
 
-.note{margin-top:18px;max-width:380px;text-align:center;font-size:11.5px;line-height:1.5;color:rgba(255,232,220,.78);opacity:0;animation:rise .8s 1s forwards}
+.terms{margin-top:16px;max-width:400px;font-weight:700;font-size:clamp(10px,2.85vw,11.5px);line-height:1.5;letter-spacing:.01em;text-transform:uppercase;color:#fff;animation-delay:.6s}
+.note{margin-top:14px;max-width:360px;font-size:11px;line-height:1.5;color:rgba(255,236,226,.82);animation-delay:.8s}
 .note b{color:#fff}
-@keyframes rise{to{opacity:1;transform:none}}
-@media (max-width:350px){.ribbon-v{width:24px}.bow{width:104px;right:calc(13% - 40px)}.head{padding-top:68px}}
-@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.logo,.card,.note{opacity:1;transform:none}canvas#fx,.glow{display:none}}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+
+.err{display:none;margin-top:18px;max-width:400px;background:#fff;color:var(--ink);border-radius:14px;padding:24px 18px}
+.err h2{font-size:22px;font-weight:900;margin-bottom:8px;color:var(--deep)}
+.err p{font-size:14px;line-height:1.55;color:#333}
+.err code{font-family:inherit;font-weight:800;white-space:nowrap}
+.ok{display:contents}
+html[data-state="invalid"] .ok{display:none}
+html[data-state="invalid"] .err{display:block}
+
+@media (min-width:760px){.wrap{max-width:520px}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.r{opacity:1;transform:none}canvas#fx{display:none}}
 </style>
 </head>
 <body>
 <canvas id="fx" aria-hidden="true"></canvas>
-<div class="glow" aria-hidden="true"></div>
 <main class="wrap">
-  <div class="logo"><img src="assets/logo.svg" alt="DUSEL GROUP" width="334" height="95"></div>
-  <article class="card" aria-labelledby="amt">
-    <div class="inner">
-      <div class="ribbon-v" aria-hidden="true"></div>
-      <svg class="bow" viewBox="0 0 124 86" aria-hidden="true">
-        <defs>
-          <linearGradient id="rb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5a55"/><stop offset=".5" stop-color="#d70f1b"/><stop offset="1" stop-color="#7d0009"/></linearGradient>
-          <linearGradient id="rb2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff7a70"/><stop offset=".55" stop-color="#c80c17"/><stop offset="1" stop-color="#6e0008"/></linearGradient>
-        </defs>
-        <path d="M55 40 C40 30 36 52 42 84 L50 78 L56 84 C58 62 60 50 62 42Z" fill="url(#rb)" stroke="#ffd66b" stroke-opacity=".55" stroke-width="1"/>
-        <path d="M69 40 C84 30 88 52 82 84 L74 78 L68 84 C66 62 64 50 62 42Z" fill="url(#rb)" stroke="#ffd66b" stroke-opacity=".55" stroke-width="1"/>
-        <path d="M60 38 C44 6 6 2 6 26 C6 46 40 46 60 40Z" fill="url(#rb2)" stroke="#ffd66b" stroke-opacity=".6" stroke-width="1.2"/>
-        <path d="M64 38 C80 6 118 2 118 26 C118 46 84 46 64 40Z" fill="url(#rb2)" stroke="#ffd66b" stroke-opacity=".6" stroke-width="1.2"/>
-        <path d="M58 37 C46 18 22 14 18 26" fill="none" stroke="#ff9c92" stroke-opacity=".7" stroke-width="2.2" stroke-linecap="round"/>
-        <path d="M66 37 C78 18 102 14 106 26" fill="none" stroke="#ff9c92" stroke-opacity=".7" stroke-width="2.2" stroke-linecap="round"/>
-        <rect x="52" y="30" width="20" height="17" rx="6" fill="url(#rb)" stroke="#ffd66b" stroke-opacity=".7" stroke-width="1.2"/>
-      </svg>
-
-      <div class="ok">
-        <div class="head">
-          <div class="camp">ISHONCHLI HAMKORLAR AKSIYASI</div>
-          <div class="amount metal" id="amt">1&nbsp;250&nbsp;000</div>
-          <div class="sub">SO'MLIK VAUCHER</div>
-        </div>
-        <div class="numbox">
-          <div class="lbl">Vaucher raqami</div>
-          <div class="plate"><span class="num" id="num">000000</span></div>
-          <div class="seriya">SERIYA NOMER</div>
-        </div>
-        <figure class="hero"><img id="heroimg" alt="Aksiya sovg'alari" decoding="async"></figure>
-        <section class="terms" aria-label="Aksiya shartlari">
-          <h2>SHARTLAR</h2>
-          <ul id="terms">
-            <li>Vaucher berilgan kundan boshlab <b>15 kun</b> davomida amal qiladi.</li>
-          </ul>
-        </section>
-      </div>
-      <div class="err" role="alert">
-        <h1>Vaucher topilmadi</h1>
-        <p>Havolada 6 xonali vaucher raqami bo'lishi kerak:<br><code>000001</code> – <code>001000</code>.<br>Vaucherdagi QR kodni qayta skanerlang.</p>
-      </div>
-    </div>
-  </article>
-  <noscript><p class="note" style="opacity:1">Vaucher raqamini ko'rish uchun brauzerda JavaScript yoqilgan bo'lishi kerak.</p></noscript>
-  <p class="note">Bu sahifa vaucher raqamini ko'rsatadi; vaucherning haqiqiyligini yoki ishlatilganligini tasdiqlamaydi.<br><b>DUSEL GROUP</b> · Ishonchli hamkorlar aksiyasi</p>
+  <div class="logo r"><img src="assets/logo.svg" alt="DUSEL GROUP" width="334" height="95"></div>
+  <p class="valid r">BERILGAN SANADAN USHBU VAUCHER 15 KUN ICHIDA AMAL QILADI!</p>
+  <h1 class="title shine r"><img src="assets/gal/title.webp" width="840" height="352" alt=""><span class="sr">ISHONCHLI HAMKORLAR AKSIYASI</span></h1>
+  <div class="ok">
+    <div class="amount shine r" id="amt"><img src="assets/gal/amount.webp" width="860" height="304" alt=""><span class="sr">1 250 000 SO'MLIK VAUCHER</span></div>
+    <section class="box r" aria-label="Vaucher raqami">
+      <div class="lbl">Seriya nomer <span class="sr">(vaucher raqami)</span></div>
+      <div class="num"><b>Nº&nbsp;</b><span id="num">000000</span></div>
+    </section>
+    <div class="hero r"><img src="assets/gal/hero.webp" width="960" height="843" alt="Aksiya sovg'alari: turar-joy, avtomobillar, yuk mashinasi, skuter, konditsioner, kir yuvish mashinasi, elektr asboblar" decoding="async"></div>
+  </div>
+  <div class="err" role="alert">
+    <h2>Vaucher topilmadi</h2>
+    <p>Havolada 6 xonali vaucher raqami bo'lishi kerak:<br><code>000001</code> – <code>001000</code>.<br>Vaucherdagi QR kodni qayta skanerlang.</p>
+  </div>
+  <p class="terms r">Eslatib o'tamiz ushbu vaucher Dusel Group kompaniyasi tomonidan 01.06.2026–31.12.2026 sanasida o'tkazilgan elektriklar uchun “Ishonchli hamkorlar” aksiyasi doirasida ishtirok etgan elektriklar uchun amal qiladi!</p>
+  <noscript><p class="note" style="opacity:1;transform:none">Vaucher raqamini ko'rish uchun brauzerda JavaScript yoqilgan bo'lishi kerak.</p></noscript>
+  <p class="note r">Bu sahifa vaucher raqamini ko'rsatadi; vaucherning haqiqiyligini yoki ishlatilganligini tasdiqlamaydi.<br><b>DUSEL GROUP</b> · Ishonchli hamkorlar aksiyasi</p>
 </main>
 <script>
 (function(){
@@ -165,14 +111,10 @@ html[data-state="loading"] .num{color:transparent}
   if(!ok){root.setAttribute('data-state','invalid');document.title="Vaucher topilmadi — DUSEL GROUP";return}
   root.setAttribute('data-state','ok');
   document.getElementById('num').textContent=code;
-  document.title="Vaucher № "+code+" — DUSEL GROUP";
-  // dizayndan olingan sovg'alar rasmi (bo'lsa) — yuklanmasa sahifa usiz ham to'liq
-  var img=document.getElementById('heroimg');
-  img.onload=function(){root.setAttribute('data-hero','1')};
-  img.src='assets/gal/hero.webp';
+  document.title="Vaucher Nº "+code+" — DUSEL GROUP";
 })();
 (function(){
-  // fon: suzuvchi oltin zarrachalar + sekin konfetti + kamdan-kam yumshoq uchqunlar
+  // fon: oltin uchqunlar + sekin tushuvchi qizil lenta/konfetti + kamdan-kam yumshoq salyut
   try{
     if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     if(document.documentElement.getAttribute('data-state')!=='ok') return;
@@ -180,18 +122,18 @@ html[data-state="loading"] .num{color:transparent}
     var W,H,dpr=Math.min(window.devicePixelRatio||1,2),P=[],C=[],S=[];
     function size(){W=cv.width=innerWidth*dpr;H=cv.height=innerHeight*dpr}
     size(); addEventListener('resize',size);
-    var area=innerWidth*innerHeight, n=Math.round(Math.min(90,Math.max(40,area/10000))), nc=Math.round(Math.min(26,Math.max(12,area/22000)));
-    function mk(init){return {x:Math.random()*W,y:init?Math.random()*H:H+20*dpr,r:(0.9+Math.random()*2.3)*dpr,
-      vy:-(0.18+Math.random()*0.55)*dpr,vx:(Math.random()-.5)*0.22*dpr,ph:Math.random()*6.28,tw:0.02+Math.random()*0.045}}
-    var CC=['#ffd66b','#f2c14e','#fff0b0','#ffffff','#ff3b3b'];
-    function mkc(init){return {x:Math.random()*W,y:init?Math.random()*H:-20*dpr,w:(4+Math.random()*4)*dpr,h:(7+Math.random()*6)*dpr,
-      vy:(0.35+Math.random()*0.55)*dpr,sw:Math.random()*6.28,sv:0.01+Math.random()*0.02,rot:Math.random()*6.28,rv:(Math.random()-.5)*0.04,c:CC[(Math.random()*CC.length)|0]}}
+    var area=innerWidth*innerHeight, n=Math.round(Math.min(70,Math.max(30,area/12000))), nc=Math.round(Math.min(22,Math.max(10,area/24000)));
+    function mk(init){return {x:Math.random()*W,y:init?Math.random()*H:H+20*dpr,r:(0.8+Math.random()*2)*dpr,
+      vy:-(0.15+Math.random()*0.45)*dpr,vx:(Math.random()-.5)*0.2*dpr,ph:Math.random()*6.28,tw:0.02+Math.random()*0.04}}
+    var CC=['#ff2a1a','#e0120a','#ff4b3a','#ffffff','#ffd34d'];
+    function mkc(init){return {x:Math.random()*W,y:init?Math.random()*H:-30*dpr,l:(10+Math.random()*12)*dpr,w:(3+Math.random()*2.5)*dpr,
+      vy:(0.3+Math.random()*0.5)*dpr,sw:Math.random()*6.28,sv:0.01+Math.random()*0.02,rot:Math.random()*6.28,rv:(Math.random()-.5)*0.03,c:CC[(Math.random()*CC.length)|0]}}
     for(var i=0;i<n;i++)P.push(mk(true));
     for(i=0;i<nc;i++)C.push(mkc(true));
     var t=0, run=true;
     document.addEventListener('visibilitychange',function(){run=!document.hidden;if(run)requestAnimationFrame(f)});
-    function burst(){var cx=W*(0.15+Math.random()*0.7), cy=H*(0.08+Math.random()*0.3), k=26;
-      for(var j=0;j<k;j++){var a=j/k*6.283, v=(0.6+Math.random()*0.9)*dpr; S.push({x:cx,y:cy,vx:Math.cos(a)*v,vy:Math.sin(a)*v,l:1})}}
+    function burst(){var cx=W*(0.15+Math.random()*0.7), cy=H*(0.06+Math.random()*0.25), k=24;
+      for(var j=0;j<k;j++){var a=j/k*6.283, v=(0.5+Math.random()*0.8)*dpr; S.push({x:cx,y:cy,vx:Math.cos(a)*v,vy:Math.sin(a)*v,l:1})}}
     function f(){
       if(!run) return;
       t++;
@@ -200,19 +142,22 @@ html[data-state="loading"] .num{color:transparent}
         var a=0.3+0.7*Math.abs(Math.sin(p.ph));
         if(p.y<-20*dpr||p.x<-20*dpr||p.x>W+20*dpr) P[i]=mk(false);
         var g=x.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*4);
-        g.addColorStop(0,'rgba(255,244,200,'+a+')');g.addColorStop(.35,'rgba(245,195,85,'+a*.55+')');g.addColorStop(1,'rgba(210,140,30,0)');
+        g.addColorStop(0,'rgba(255,246,205,'+a+')');g.addColorStop(.35,'rgba(255,205,80,'+a*.55+')');g.addColorStop(1,'rgba(230,150,20,0)');
         x.fillStyle=g; x.beginPath(); x.arc(p.x,p.y,p.r*4,0,6.283); x.fill();
       }
-      for(i=0;i<C.length;i++){var c=C[i]; c.y+=c.vy; c.sw+=c.sv; c.rot+=c.rv; var cx=c.x+Math.sin(c.sw)*14*dpr;
-        if(c.y>H+20*dpr) C[i]=mkc(false);
-        x.save(); x.translate(cx,c.y); x.rotate(c.rot); x.scale(1,Math.abs(Math.cos(c.sw*2))*0.8+0.2);
-        x.globalAlpha=0.55; x.fillStyle=c.c; x.fillRect(-c.w/2,-c.h/2,c.w,c.h); x.restore();
+      // lenta bo'lakchalari (dizayndagi qizil lentalar kabi egilgan)
+      for(i=0;i<C.length;i++){var c=C[i]; c.y+=c.vy; c.sw+=c.sv; c.rot+=c.rv; var cx=c.x+Math.sin(c.sw)*16*dpr;
+        if(c.y>H+30*dpr) C[i]=mkc(false);
+        x.save(); x.translate(cx,c.y); x.rotate(c.rot); x.globalAlpha=0.7;
+        x.strokeStyle=c.c; x.lineWidth=c.w; x.lineCap='round';
+        var bend=Math.sin(c.sw*2)*c.l*0.5;
+        x.beginPath(); x.moveTo(-c.l/2,0); x.quadraticCurveTo(0,bend,c.l/2,0); x.stroke(); x.restore();
       }
       x.globalAlpha=1;
-      if(t%420===200) burst();
-      for(i=S.length-1;i>=0;i--){var s=S[i]; s.x+=s.vx; s.y+=s.vy; s.vy+=0.012*dpr; s.vx*=0.985; s.vy*=0.985; s.l-=0.012;
+      if(t%460===220) burst();
+      for(i=S.length-1;i>=0;i--){var s=S[i]; s.x+=s.vx; s.y+=s.vy; s.vy+=0.01*dpr; s.vx*=0.985; s.vy*=0.985; s.l-=0.012;
         if(s.l<=0){S.splice(i,1);continue}
-        x.fillStyle='rgba(255,226,140,'+(s.l*0.7)+')'; x.beginPath(); x.arc(s.x,s.y,1.3*dpr,0,6.283); x.fill();
+        x.fillStyle='rgba(255,230,150,'+(s.l*0.75)+')'; x.beginPath(); x.arc(s.x,s.y,1.3*dpr,0,6.283); x.fill();
       }
       requestAnimationFrame(f);
     }

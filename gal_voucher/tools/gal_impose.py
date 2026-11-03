@@ -158,13 +158,14 @@ def voucher_doc(cfg, rows, base):
         qrect = fitz.Rect(T(cx - side / 2, cy - side / 2), T(cx + side / 2, cy + side / 2))
         qr_paths(pg, r["QR_URL"], qrect)
         pg.insert_font(fontname="SER", fontfile=font)
-        tw = fnt.text_length(r["VOUCHER_NUMBER"], fontsize=size)
+        txt = S.get("prefix", "") + r["VOUCHER_NUMBER"]
+        tw = fnt.text_length(txt, fontsize=size)
         fx0, _, fx1, _ = S["box"]
         bx = (fx0 + fx1) / 2 if S.get("align") == "center" else fx0
         p0 = T(bx, S["baseline"])
         if S.get("align") == "center":
             p0.x -= tw / 2
-        pg.insert_text(p0, r["VOUCHER_NUMBER"], fontname="SER", fontsize=size, color=tuple(S["color_cmyk"]))
+        pg.insert_text(p0, txt, fontname="SER", fontsize=size, color=tuple(S["color_cmyk"]))
         meta.append(dict(qr=qrect, num=fitz.Rect(p0.x, p0.y - size * 0.72, p0.x + tw, p0.y)))
     return doc, meta
 

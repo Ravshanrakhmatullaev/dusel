@@ -5,5 +5,9 @@
 // Cloudflare Pages (dusel.pages.dev) ildizda, GitHub Pages esa /dusel/ ostida — ikkalasida ham ishlaydi
 var base = location.pathname.indexOf('/dusel/') === 0 ? '/dusel/' : '/';
 document.getElementById('home').href = base;
-location.replace(base + '?code=invalid');
+// Har bir QR tizimi o'z sahifasida qoladi: /gal… va /coupon… hech qachon bilet sahifasiga tushmaydi
+var rest = location.pathname.slice(base.length).toLowerCase();
+var m = rest.match(/^(gal|coupon)(\.html)?(\/.*)?$/);
+if (m) { if (location.pathname.slice(base.length) !== m[1]) location.replace(base + m[1] + location.search); /* sahifaning o'zi topilmasa — sikl bo'lmasligi uchun shu yerda qolamiz */ }
+else location.replace(base + '?code=invalid');
 </script></body></html>

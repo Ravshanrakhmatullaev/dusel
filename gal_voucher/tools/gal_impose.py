@@ -86,7 +86,27 @@ def prepare_base(cfg, out_dir):
     for e in cfg.get("erase", []):
         x0, y0, x1, y1, col = e
         d.rectangle([x0, y0, x1, y1], fill=col)
+    pad = cfg.get("pad_px") or {}
+    pt, pb = int(pad.get("top", 0)), int(pad.get("bottom", 0))
+    if pt or pb:
+        # Dizayn cho'zilmaydi: 200×100 nisbatiga keltirish uchun yuqori/pastga asl fon davom ettiriladi.
+        # Har ustun uchun chekka 4 qatorning o'rtacha rangi olinadi va tashqariga qarab dizayn burchagidagi to'q qizilga
+        # silliq o'tadi (asl radial gradient kabi). Kontent (matn, rasm, QR) joyidan qimirlamaydi.
+        import numpy as np
+        A = np.asarray(im).astype(np.float32)
+        edge_col = np.array(cfg.get("pad_edge_rgb", [197, 13, 1]), np.float32)
+        def band(rows_avg, n, outward_down):
+            t = np.linspace(0, 1, n, dtype=np.float32)[:, None, None]
+            if not outward_down:
+                t = t[::-1]
+            k = 0.55 * (t ** 1.3)
+            return (rows_avg[None, :, :] * (1 - k) + edge_col[None, None, :] * k).clip(0, 255).astype(np.uint8)
+        top = band(A[:4].mean(axis=0), pt, False)
+        bot = band(A[-4:].mean(axis=0), pb, True)
+        im = Image.fromarray(np.concatenate([top, A.astype(np.uint8), bot], axis=0))
+        W, H = im.size
     ppm = W / cfg["voucher_mm"][0]
+    assert abs(H / ppm - cfg["voucher_mm"][1]) < 0.05, ("nisbat mos emas", H / ppm, cfg["voucher_mm"])
     b = int(round(cfg["bleed_mm"] * ppm))
     if b:
         big = Image.new("RGB", (W + 2 * b, H + 2 * b))
@@ -151,7 +171,8 @@ def voucher_doc(cfg, rows, base):
     for r in rows:
         pg = doc.new_page(width=(vw + 2 * bl) * MM, height=(vh + 2 * bl) * MM)
         xref = pg.insert_image(pg.rect, filename=None if xref else base_path, xref=xref, keep_proportion=False)
-        T = lambda px, py: fitz.Point((bl + px / ppm) * MM, (bl + py / ppm) * MM)   # dizayn pikseli -> sahifa
+        PT = (cfg.get("pad_px") or {}).get("top", 0)
+        T = lambda px, py: fitz.Point((bl + px / ppm) * MM, (bl + (py + PT) / ppm) * MM)   # asl dizayn pikseli -> sahifa
         qx0, qy0, qx1, qy1 = cfg["qr_box"]
         side = min(qx1 - qx0, qy1 - qy0)
         cx, cy = (qx0 + qx1) / 2, (qy0 + qy1) / 2
@@ -184,28 +205,39 @@ def impose(cfg, rows, out_pdf, base, label):
     for si in range(sheets):
         page = doc.new_page(width=SW * MM, height=SH * MM)
         chunk = list(range(si * per, min(len(rows), (si + 1) * per)))
+        used = [fitz.Rect(slots[k][0] * MM, slots[k][1] * MM, (slots[k][0] + slots[k][2]) * MM, (slots[k][1] + slots[k][3]) * MM) for k in range(len(chunk))]
         for k, i in enumerate(chunk):
             sx, sy, cw, ch = slots[k]
             trim = fitz.Rect(sx * MM, sy * MM, (sx + cw) * MM, (sy + ch) * MM)
-            bleed = trim + (-bl * MM, -bl * MM, bl * MM, bl * MM)
-            page.show_pdf_page(bleed, vdoc, i, rotate=90 if rot else 0, keep_proportion=False)
+            # qo'shni vaucher bor tomonda bleed yo'q (kesish chizig'i umumiy) — ustma-ust tushish bo'lmaydi
+            def has(dx, dy):
+                c = fitz.Point((trim.x0 + trim.x1) / 2 + dx * trim.width, (trim.y0 + trim.y1) / 2 + dy * trim.height)
+                return any(u.contains(c) for u in used)
+            e = bl * MM
+            L_, T_, R_, B_ = (0 if has(-1, 0) else e), (0 if has(0, -1) else e), (0 if has(1, 0) else e), (0 if has(0, 1) else e)
+            bleed = fitz.Rect(trim.x0 - L_, trim.y0 - T_, trim.x1 + R_, trim.y1 + B_)
+            vp = vdoc[i].rect
+            clip = fitz.Rect(e - L_, e - T_, vp.width - e + R_, vp.height - e + B_)
+            assert not rot
+            page.show_pdf_page(bleed, vdoc, i, clip=clip, keep_proportion=False)
             # vaucher ichidagi to'rtburchakni varaqqa o'tkazish (QA uchun)
             def M(R):
                 if not rot:
-                    return R + (bleed.x0, bleed.y0, bleed.x0, bleed.y0)
+                    o = fitz.Point(trim.x0 - e, trim.y0 - e)          # vaucher sahifasining (to'liq bleed) boshi
+                    return R + (o.x, o.y, o.x, o.y)
                 vh_pt = (vh + 2 * bl) * MM
                 return fitz.Rect(bleed.x0 + R.y0, bleed.y0 + (bleed.height - R.x1), bleed.x0 + R.y1, bleed.y0 + (bleed.height - R.x0))
             lay.append(dict(sheet=si + 1, slot=k + 1, number=rows[i]["VOUCHER_NUMBER"], url=rows[i]["QR_URL"],
                             trim=[round(v, 3) for v in trim], bleed=[round(v, 3) for v in bleed],
                             qr=[round(v, 3) for v in M(meta[i]["qr"])], num=[round(v, 3) for v in M(meta[i]["num"])]))
-        xs = sorted({round(s[0] * MM, 3) for s in slots} | {round((s[0] + s[2]) * MM, 3) for s in slots})
-        ys = sorted({round(s[1] * MM, 3) for s in slots} | {round((s[1] + s[3]) * MM, 3) for s in slots})
-        area = ((gx - bl) * MM, (gy - bl) * MM, (gx + GW + bl) * MM, (gy + GH + bl) * MM)
+        xs = sorted({round(u.x0, 3) for u in used} | {round(u.x1, 3) for u in used})
+        ys = sorted({round(u.y0, 3) for u in used} | {round(u.y1, 3) for u in used})
+        area = (min(u.x0 for u in used) - bl * MM, min(u.y0 for u in used) - bl * MM, max(u.x1 for u in used) + bl * MM, max(u.y1 for u in used) + bl * MM)
         crop_marks(page, xs, ys, area, cfg)
         page.insert_font(fontname="INF", fontfile=font)
         a_, b_ = rows[chunk[0]]["VOUCHER_NUMBER"], rows[chunk[-1]]["VOUCHER_NUMBER"]
         info = f"DUSEL GAL · {label} · varaq {si + 1}/{sheets} · {a_}–{b_} · {len(chunk)} dona · vaucher {vw:g}×{vh:g} mm · ISO Coated v2 (ECI)"
-        page.insert_text(fitz.Point((gx - bl) * MM, SH * MM - 3 * MM), info, fontname="INF", fontsize=5.5, color=K100)
+        page.insert_text(fitz.Point((gx + 6) * MM, SH * MM - 3.5 * MM), info, fontname="INF", fontsize=5.5, color=K100)
     doc.subset_fonts()
     doc.save(out_pdf, garbage=3, deflate=True)
     add_output_intent(out_pdf)
@@ -247,10 +279,10 @@ def main():
     print("base", base[1], "bleed px", base[2], f"~{base[4]:.0f} dpi", base[5])
     per = cfg["layout"]["cols"] * cfg["layout"]["rows"]
     if a.step in ("proof", "all"):
-        n, _ = impose(cfg, rows[:per], os.path.join(a.out, f"DUSEL_GAL_{per}UP_TEST.pdf"), base, "PROOF")
+        n, _ = impose(cfg, rows[:per], os.path.join(a.out, cfg.get("out_test", f"DUSEL_GAL_{per}UP_TEST.pdf")), base, "PROOF")
         print("proof", n)
     if a.step in ("print", "all"):
-        n, _ = impose(cfg, rows, os.path.join(a.out, "DUSEL_GAL_1000_PRINT_450x320.pdf"), base, "PRINT")
+        n, _ = impose(cfg, rows, os.path.join(a.out, cfg.get("out_final", "DUSEL_GAL_1000_PRINT_450x320.pdf")), base, "PRINT")
         print("print", n)
 
 

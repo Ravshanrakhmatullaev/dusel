@@ -1,0 +1,230 @@
+[
+ {
+  "section": "TO'G'RI",
+  "test": "/ticket: 20 ta kod (00001, 00330, 10000, 11222 + tasodifiy) → faqat TICKET sahifasi, raqam to'g'ri",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "TO'G'RI",
+  "test": "/gal: 15 ta kod (000001, 000100, 001000 + tasodifiy) → faqat GAL sahifasi, raqam to'g'ri",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "TO'G'RI",
+  "test": "/gold: 14 ta kod (0001, 2000, 0607 + tasodifiy) → faqat GOLD sahifasi, raqam to'g'ri",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "TO'G'RI",
+  "test": "/silver: 14 ta kod (0001, 4000, 0607 + tasodifiy) → faqat SILVER sahifasi, raqam to'g'ri",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "NOTO'G'RI",
+  "test": "/ticket: 11223, 00000, 000005, 000001, 0001, 1, abcde, (bo'sh), 99999, 1e3 → o'sha sahifada xato, yo'naltirish yo'q",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "NOTO'G'RI",
+  "test": "/gal: 001001, 000000, 00001, 11222, 0001, 0000001, ABCDEF, (bo'sh), 1 → o'sha sahifada xato, yo'naltirish yo'q",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "NOTO'G'RI",
+  "test": "/gold: 2001, 0000, 00001, 000001, 4000, abcd, (bo'sh), 1 → o'sha sahifada xato, yo'naltirish yo'q",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "NOTO'G'RI",
+  "test": "/silver: 4001, 0000, 00001, 000001, 11222, abcd, (bo'sh), 1 → o'sha sahifada xato, yo'naltirish yo'q",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "KESISHUV",
+  "test": "/gal?code=11222 → GAL sahifasi, xato",
+  "ok": true,
+  "detail": "[{\"product\":\"gal\",\"valid\":false,\"number\":\"\"}]"
+ },
+ {
+  "section": "KESISHUV",
+  "test": "/ticket?code=000001 → TICKET sahifasi, xato",
+  "ok": true,
+  "detail": "[{\"product\":\"ticket\",\"valid\":false,\"number\":\"\"}]"
+ },
+ {
+  "section": "KESISHUV",
+  "test": "/gold?code=4000 → GOLD sahifasi, xato",
+  "ok": true,
+  "detail": "[{\"product\":\"coupon\",\"valid\":false,\"number\":\"\"}]"
+ },
+ {
+  "section": "KESISHUV",
+  "test": "/silver?code=2000 → SILVER sahifasi, to'g'ri",
+  "ok": true,
+  "detail": "[{\"product\":\"silver\",\"valid\":true,\"number\":\"2000\"}]"
+ },
+ {
+  "section": "KESISHUV",
+  "test": "/gold?code=0001&type=silver → GOLD sahifasi, to'g'ri",
+  "ok": true,
+  "detail": "[{\"product\":\"gold\",\"valid\":true,\"number\":\"0001\"}]"
+ },
+ {
+  "section": "KESISHUV",
+  "test": "/silver?code=0001&type=gold → SILVER sahifasi, to'g'ri",
+  "ok": true,
+  "detail": "[{\"product\":\"silver\",\"valid\":true,\"number\":\"0001\"}]"
+ },
+ {
+  "section": "KESISHUV",
+  "test": "/ticket?code=0001 → TICKET sahifasi, xato",
+  "ok": true,
+  "detail": "[{\"product\":\"ticket\",\"valid\":false,\"number\":\"\"}]"
+ },
+ {
+  "section": "KESISHUV",
+  "test": "/gal?code=0001 → GAL sahifasi, xato",
+  "ok": true,
+  "detail": "[{\"product\":\"gal\",\"valid\":false,\"number\":\"\"}]"
+ },
+ {
+  "section": "ESKI HAVOLA",
+  "test": "/?code=00001 → faqat TICKET № 00001",
+  "ok": true,
+  "detail": "[{\"product\":\"ticket\",\"valid\":true,\"number\":\"00001\"}]"
+ },
+ {
+  "section": "ESKI HAVOLA",
+  "test": "/?code=11222 → faqat TICKET № 11222",
+  "ok": true,
+  "detail": "[{\"product\":\"ticket\",\"valid\":true,\"number\":\"11222\"}]"
+ },
+ {
+  "section": "ESKI HAVOLA",
+  "test": "/coupon?type=gold&code=0001 → faqat GOLD № 0001",
+  "ok": true,
+  "detail": "[{\"product\":\"gold\",\"valid\":true,\"number\":\"0001\"}]"
+ },
+ {
+  "section": "ESKI HAVOLA",
+  "test": "/coupon?type=silver&code=4000 → faqat SILVER № 4000",
+  "ok": true,
+  "detail": "[{\"product\":\"silver\",\"valid\":true,\"number\":\"4000\"}]"
+ },
+ {
+  "section": "ESKI HAVOLA",
+  "test": "/?code=000001 → boshqa mahsulot ochilmaydi (o'sha sahifada xato)",
+  "ok": true,
+  "detail": "[{\"product\":\"ticket\",\"valid\":false,\"number\":\"\"}]"
+ },
+ {
+  "section": "ESKI HAVOLA",
+  "test": "/?code=0001 → boshqa mahsulot ochilmaydi (o'sha sahifada xato)",
+  "ok": true,
+  "detail": "[{\"product\":\"ticket\",\"valid\":false,\"number\":\"\"}]"
+ },
+ {
+  "section": "ESKI HAVOLA",
+  "test": "/coupon?type=gal&code=000001 → boshqa mahsulot ochilmaydi (o'sha sahifada xato)",
+  "ok": true,
+  "detail": "[{\"product\":\"coupon\",\"valid\":false,\"number\":\"\"}]"
+ },
+ {
+  "section": "ESKI HAVOLA",
+  "test": "/coupon?code=0001 → boshqa mahsulot ochilmaydi (o'sha sahifada xato)",
+  "ok": true,
+  "detail": "[{\"product\":\"coupon\",\"valid\":false,\"number\":\"\"}]"
+ },
+ {
+  "section": "404",
+  "test": "/GAL?code=000001 → /gal (o'sha mahsulot, № 000001)",
+  "ok": true,
+  "detail": "/gal?code=000001"
+ },
+ {
+  "section": "404",
+  "test": "/Ticket/?code=00001 → /ticket (o'sha mahsulot, № 00001)",
+  "ok": true,
+  "detail": "/ticket?code=00001"
+ },
+ {
+  "section": "404",
+  "test": "/GOLD?code=0001 → /gold (o'sha mahsulot, № 0001)",
+  "ok": true,
+  "detail": "/gold?code=0001"
+ },
+ {
+  "section": "404",
+  "test": "/silver/?code=0001 → /silver (o'sha mahsulot, № 0001)",
+  "ok": true,
+  "detail": "/silver?code=0001"
+ },
+ {
+  "section": "404",
+  "test": "/xyz → neytral \"Sahifa topilmadi\", hech qayerga yo'naltirilmaydi",
+  "ok": true,
+  "detail": "/xyz"
+ },
+ {
+  "section": "404",
+  "test": "/tickets?code=00001 → neytral \"Sahifa topilmadi\", hech qayerga yo'naltirilmaydi",
+  "ok": true,
+  "detail": "/tickets?code=00001"
+ },
+ {
+  "section": "404",
+  "test": "/gal2?code=000001 → neytral \"Sahifa topilmadi\", hech qayerga yo'naltirilmaydi",
+  "ok": true,
+  "detail": "/gal2?code=000001"
+ },
+ {
+  "section": "404",
+  "test": "/coupon/gold?code=0001 → neytral \"Sahifa topilmadi\", hech qayerga yo'naltirilmaydi",
+  "ok": true,
+  "detail": "/coupon/gold?code=0001"
+ },
+ {
+  "section": "404",
+  "test": "/assets/nope → neytral \"Sahifa topilmadi\", hech qayerga yo'naltirilmaydi",
+  "ok": true,
+  "detail": "/assets/nope"
+ },
+ {
+  "section": "QR→SAHIFA",
+  "test": "TICKET: dekod qilingan 42 ta QR URL → faqat TICKET sahifasi, raqam QR bilan bir xil",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "QR→SAHIFA",
+  "test": "GAL: dekod qilingan 41 ta QR URL → faqat GAL sahifasi, raqam QR bilan bir xil",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "QR→SAHIFA",
+  "test": "GOLD: dekod qilingan 41 ta QR URL → faqat GOLD sahifasi, raqam QR bilan bir xil",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "QR→SAHIFA",
+  "test": "SILVER: dekod qilingan 42 ta QR URL → faqat SILVER sahifasi, raqam QR bilan bir xil",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "section": "UMUMIY",
+  "test": "Sahifalarda JavaScript xatolari yo'q",
+  "ok": true,
+  "detail": ""
+ }
+]

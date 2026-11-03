@@ -17,7 +17,7 @@ import segno
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MM = 72 / 25.4
-BASE_URL = "https://dusel.pages.dev/?code="
+BASE_URL = "https://dusel.pages.dev/ticket?code="
 QR_VERSION = 3
 
 # --- asl sahifa koordinatalari (PyMuPDF, chap-yuqori; asl PDF MediaBox [-1 -1 ...] hisobga olingan)

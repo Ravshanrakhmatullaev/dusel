@@ -27,7 +27,9 @@ URL = "https://dusel.pages.dev/gal?code="
 def zd(img):
     return [x.data.decode() for x in decode(img, symbols=[ZBarSymbol.QRCODE])]
 
-for kind, path, n_exp in (("PROOF", f"DUSEL_GAL_{per}UP_TEST.pdf", per), ("PRINT", "DUSEL_GAL_1000_PRINT_450x320.pdf", 1000)):
+TEST_PDF = cfg.get("out_test", f"DUSEL_GAL_{per}UP_TEST.pdf")
+FINAL_PDF = cfg.get("out_final", "DUSEL_GAL_1000_PRINT_450x320.pdf")
+for kind, path, n_exp in (("PROOF", TEST_PDF, per), ("PRINT", FINAL_PDF, 1000)):
     pdf = os.path.join(a.out, path)
     doc = fitz.open(pdf)
     lay = json.load(open(pdf.replace(".pdf", "_layout.json")))
@@ -104,12 +106,15 @@ for kind, path, n_exp in (("PROOF", f"DUSEL_GAL_{per}UP_TEST.pdf", per), ("PRINT
     check(f"{T} dizayn rasmi CMYK (ISO Coated v2) va bitta obyekt qayta ishlatiladi", len(imgs) == 1 and list(imgs.values())[0][5] in ("ICCBased", "DeviceCMYK"), [(v[2], v[3], v[5]) for v in imgs.values()])
 
 # dizayn mosligi: proof vaucheri vs asl rasm (o'zgaruvchi zonalardan tashqari)
-doc = fitz.open(os.path.join(a.out, f"DUSEL_GAL_{per}UP_TEST.pdf"))
-lay = json.load(open(os.path.join(a.out, f"DUSEL_GAL_{per}UP_TEST_layout.json")))
+doc = fitz.open(os.path.join(a.out, TEST_PDF))
+lay = json.load(open(os.path.join(a.out, TEST_PDF.replace(".pdf", "_layout.json"))))
 art = Image.open(os.path.join(ROOT, cfg["artwork"])).convert("RGB")
 W, H = art.size
 x = lay[0]
 t = fitz.Rect(x["trim"])
+pad = cfg.get("pad_px") or {}
+ppm_ = W / cfg["voucher_mm"][0]
+t = fitz.Rect(t.x0, t.y0 + pad.get("top", 0) / ppm_ * MM, t.x1, t.y1 - pad.get("bottom", 0) / ppm_ * MM)   # asl dizayn qismi (fon davomisiz)
 pix = doc[0].get_pixmap(clip=t, dpi=150)
 ren = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
 if cfg["layout"].get("rotated"):
@@ -125,7 +130,7 @@ d = np.abs(A - B).mean(axis=2)[mask]
 check("Dizayn: proof'dagi vaucher asl rasmga mos (o'zgaruvchi zonalardan tashqari; CMYK konvertatsiya farqi hisobga olingan)",
       d.mean() < 12 and np.percentile(d, 99) < 60, f"o'rtacha farq {d.mean():.1f}/255, 99-persentil {np.percentile(d, 99):.0f}")
 ratio = (t.width / t.height) if not cfg["layout"].get("rotated") else (t.height / t.width)
-check("Proporsiya saqlangan (cho'zilmagan)", abs(ratio - W / H) / (W / H) < 0.002, f"vaucher {ratio:.4f} / asl {W / H:.4f}")
+check("Asl dizayn bir xil masshtabda (eni va bo'yi bo'yicha) — cho'zilmagan", abs(ratio - W / H) / (W / H) < 0.002, f"vaucher {ratio:.4f} / asl {W / H:.4f}")
 
 # boshqa tizimlar o'zgarmagan
 if os.path.isdir(a.repo):

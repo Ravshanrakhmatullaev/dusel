@@ -1,0 +1,72 @@
+[
+ {
+  "name": "TICKET: 11222 ta, 00001–11222, takrorsiz, 5 xonali",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "TICKET: har URL = https://dusel.pages.dev/ticket?code=<raqam>",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "TICKET: 42 ta tasodifiy QR rasm dekod qilindi — payload aynan yakuniy URL",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "GAL: 1000 ta, 000001–001000, takrorsiz, 6 xonali",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "GAL: har URL = https://dusel.pages.dev/gal?code=<raqam>",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "GAL: 41 ta tasodifiy QR rasm dekod qilindi — payload aynan yakuniy URL",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "GOLD: 2000 ta, 0001–2000, takrorsiz, 4 xonali",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "GOLD: har URL = https://dusel.pages.dev/gold?code=<raqam>",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "GOLD: 41 ta tasodifiy QR rasm dekod qilindi — payload aynan yakuniy URL",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "SILVER: 4000 ta, 0001–4000, takrorsiz, 4 xonali",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "SILVER: har URL = https://dusel.pages.dev/silver?code=<raqam>",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "SILVER: 42 ta tasodifiy QR rasm dekod qilindi — payload aynan yakuniy URL",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "4 tizim yakuniy URL'lari kesishmaydi (bilet 11222 + GAL 1000 + GOLD 2000 + SILVER 4000)",
+  "ok": true,
+  "detail": "18222 noyob"
+ },
+ {
+  "name": "Har tizim faqat bitta, boshqalardan farqli yo'lda: ticket=/ticket, gal=/gal, gold=/gold, silver=/silver",
+  "ok": true,
+  "detail": ""
+ }
+]

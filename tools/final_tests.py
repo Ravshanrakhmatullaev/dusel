@@ -17,7 +17,7 @@ SITE = sys.argv[2]           # dusel repo
 WB = sys.argv[3]             # места.xlsx
 SRC_PDF = sys.argv[4]        # Bilet_final.pdf
 MM = 72 / 25.4
-BASE = "https://dusel.pages.dev/?code="
+BASE = "https://dusel.pages.dev/ticket?code="
 N = 11222
 R = []
 
@@ -91,7 +91,7 @@ def main():
           not (zero & used) and all(pos.get(k, 0) > 0 for k in used), f"{len(zero)} ta bo'sh qator chiqarildi, {len(used)} ta qator ishlatildi")
     check(S, "SOURCE_SHEET faqat блитчеры / 2-этаж / 4-этаж va ZONE ga mos",
           all(zkey[m["SOURCE_SHEET"]] == m["ZONE"] for m in M))
-    check(S, "Barcha QR URL https://dusel.pages.dev/ ; github.io yo'q", all(u.startswith("https://dusel.pages.dev/?code=") for u in urls) and not any("github.io" in u for u in urls))
+    check(S, "Barcha QR URL https://dusel.pages.dev/ ; github.io yo'q", all(u.startswith("https://dusel.pages.dev/ticket?code=") for u in urls) and not any("github.io" in u for u in urls))
     ex = list(csv.DictReader(open(os.path.join(ROOT, "master/seating_exceptions.csv"), encoding="utf-8-sig")))
     noted = {(r["sector"], r["row"]) for r in rows if r["note"] or r["special"]}
     exk = {(e["SECTOR"], int(e["ROW"])) for e in ex}

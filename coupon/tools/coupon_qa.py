@@ -11,7 +11,7 @@ import openpyxl
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "out")
 SRC = os.path.join(ROOT, "input", "kupon.pdf")
-TICKET_MASTER = "/home/claude/work/v6/master/DUSEL_MASTER_FINAL.csv"
+TICKET_MASTER = "/home/claude/work/v7/master/DUSEL_MASTER_FINAL.csv"
 TYPES = {"GOLD": dict(count=2000, page=1, slug="gold"), "SILVER": dict(count=4000, page=0, slug="silver")}
 FULL_QR = "--full" in sys.argv
 
@@ -28,7 +28,7 @@ all_urls = {}
 for T, cfg in TYPES.items():
     t = cfg["slug"]; n = cfg["count"]
     exp = [f"{i:04d}" for i in range(1, n + 1)]
-    exp_url = [f"https://dusel.pages.dev/coupon?type={t}&code={c}" for c in exp]
+    exp_url = [f"https://dusel.pages.dev/{t}?code={c}" for c in exp]
     # --- CSV
     with open(os.path.join(OUT, f"DUSEL_COUPON_{T}_MASTER.csv"), encoding="utf-8-sig") as f:
         rows = list(csv.DictReader(f))
@@ -81,9 +81,10 @@ with open(TICKET_MASTER, encoding="utf-8-sig") as f:
     turls = [r["QR_URL"] for r in csv.DictReader(f)]
 check("Bilet master 11222 ta (o'zgarmagan)", len(turls) == 11222 and len(set(turls)) == 11222)
 check("Kupon URL'lari bilet URL'lari bilan kesishmaydi", not ((g | s) & set(turls)))
-tick_ok = all(urlparse(u).path in ("/", "") and set(parse_qs(urlparse(u).query)) == {"code"} and re.fullmatch(r"\d{5}", parse_qs(urlparse(u).query)["code"][0]) for u in turls)
-coup_ok = all(urlparse(u).path == "/coupon" and set(parse_qs(urlparse(u).query)) == {"type", "code"} and re.fullmatch(r"\d{4}", parse_qs(urlparse(u).query)["code"][0]) for u in g | s)
-check("Bilet: '/?code=NNNNN' (5 xona); Kupon: '/coupon?type=..&code=NNNN' (4 xona) — yo'llar ajratilgan", tick_ok and coup_ok)
+tick_ok = all(urlparse(u).path == "/ticket" and set(parse_qs(urlparse(u).query)) == {"code"} and re.fullmatch(r"\d{5}", parse_qs(urlparse(u).query)["code"][0]) for u in turls)
+coup_ok = all(urlparse(u).path == "/gold" and list(parse_qs(urlparse(u).query)) == ["code"] and re.fullmatch(r"\d{4}", parse_qs(urlparse(u).query)["code"][0]) for u in g) and \
+          all(urlparse(u).path == "/silver" and list(parse_qs(urlparse(u).query)) == ["code"] and re.fullmatch(r"\d{4}", parse_qs(urlparse(u).query)["code"][0]) for u in s)
+check("Bilet: '/ticket?code=NNNNN'; Gold: '/gold?code=NNNN'; Silver: '/silver?code=NNNN' — yo'llar ajratilgan", tick_ok and coup_ok)
 
 # --- PDF
 src = fitz.open(SRC)
@@ -125,7 +126,7 @@ for T, cfg in TYPES.items():
             r = fitz.Rect(x["qbox"]) + (-2, -2, 2, 2)
             pix = p.get_pixmap(clip=r, dpi=300, colorspace=fitz.csGRAY)
             im = Image.frombytes("L", (pix.width, pix.height), pix.samples)
-            if zdecode(im) != [f"https://dusel.pages.dev/coupon?type={t}&code={x['number']}"]: bad.append(x["number"])
+            if zdecode(im) != [f"https://dusel.pages.dev/{t}?code={x['number']}"]: bad.append(x["number"])
         check(f"{T} {kind}: PDF ichidagi QR dekod = raqam ({len(sample)} ta, 300 dpi)", not bad, f"xato {bad[:5]}" if bad else f"{time.time() - t0:.0f}s")
 
         # Dizayn o'zgarmaganligi: o'zgaruvchi zonalardan tashqari designer sahifa bilan piksel solishtirish

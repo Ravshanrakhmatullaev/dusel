@@ -1,0 +1,52 @@
+[
+ {
+  "name": "Master: 11 222 bilet, 00001–11222, takrorsiz",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Master: har QR_URL = https://dusel.pages.dev/ticket?code=<raqam>",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Master: joy ma'lumotlari (BLITCHER/SEKTOR/QATOR/JOY) V6 bilan aynan bir xil — faqat QR_URL o'zgargan",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Master XLSX: 11 222 qator, QR_URL /ticket, raqam matn",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "QR arxivi: 11 222 SVG + 11 222 PNG, butun",
+  "ok": true,
+  "detail": "22447"
+ },
+ {
+  "name": "QR PNG: barcha 11 222 dekod qilindi, payload = /ticket?code=<raqam>",
+  "ok": true,
+  "detail": "11222/11222"
+ },
+ {
+  "name": "Bosma FRONT: 1 871 varaq, 450×320 mm",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Bosma FRONT: har varaqdagi barcha QR (11 222 ta) 200 dpi'da dekod qilindi va shu varaqdagi raqamlarga aynan mos",
+  "ok": true,
+  "detail": "11222/11222"
+ },
+ {
+  "name": "Bosma FRONT: bosilgan raqamlar tartibi 00001–11222",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "Bosma FRONT: oxirgi varaqda 2 bilet (11221, 11222)",
+  "ok": true,
+  "detail": ""
+ }
+]

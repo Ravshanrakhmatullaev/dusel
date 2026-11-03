@@ -17,7 +17,7 @@ from collections import Counter
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import seatlib
 
-BASE_URL = "https://dusel.pages.dev/?code="
+BASE_URL = "https://dusel.pages.dev/ticket?code="
 ZONE = {"блитчеры": "Блитчеры", "2-этаж": "2-этаж", "4-этаж": "4-этаж"}
 FIELD1_LABEL = {"блитчеры": "BLITCHER", "2-этаж": "SEKTOR", "4-этаж": "SEKTOR"}  # V6: biletdagi 1-maydon YORLIG'I (qiymat = sektor kodi)
 EXPECTED = {"блитчеры": 1896, "2-этаж": 3519, "4-этаж": 5807}

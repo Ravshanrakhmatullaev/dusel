@@ -1,0 +1,76 @@
+{
+ "artwork": "input/Vaucher(1).png",
+ "voucher_mm": [
+  200,
+  100
+ ],
+ "size_status": "CONFIRMED by client: 200 × 100 mm, 6 ta/varaq (2×3)",
+ "sheet_mm": [
+  450,
+  320
+ ],
+ "margin_min_mm": 10,
+ "gap_mm": 0,
+ "bleed_mm": 2,
+ "safe_mm": 3,
+ "mark_offset_mm": 1,
+ "mark_len_mm": 5,
+ "layout": {
+  "cols": 2,
+  "rows": 3,
+  "rotated": false
+ },
+ "erase": [
+  [
+   3128,
+   408,
+   3440,
+   472,
+   "#ffffff"
+  ],
+  [
+   3129,
+   1041,
+   3528,
+   1440,
+   "#ffffff"
+  ]
+ ],
+ "qr_box": [
+  3129,
+  1041,
+  3528,
+  1440
+ ],
+ "serial": {
+  "box": [
+   3135,
+   408,
+   3440,
+   472
+  ],
+  "baseline": 456,
+  "size_px": 39,
+  "align": "left",
+  "prefix": "Nº ",
+  "font": "fonts/InterDisplay-Medium.otf",
+  "color_cmyk": [
+   0,
+   0,
+   0,
+   1
+  ]
+ },
+ "pad_px": {
+  "top": 138,
+  "bottom": 139
+ },
+ "pad_edge_rgb": [
+  197,
+  13,
+  1
+ ],
+ "_recompose_note": "Asl 3686×1566 (2.354:1) eni bo'yicha 200 mm ga masshtablanadi (84.97 mm balandlik); yuqori 7.49 mm va past 7.54 mm asl qizil fon bilan davom ettiriladi — cho'zish yo'q",
+ "out_test": "DUSEL_GAL_6UP_200x100_TEST.pdf",
+ "out_final": "DUSEL_GAL_1000_6UP_200x100_FINAL.pdf"
+}

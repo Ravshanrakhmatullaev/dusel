@@ -1,0 +1,177 @@
+[
+ {
+  "name": "PROOF: bosilgan vaucherlar soni = 6",
+  "ok": true,
+  "detail": "6"
+ },
+ {
+  "name": "PROOF: raqamlar 000001–000006, ketma-ket, tushib qolgan yo'q",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "PROOF: takroriy raqam yo'q",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "PROOF: har bir QR manzili https://dusel.pages.dev/gal?code=<raqam>",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "PROOF: varaqlar soni = 1",
+  "ok": true,
+  "detail": "1"
+ },
+ {
+  "name": "PROOF: barcha varaqlar 450×320 mm",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "PROOF: har varaqda to'g'ri soni (oxirgisi 6)",
+  "ok": true,
+  "detail": "6×0 + 6"
+ },
+ {
+  "name": "PROOF: hamma vaucher (bleed bilan) varaq ichida, chetdan ≥7 mm (kesish belgilari va qisqich uchun joy)",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "PROOF: vaucherlar ustma-ust tushmaydi (trim va bleed)",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "PROOF: QR va raqam kesish chizig'idan ≥3 mm ichkarida",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "PROOF: har vaucherdagi bosilgan seriya raqami to'g'ri (bitta, o'z joyida)",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "PROOF: har bir bosilgan QR (6 ta) 300 dpi'da dekod qilindi va o'z raqamiga mos",
+  "ok": true,
+  "detail": "6/6, QR [21.65] mm"
+ },
+ {
+  "name": "PROOF: kesish belgilari: har kesish chizig'i uchun 2 tadan (Registration 1/1/1/1, 0.25 pt)",
+  "ok": true,
+  "detail": "14 belgi, 3 vertikal + 4 gorizontal kesish"
+ },
+ {
+  "name": "PROOF: shriftlar embed qilingan (subset)",
+  "ok": true,
+  "detail": "{'XXFIRY+Inter Display Medium'}"
+ },
+ {
+  "name": "PROOF: OutputIntent ISO Coated v2 (ECI)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "PROOF: dizayn rasmi CMYK (ISO Coated v2) va bitta obyekt qayta ishlatiladi",
+  "ok": true,
+  "detail": "[(3760, 1917, 'ICCBased')]"
+ },
+ {
+  "name": "PRINT: bosilgan vaucherlar soni = 1000",
+  "ok": true,
+  "detail": "1000"
+ },
+ {
+  "name": "PRINT: raqamlar 000001–001000, ketma-ket, tushib qolgan yo'q",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "PRINT: takroriy raqam yo'q",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "PRINT: har bir QR manzili https://dusel.pages.dev/gal?code=<raqam>",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "PRINT: varaqlar soni = 167",
+  "ok": true,
+  "detail": "167"
+ },
+ {
+  "name": "PRINT: barcha varaqlar 450×320 mm",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "PRINT: har varaqda to'g'ri soni (oxirgisi 4)",
+  "ok": true,
+  "detail": "6×166 + 4"
+ },
+ {
+  "name": "PRINT: hamma vaucher (bleed bilan) varaq ichida, chetdan ≥7 mm (kesish belgilari va qisqich uchun joy)",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "PRINT: vaucherlar ustma-ust tushmaydi (trim va bleed)",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "PRINT: QR va raqam kesish chizig'idan ≥3 mm ichkarida",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "PRINT: har vaucherdagi bosilgan seriya raqami to'g'ri (bitta, o'z joyida)",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "PRINT: har bir bosilgan QR (1000 ta) 300 dpi'da dekod qilindi va o'z raqamiga mos",
+  "ok": true,
+  "detail": "1000/1000, QR [21.65] mm"
+ },
+ {
+  "name": "PRINT: kesish belgilari: har kesish chizig'i uchun 2 tadan (Registration 1/1/1/1, 0.25 pt)",
+  "ok": true,
+  "detail": "14 belgi, 3 vertikal + 4 gorizontal kesish"
+ },
+ {
+  "name": "PRINT: shriftlar embed qilingan (subset)",
+  "ok": true,
+  "detail": "{'FTXEYP+Inter Display Medium'}"
+ },
+ {
+  "name": "PRINT: OutputIntent ISO Coated v2 (ECI)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "PRINT: dizayn rasmi CMYK (ISO Coated v2) va bitta obyekt qayta ishlatiladi",
+  "ok": true,
+  "detail": "[(3760, 1917, 'ICCBased')]"
+ },
+ {
+  "name": "Dizayn: proof'dagi vaucher asl rasmga mos (o'zgaruvchi zonalardan tashqari; CMYK konvertatsiya farqi hisobga olingan)",
+  "ok": true,
+  "detail": "o'rtacha farq 5.8/255, 99-persentil 45"
+ },
+ {
+  "name": "Asl dizayn bir xil masshtabda (eni va bo'yi bo'yicha) — cho'zilmagan",
+  "ok": true,
+  "detail": "vaucher 2.3538 / asl 2.3538"
+ },
+ {
+  "name": "Bilet (index.html) va GOLD/SILVER (coupon.html) sahifalari main bilan bayt-bayt bir xil",
+  "ok": true,
+  "detail": "{'index.html': True, 'coupon.html': True, 'assets/logo.svg': True}"
+ }
+]

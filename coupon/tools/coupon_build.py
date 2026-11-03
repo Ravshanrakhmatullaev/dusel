@@ -2,7 +2,7 @@
 """
 DUSEL — GOLD (0001–2000) va SILVER (0001–4000) kuponlari: master, QR, bosma PDF.
 
-Kupon URL (biletlardan alohida yo'l):  https://dusel.pages.dev/coupon?type=gold&code=0001
+Kupon URL (alohida yo'llar):  https://dusel.pages.dev/gold?code=0001  ·  https://dusel.pages.dev/silver?code=0001
 Bilet URL (o'zgarmaydi):               https://dusel.pages.dev/?code=00001
 
 Dizayn: dizaynerning kupon_silver_va_gold.pdf fayli (1-sahifa SILVER, 2-sahifa GOLD; 450x320 mm, 6 ta 200x100 mm kupon)
@@ -19,7 +19,7 @@ from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MM = 72 / 25.4
-BASE = "https://dusel.pages.dev/coupon?type={t}&code={c}"
+BASE = "https://dusel.pages.dev/{t}?code={c}"
 TYPES = {"GOLD": dict(count=2000, page=1, slug="gold"), "SILVER": dict(count=4000, page=0, slug="silver")}
 SLOTS = [(25 + c * 200, 10 + r * 100) for r in range(3) for c in range(2)]   # mm, chap-yuqori
 CW, CH = 200, 100

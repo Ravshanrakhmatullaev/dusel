@@ -89,13 +89,13 @@ html[data-state="invalid"] .err{display:block}
     <div class="amount shine r" id="amt"><img src="assets/gal/amount.webp" width="860" height="304" alt=""><span class="sr">1 250 000 SO'MLIK VAUCHER</span></div>
     <section class="box r" aria-label="Vaucher raqami">
       <div class="lbl">Seriya nomer <span class="sr">(vaucher raqami)</span></div>
-      <div class="num"><b>Nº&nbsp;</b><span id="num">000000</span></div>
+      <div class="num"><b>Nº&nbsp;</b><span id="num">0000</span></div>
     </section>
     <div class="hero r"><img src="assets/gal/hero.webp" width="960" height="843" alt="Aksiya sovg'alari: turar-joy, avtomobillar, yuk mashinasi, skuter, konditsioner, kir yuvish mashinasi, elektr asboblar" decoding="async"></div>
   </div>
   <div class="err" role="alert">
     <h2>Vaucher topilmadi</h2>
-    <p>Havolada 6 xonali vaucher raqami bo'lishi kerak:<br><code>000001</code> – <code>001000</code>.<br>Vaucherdagi QR kodni qayta skanerlang.</p>
+    <p>Havolada 4 xonali vaucher raqami bo'lishi kerak:<br><code>0001</code> – <code>1000</code>.<br>Vaucherdagi QR kodni qayta skanerlang.</p>
   </div>
   <p class="terms r">Eslatib o'tamiz ushbu vaucher Dusel Group kompaniyasi tomonidan 01.06.2026–31.12.2026 sanasida o'tkazilgan elektriklar uchun “Ishonchli hamkorlar” aksiyasi doirasida ishtirok etgan elektriklar uchun amal qiladi!</p>
   <noscript><p class="note" style="opacity:1;transform:none">Vaucher raqamini ko'rish uchun brauzerda JavaScript yoqilgan bo'lishi kerak.</p></noscript>
@@ -103,10 +103,10 @@ html[data-state="invalid"] .err{display:block}
 </main>
 <script>
 (function(){
-  // GAL vaucher mantiqi bilet va kupon sahifalaridan butunlay alohida: /gal?code=000001 … 001000
+  // GAL vaucher mantiqi bilet va kupon sahifalaridan butunlay alohida: /gal?code=0001 … 1000 (4 xonali)
   var MIN=1, MAX=1000;
   var code=new URLSearchParams(location.search).get('code')||'';
-  var ok=/^\d{6}$/.test(code) && +code>=MIN && +code<=MAX;
+  var ok=/^\d{4}$/.test(code) && +code>=MIN && +code<=MAX;
   var root=document.documentElement;
   if(!ok){root.setAttribute('data-state','invalid');document.title="Vaucher topilmadi — DUSEL GROUP";return}
   root.setAttribute('data-state','ok');

@@ -20,7 +20,7 @@ Kupon QR'lari alohida sahifaga olib boradi — bilet tizimiga tegmaydi:
 | Tizim | Yangi QR URL | Kod | Diapazon | Sahifa |
 |---|---|---|---|---|
 | Konsert bileti | `https://dusel.pages.dev/ticket?code=NNNNN` | 5 xona | 00001–11222 | `ticket.html` |
-| GAL vaucher | `https://dusel.pages.dev/gal?code=NNNNNN` | 6 xona | 000001–001000 | `gal.html` |
+| GAL vaucher | `https://dusel.pages.dev/gal?code=NNNN` | 4 xona | 0001–1000 | `gal.html` |
 | GOLD kupon | `https://dusel.pages.dev/gold?code=NNNN` | 4 xona | 0001–2000 | `gold.html` |
 | SILVER kupon | `https://dusel.pages.dev/silver?code=NNNN` | 4 xona | 0001–4000 | `silver.html` |
 

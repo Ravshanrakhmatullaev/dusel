@@ -1,0 +1,92 @@
+[
+ {
+  "name": "Master: 1000 ta, 0001–1000, 4 xonali, takrorsiz, tushib qolgan yo'q",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Master: QR_URL = https://dusel.pages.dev/gal?code=<4 xonali>; STATUS=NOT_ISSUED; ISM/SANA bo'sh",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Master: 6 xonali raqam (000001…) yo'q",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Master XLSX = CSV, raqam matn formatida (0001)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "QR PNG: 1000/1000 dekod, payload aynan /gal?code=<raqam>",
+  "ok": true,
+  "detail": "1000/1000"
+ },
+ {
+  "name": "QR SVG: namuna (41 ta) dekod to'g'ri",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "DUSEL_GAL_QR_1000.zip: GAL_0001…GAL_1000 (1000 SVG + 1000 PNG) + master CSV, butun",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Bosma: 125 varaq, har biri aynan 320 × 450 mm",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Bosma: jami 1000 vaucher, har varaqda 8 ta",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Bosma: har vaucher aynan 156.04 × 66.29 mm",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Bosma: tartib — har varaqda 1-qator n+1…n+4, 2-qator n+5…n+8; 0001–1000 ketma-ket, takrorsiz",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "Bosma: barcha varaqlarda joylashuv bir xil (tasdiqlangan test varag'idagidek)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Bosma: har vaucherda bitta bosilgan raqam \"Nº 0001\"…\"Nº 1000\", o'z joyida",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "Bosma: 1000/1000 QR PDF'dan 300 dpi'da dekod qilindi — har biri o'z vaucher raqamiga mos",
+  "ok": true,
+  "detail": "1000/1000"
+ },
+ {
+  "name": "Bosma: hech biri kesilmaydi/ustma-ust tushmaydi, hammasi varaq ichida; QR va raqam trimdan ≥3 mm ichkarida",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "Bosma: har varaqda 24 ta kesish belgisi (8 vertikal + 4 gorizontal kesish × 2), 0.25 pt Registration",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "name": "1-varaq tasdiqlangan test varag'i bilan piksel bo'yicha bir xil (texnik qatordan tashqari)",
+  "ok": true,
+  "detail": "farqli piksellar 0"
+ },
+ {
+  "name": "Shrift embed (subset), OutputIntent ISO Coated v2, dizayn rasmi bitta obyekt (CMYK)",
+  "ok": true,
+  "detail": "{'JELUHY+Inter Display Medium'}"
+ }
+]

@@ -214,7 +214,10 @@ def impose(cfg, rows, out_pdf, base, label):
                 c = fitz.Point((trim.x0 + trim.x1) / 2 + dx * trim.width, (trim.y0 + trim.y1) / 2 + dy * trim.height)
                 return any(u.contains(c) for u in used)
             e = bl * MM
-            L_, T_, R_, B_ = (0 if has(-1, 0) else e), (0 if has(0, -1) else e), (0 if has(1, 0) else e), (0 if has(0, 1) else e)
+            if cfg["gap_mm"] >= 2 * bl - 1e-9:      # oraliq bor: har vaucherga to'liq bleed (ikki tomonlama kesish)
+                L_ = T_ = R_ = B_ = e
+            else:                                   # oraliqsiz: qo'shni tomonda bleed yo'q (umumiy kesish chizig'i)
+                L_, T_, R_, B_ = (0 if has(-1, 0) else e), (0 if has(0, -1) else e), (0 if has(1, 0) else e), (0 if has(0, 1) else e)
             bleed = fitz.Rect(trim.x0 - L_, trim.y0 - T_, trim.x1 + R_, trim.y1 + B_)
             vp = vdoc[i].rect
             clip = fitz.Rect(e - L_, e - T_, vp.width - e + R_, vp.height - e + B_)
@@ -235,7 +238,8 @@ def impose(cfg, rows, out_pdf, base, label):
         area = (min(u.x0 for u in used) - bl * MM, min(u.y0 for u in used) - bl * MM, max(u.x1 for u in used) + bl * MM, max(u.y1 for u in used) + bl * MM)
         crop_marks(page, xs, ys, area, cfg)
         page.insert_font(fontname="INF", fontfile=font)
-        a_, b_ = rows[chunk[0]]["VOUCHER_NUMBER"], rows[chunk[-1]]["VOUCHER_NUMBER"]
+        _ns = sorted(rows[i]["VOUCHER_NUMBER"] for i in chunk)
+        a_, b_ = _ns[0], _ns[-1]
         info = f"DUSEL GAL · {label} · varaq {si + 1}/{sheets} · {a_}–{b_} · {len(chunk)} dona · vaucher {vw:g}×{vh:g} mm · ISO Coated v2 (ECI)"
         page.insert_text(fitz.Point((gx + 6) * MM, SH * MM - 3.5 * MM), info, fontname="INF", fontsize=5.5, color=K100)
     doc.subset_fonts()

@@ -3,7 +3,7 @@
 DUSEL — GAL "ISHONCHLI HAMKORLAR AKSIYASI" vaucherlari (000001–001000): master va QR.
 
 QR URL (alohida yo'l, biletlar va kuponlardan mustaqil):
-    https://dusel.pages.dev/gal?code=000001 … 001000
+    https://dusel.pages.dev/gal?code=0001 … 1000   (4 xonali — 2026-11-04 dan)
 Boshqa tizimlar (o'zgarmaydi):
     bilet   https://dusel.pages.dev/?code=00001 … 11222
     kupon   https://dusel.pages.dev/coupon?type=gold|silver&code=0001 …
@@ -27,12 +27,15 @@ PNG_SCALE = 30              # 41 modul × 30 = 1230 px  (22 mm @ 1420 dpi; 600 d
 COLUMNS = ["VOUCHER_TYPE", "VOUCHER_NUMBER", "QR_URL", "STATUS", "ISSUE_DATE", "RECIPIENT_NAME"]
 
 
+DIGITS = 4
+
+
 def number(i):
-    return f"{i:06d}"
+    return f"{i:0{DIGITS}d}"
 
 
 def url(code):
-    assert len(code) == 6 and code.isdigit() and 1 <= int(code) <= COUNT, code
+    assert len(code) == DIGITS and code.isdigit() and 1 <= int(code) <= COUNT, code
     return BASE.format(c=code)
 
 

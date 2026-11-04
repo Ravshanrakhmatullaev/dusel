@@ -49,7 +49,7 @@ function only(s, prod) { return s.prod.length === 1 && s.prod[0].product === pro
 const rnd = (n, max, w) => { const s = new Set(); let x = 12345; while (s.size < n) { x = (x * 1103515245 + 12345) % 2147483648; s.add(String(1 + (x % max)).padStart(w, '0')); } return [...s]; };
 const VALID = {
   ticket: { path: '/ticket', codes: ['00001', '00330', '10000', '11222', ...rnd(16, 11222, 5)] },
-  gal: { path: '/gal', codes: ['000001', '000100', '001000', ...rnd(12, 1000, 6)] },
+  gal: { path: '/gal', codes: ['0001', '0100', '1000', ...rnd(12, 1000, 4)] },
   gold: { path: '/gold', codes: ['0001', '2000', ...rnd(12, 2000, 4)] },
   silver: { path: '/silver', codes: ['0001', '4000', ...rnd(12, 4000, 4)] },
 };
@@ -65,7 +65,7 @@ for (const [prod, v] of Object.entries(VALID)) {
 // 2. Noto'g'ri kodlar — o'sha sahifaning o'zida xato, boshqa joyga yo'naltirilmaydi
 const INVALID = {
   ticket: ['11223', '00000', '000005', '000001', '0001', '1', 'abcde', '', '99999', '1e3'],
-  gal: ['001001', '000000', '00001', '11222', '0001', '0000001', 'ABCDEF', '', '1'],
+  gal: ['1001', '0000', '000001', '001000', '00001', '11222', 'ABCD', '', '1'],
   gold: ['2001', '0000', '00001', '000001', '4000', 'abcd', '', '1'],
   silver: ['4001', '0000', '00001', '000001', '11222', 'abcd', '', '1'],
 };
@@ -81,9 +81,9 @@ for (const [prod, codes] of Object.entries(INVALID)) {
 }
 // 3. Maxsus kesishuvlar
 const CROSS = [
-  ['/gal?code=11222', 'gal', false], ['/ticket?code=000001', 'ticket', false], ['/gold?code=4000', 'gold', false],
+  ['/gal?code=11222', 'gal', false], ['/ticket?code=0001', 'ticket', false], ['/gal?code=000001', 'gal', false], ['/gal?code=2000', 'gal', false], ['/gold?code=4000', 'gold', false],
   ['/silver?code=2000', 'silver', true], ['/gold?code=0001&type=silver', 'gold', true], ['/silver?code=0001&type=gold', 'silver', true],
-  ['/ticket?code=0001', 'ticket', false], ['/gal?code=0001', 'gal', false],
+  ['/gold?code=1000', 'gold', true], ['/gal?code=0001', 'gal', true],
 ];
 for (const [u, prod, valid] of CROSS) {
   const s = await open(u);
@@ -100,12 +100,12 @@ for (const u of ['/?code=000001', '/?code=0001', '/coupon?type=gal&code=000001',
   ok('ESKI HAVOLA', `${u} → boshqa mahsulot ochilmaydi (o'sha sahifada xato)`, s.prod.length === 1 && !s.prod[0].valid && !s.marks.gal, JSON.stringify(s.prod));
 }
 // 5. 404 — boshqa mahsulotga yo'naltirmaydi; faqat o'sha yo'lning yozilishini to'g'rilaydi
-for (const [u, expPath, prod, num] of [['/GAL?code=000001', '/gal', 'gal', '000001'], ['/Ticket/?code=00001', '/ticket', 'ticket', '00001'], ['/GOLD?code=0001', '/gold', 'gold', '0001'], ['/silver/?code=0001', '/silver', 'silver', '0001']]) {
+for (const [u, expPath, prod, num] of [['/GAL?code=0001', '/gal', 'gal', '0001'], ['/Ticket/?code=00001', '/ticket', 'ticket', '00001'], ['/GOLD?code=0001', '/gold', 'gold', '0001'], ['/silver/?code=0001', '/silver', 'silver', '0001']]) {
   await p.goto(base + u); await p.waitForURL(x => new URL(x).pathname === expPath, { timeout: 5000 }).catch(() => {});
   const s = await open(expPath + new URL(p.url()).search);
   ok('404', `${u} → ${expPath} (o'sha mahsulot, № ${num})`, only(s, prod) && s.prod[0].number === num, s.path + s.search);
 }
-for (const u of ['/xyz', '/tickets?code=00001', '/gal2?code=000001', '/coupon/gold?code=0001', '/assets/nope']) {
+for (const u of ['/xyz', '/tickets?code=00001', '/gal2?code=0001', '/coupon/gold?code=0001', '/assets/nope']) {
   await p.goto(base + u); await p.waitForTimeout(700);
   const s = await detect();
   ok('404', `${u} → neytral "Sahifa topilmadi", hech qayerga yo'naltirilmaydi`, s.prod.length === 1 && s.prod[0].product === '404' && !Object.values(s.marks).some(Boolean) && (base + u).endsWith(s.path + s.search), s.path + s.search);
@@ -126,7 +126,7 @@ if (manifest) {
 }
 // 7. Skrinshotlar
 for (const [u, name, w] of [['/ticket?code=00001', 'ticket_00001', 3000], ['/ticket?code=11222', 'ticket_11222', 3000], ['/ticket?code=11223', 'ticket_11223_xato', 600],
-  ['/gal?code=000001', 'gal_000001', 1800], ['/gal?code=001000', 'gal_001000', 1800], ['/gal?code=001001', 'gal_001001_xato', 600],
+  ['/gal?code=0001', 'gal_0001', 1800], ['/gal?code=1000', 'gal_1000', 1800], ['/gal?code=1001', 'gal_1001_xato', 600],
   ['/gold?code=0001', 'gold_0001', 1800], ['/gold?code=2001', 'gold_2001_xato', 600], ['/silver?code=0001', 'silver_0001', 1800], ['/silver?code=4001', 'silver_4001_xato', 600], ['/xyz', '404_neytral', 600]]) {
   await p.goto(base + u); await p.waitForTimeout(w); await p.screenshot({ path: `${out}/${name}.png` });
 }

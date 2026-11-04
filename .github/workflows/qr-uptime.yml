@@ -23,7 +23,7 @@ jobs:
           B=https://dusel.pages.dev
           chk "$B/ticket?code=00001"                  "Bilet raqami"
           chk "$B/ticket?code=11222"                  "Bilet raqami"
-          chk "$B/gal?code=0001"                      "ISHONCHLI HAMKORLAR AKSIYASI"
+          chk "$B/gal?code=0001"                      "4 xonali vaucher raqami"
           chk "$B/gal?code=1000"                      "ISHONCHLI HAMKORLAR AKSIYASI"
           chk "$B/gold?code=0001"                     "Kupon raqami"
           chk "$B/silver?code=4000"                   "Kupon raqami"

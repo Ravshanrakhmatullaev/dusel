@@ -188,7 +188,7 @@ await o.screenshot({ path: out + '/13_offline_mode.png', fullPage: true });
 ok('T19 Favqulodda rejim faqat kod bilan yoqiladi; qabullar "VAQTINCHA", shu qurilmadagi takror bloklanadi', /ALLAQACHON/.test(offDup) && (await status('00500')) === 'NOT_ADMITTED', offDup);
 await octx.setOffline(false);
 await o.evaluate(() => window.dispatchEvent(new Event('online')));
-await o.waitForFunction(() => window.DUSEL_CI_DEBUG.state.queue.length === 0, null, { timeout: 15000 });
+for (let i = 0; i < 60 && (await o.evaluate(() => window.DUSEL_CI_DEBUG.state.queue.length)) > 0; i++) await o.waitForTimeout(250);   // CSP ostida eval'siz kutish
 await o.waitForTimeout(800);
 const off = await q("select ticket_no, decision, offline_at is not null off from checkin.admission_events where offline_at is not null order by ticket_no");
 ok('T19b Aloqa tiklangach navbat sinxronlandi: 00500/00501 kiritildi, 00330 (allaqachon kirgan) — ziddiyat holatiga',

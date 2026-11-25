@@ -22,7 +22,7 @@ jobs:
         options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
       - uses: actions/checkout@v4
-      - run: pip install "psycopg[binary]==3.2.3"
+      - run: pip install "psycopg[binary]==3.2.13"
       - name: Sxema + 11 222 bilet (sinov bazasi)
         run: ./e2e/reset_db.sh ci_test
       - name: Ma'lumotlar bazasi testlari
@@ -48,7 +48,7 @@ jobs:
         with: { node-version: 20 }
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
       - run: pip install segno==1.6.1 && ./e2e/make_media.sh e2e/media
-      - run: cd e2e && npm init -y >/dev/null && npm install pg@8.13.1 playwright@1.49.1 && npx playwright install --with-deps chromium
+      - run: cd e2e && npm init -y >/dev/null && npm install pg@8.13.1 playwright@1.63.0 && npx playwright install --with-deps chromium
       - run: ./e2e/reset_db.sh ci_e2e seed
       - name: Brauzer testlari (xodim ilovasi + ommaviy sahifalar)
         run: |
@@ -64,7 +64,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
-      - run: cd tests && npm init -y >/dev/null && npm install playwright@1.49.1 && npx playwright install --with-deps chromium
+      - run: cd tests && npm init -y >/dev/null && npm install playwright@1.63.0 && npx playwright install --with-deps chromium
       - name: Production faqat o'qish — tarixiy bilet QR formatlari, kuponlar, /checkin holati, staging preview
         run: cd tests && node prod_compat.mjs compat
       - uses: actions/upload-artifact@v4

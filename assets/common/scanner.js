@@ -147,22 +147,37 @@
   }
 
   // ---------------------------------------------------------------- tashqi skaner (klaviatura emulyatsiyasi)
-  var wedge = { buf: '', t0: 0, last: 0, on: false };
+  var wedge = { keys: '', codes: '', last: 0 };
   function onKey(e) {
     if (!cam.onCode || e.ctrlKey || e.metaKey || e.altKey) return;
     var tgt = e.target, tag = tgt && tgt.tagName;
     // matn maydonida yozilayotgan bo'lsa — maydonning o'z formasi (Enter) ishlaydi
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (tgt && tgt.isContentEditable)) { wedge.buf = ''; return; }
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (tgt && tgt.isContentEditable)) { wedge.keys = wedge.codes = ''; return; }
     var now = performance.now();
-    if (now - wedge.last > 80) wedge.buf = '';            // inson yozishi sekin; skaner < 50 ms
+    if (now - wedge.last > 80) wedge.keys = wedge.codes = '';      // inson yozishi sekin; skaner < 50 ms
     wedge.last = now;
     if (e.key === 'Enter' || e.key === 'Tab') {
-      if (wedge.buf.length >= 5) { e.preventDefault(); var v = wedge.buf; wedge.buf = ''; emit(v, 'SCANNER'); }
-      wedge.buf = ''; return;
+      // ikki talqin: e.key (US tartib) va jismoniy tugma kodi (kirill va boshqa tartiblar). Skanda US bo'lmagan belgi bo'lsa — kod talqini
+      var v = /[^\x20-\x7e]/.test(wedge.keys) ? wedge.codes : wedge.keys;
+      wedge.keys = wedge.codes = '';
+      if (v.length >= 5) { e.preventDefault(); emit(v, 'SCANNER'); }
+      return;
     }
-    if (e.key && e.key.length === 1) wedge.buf += e.key;
+    if (e.key && e.key.length === 1) { wedge.keys += e.key; wedge.codes += codeChar(e) || e.key; }
   }
   document.addEventListener('keydown', onKey, true);
+
+  // Skaner US tugma kodlarini yuboradi; telefon kirill tartibida bo'lsa ham e.code o'zgarmaydi (KeyH → h, Slash → /)
+  var PUNCT = { Period: '.>', Comma: ',<', Slash: '/?', Semicolon: ';:', Quote: '\'"', Minus: '-_', Equal: '=+', BracketLeft: '[{', BracketRight: ']}',
+                Backslash: '\\|', Backquote: '`~', Space: '  ', NumpadDecimal: '..', NumpadDivide: '//', NumpadSubtract: '--', NumpadAdd: '++', NumpadMultiply: '**' };
+  function codeChar(e) {
+    var c = e.code || '', sh = e.shiftKey ? 1 : 0, m;
+    if ((m = /^Key([A-Z])$/.exec(c))) return sh ? m[1] : m[1].toLowerCase();
+    if ((m = /^Digit([0-9])$/.exec(c))) return sh ? ')!@#$%^&*('.charAt(+m[1]) : m[1];
+    if ((m = /^Numpad([0-9])$/.exec(c))) return m[1];
+    if (PUNCT[c]) return PUNCT[c].charAt(sh);
+    return null;
+  }
 
   /**
    * mount(container, onCode(value, source), opts)

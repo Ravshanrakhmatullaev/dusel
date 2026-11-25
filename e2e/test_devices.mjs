@@ -8,14 +8,33 @@ const STG = process.argv[2] || 'https://feature-checkin.dusel.pages.dev';
 const PROD = process.argv[3] || 'https://dusel.pages.dev';
 const out = process.argv[4] || 'devices'; fs.mkdirSync(out, { recursive: true });
 const MEDIA = process.argv[5] || 'media';
+// Haqiqiy skaner + telefon kirill (ЙЦУКЕН) tartibida: skaner US jismoniy tugma kodlarini yuboradi, brauzer esa e.key = kirill harf beradi
+const scanAsRuKeyboard = (page, text) => page.evaluate((text) => {
+  const US = "qwertyuiop[]asdfghjkl;'zxcvbnm,./QWERTYUIOP{}ASDFGHJKL:\"ZXCVBNM<>?";
+  const RU = 'йцукенгшщзхъфывапролджэячсмитьбю.ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЯЧСМИТЬБЮ,';
+  const P = { '.': ['Period', 0], '>': ['Period', 1], ',': ['Comma', 0], '<': ['Comma', 1], '/': ['Slash', 0], '?': ['Slash', 1], ';': ['Semicolon', 0], ':': ['Semicolon', 1],
+              '=': ['Equal', 0], '+': ['Equal', 1], '-': ['Minus', 0], '_': ['Minus', 1], '&': ['Digit7', 1] };
+  const fire = (o) => document.body.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...o }));
+  for (const ch of text) {
+    let code, shift = false;
+    if (/[a-z]/.test(ch)) code = 'Key' + ch.toUpperCase(); else if (/[A-Z]/.test(ch)) { code = 'Key' + ch; shift = true; }
+    else if (/[0-9]/.test(ch)) code = 'Digit' + ch; else if (P[ch]) { code = P[ch][0]; shift = !!P[ch][1]; }
+    const i = US.indexOf(ch); fire({ key: i >= 0 ? RU[i] : ch, code, shiftKey: shift });
+  }
+  fire({ key: 'Enter', code: 'Enter' });
+}, text);
 const R = []; const ok = (n, c, d = '') => { R.push({ test: n, ok: !!c, detail: String(d).slice(0, 300) }); console.log((c ? 'PASS ' : 'FAIL ') + n + (d ? ' — ' + d : '')); };
 const DENY = () => { if (navigator.mediaDevices) navigator.mediaDevices.getUserMedia = () => Promise.reject(new DOMException('Permission denied', 'NotAllowedError')); };
 
 // staging preview yangilanguncha kutamiz (Cloudflare deploy)
-for (let i = 0; i < 40; i++) {
+const SITE_DIR = process.env.SITE_DIR;   // feature/checkin nusxasi: deploy qilingan fayllar u bilan bir xil bo'lguncha kutamiz
+const want = SITE_DIR ? ['assets/common/scanner.js', 'assets/checkin/app.js', 'assets/inventory/app.js'].map((f) => [f, fs.readFileSync(SITE_DIR + '/' + f, 'utf8')]) : [];
+for (let i = 0; i < 48; i++) {
   const r = await fetch(STG + '/scan-test', { redirect: 'follow' }).catch(() => null);
-  if (r && r.ok && /scan-test\.js/.test(await r.text())) break;
-  if (i === 39) { console.log('staging /scan-test topilmadi'); process.exit(1); }
+  let same = !!(r && r.ok && /scan-test\.js/.test(await r.text()));
+  for (const [f, body] of want) { if (!same) break; const x = await fetch(STG + '/' + f + '?v=' + Date.now()).catch(() => null); same = !!(x && x.ok && (await x.text()) === body); }
+  if (same) { console.log('staging preview yangilangan (' + (want.length ? 'fayllar mos' : 'scan-test bor') + ')'); break; }
+  if (i === 47) { console.log('staging preview yangilanmadi'); process.exit(1); }
   await new Promise((s) => setTimeout(s, 15000));
 }
 // HTTPS sarlavhalari
@@ -62,7 +81,7 @@ for (const c of configs) {
     await p.keyboard.type('https://dusel.pages.dev/gal?code=0007', { delay: 5 }); await p.keyboard.press('Enter');
     const w1 = await p.locator('.result .big').first().textContent();
     await p.evaluate(() => document.activeElement && document.activeElement.blur());
-    await p.keyboard.type('реезыЖ..вгыудюзфпуыювум.ешслуе,сщву=06114', { delay: 5 }); await p.keyboard.press('Enter');
+    await scanAsRuKeyboard(p, 'https://dusel.pages.dev/ticket?code=06114');
     const w2 = await p.locator('.result .big').first().textContent();
     await p.fill('#manual', '11223'); await p.click('#f button'); const w3 = await p.locator('.result .big').first().textContent();
     await p.screenshot({ path: `${out}/${tag}_scan_test_scanner.png`, fullPage: true });

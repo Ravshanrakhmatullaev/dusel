@@ -87,8 +87,10 @@ jobs:
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
       - run: pip install segno==1.6.1 && ./e2e/make_media.sh e2e/media
       - run: cd e2e && npm init -y >/dev/null && npm install playwright@1.63.0 && npx playwright install --with-deps chromium webkit
+      - uses: actions/checkout@v4
+        with: { ref: feature/checkin, path: site }
       - name: iPhone Safari (WebKit) va Android Chrome (Chromium) — HTTPS orqali
-        run: cd e2e && node test_devices.mjs https://feature-checkin.dusel.pages.dev https://dusel.pages.dev devices "$GITHUB_WORKSPACE/e2e/media"
+        run: cd e2e && SITE_DIR="$GITHUB_WORKSPACE/site" node test_devices.mjs https://feature-checkin.dusel.pages.dev https://dusel.pages.dev devices "$GITHUB_WORKSPACE/e2e/media"
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: devices-https, path: "e2e/devices" }

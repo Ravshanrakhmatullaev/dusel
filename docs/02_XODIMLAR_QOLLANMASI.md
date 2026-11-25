@@ -9,7 +9,8 @@ Sinov (staging): `https://feature-checkin.dusel.pages.dev/checkin`.
 
 | Rol | Ko'radigan bo'limlar | Asosiy vazifa |
 |---|---|---|
-| GATE (darvoza) | Kirish, Inventar | QR skan → kiritish yoki nazoratga yuborish |
+| INVENTORY | faqat `/inventory` | Qog'oz biletlarni sanash (kirishga ta'sir qilmaydi) |
+| GATE (darvoza) | Kirish | QR skan → kiritish yoki nazoratga yuborish |
 | SUPERVISOR (nazoratchi) | + Nazorat, Panel | Takror/shubhali holatlarni hal qilish, zaxira joy, almashtiruvchi bilet |
 | ADMIN | + Admin | Kirishni ochish/yopish, xodimlar, darvozalar, sozlamalar, audit |
 
@@ -48,35 +49,36 @@ Har bir holatda: bilet raqami, joyi, oldingi kirish (vaqt, darvoza, xodim), skan
 Amallar:
 - **Kiritish (nazoratchi)** — sabab majburiy; faqat bilet hali kiritilmagan bo'lsa.
 - **Ushlab turish / bo'shatish** — biletni vaqtincha to'xtatadi.
-- **Zaxira joy band qilish → Almashtiruvchi bilet berish** — yangi QR (`DUSELR1:…`, taxmin qilib bo'lmaydigan 144-bit kod) chiqadi, chop eting yoki telefonda ko'rsating. Zaxira faqat Admin kiritgan haqiqiy bo'sh joylardan olinadi; ortiqcha bosilgan biletlar zaxira **hisoblanmaydi**.
+- **Asl bilet o'rniga yangi QR (o'sha joy)** — asl bilet hali kiritilmagan bo'lsa (shikastlangan, yo'qolgan): asl bekor qilinadi, yangi xavfsiz QR o'sha joyga; jami ruxsatlar o'zgarmaydi. Tasdiqlash uchun bilet raqamini qayta yozasiz.
+- **Ikkinchi xaridor uchun zaxira joy band qilish → Almashtiruvchi bilet berish** — yangi QR (`DUSELR1:…`, taxmin qilib bo'lmaydigan 144-bit kod) chiqadi, chop eting yoki telefonda ko'rsating. Zaxira faqat Admin kiritgan haqiqiy bo'sh joylardan olinadi; ortiqcha bosilgan biletlar zaxira **hisoblanmaydi**.
 - **Bo'sh joy yo'q** — tizim sig'imdan oshirmaydi, holat `ESCALATED_NO_SEAT` bo'ladi → tashkilotchi hal qiladi.
 - **Rad etish / yopish** — sabab bilan.
 
 Asl bilet avtomatik bekor qilinmaydi. Bekor qilish faqat nazoratchi qarori bilan, sabab yozilib.
 
-## 4. Internet uzilsa (favqulodda rejim)
+## 4. Internet uzilsa
 
-1. Avval "Qayta urinish" — ko'pincha 1–2 soniyada tiklanadi.
-2. Davom etsa, nazoratchidan **favqulodda kod** so'rang → "Favqulodda rejim" → kodni kiriting. Kod qurilmaga oldindan (onlayn paytda) yuklangan bo'lishi kerak.
-3. Ekranda **"VAQTINCHA QABUL (oflayn)"** chiqadi. Qurilma faqat o'zi ko'rgan takrorlarni biladi — boshqa darvozalar bilan taqqoslay olmaydi.
-4. Internet qaytgach yozuvlar avtomatik yuboriladi. Agar shu bilet boshqa joyda allaqachon kiritilgan bo'lsa — **ziddiyat** xabari va `OFFLINE_CONFLICT` holati ochiladi.
-5. Oflayn rejimni faqat zarur bo'lganda va iloji boricha bitta darvozada ishlating.
+1. "Qayta urinish" — ko'pincha 1–2 soniyada tiklanadi (bir xil so'rov ikki marta kiritmaydi).
+2. 30 soniyada tiklanmasa — telefon Wi-Fi'ni o'chirib mobil internetda "Qayta urinish".
+3. Baribir yo'q — **mijozni o'tkazmang**, nazoratchini chaqiring. Darvoza telefoni **oflayn kirita olmaydi** (tugma yo'q, server ham qabul qilmaydi).
+4. Uzoq uzilishda faqat **nazoratli favqulodda rejim**: Admin oldindan belgilagan **bitta** nazoratchi qurilmasi, 10–12 raqamli kod bilan. Ekranda sariq "NAZORAT OSTIDA QAYD ETILDI — server tasdiqlamagan" (hech qachon yashil emas). Aloqa qaytgach yozuvlar serverga yuboriladi; boshqa darvozada avval kirgan bilet — `OFFLINE_CONFLICT` holati.
 
-Batafsil: `03_INSIDENT_VA_INTERNET_UZILISHI.md`.
+Batafsil: `03_INSIDENT_VA_INTERNET_UZILISHI.md`, `09_ISHONCHLILIK_VA_TARMOQ.md`.
 
-## 5. Inventar (biletni sanash — kiritmaydi)
+## 5. Inventar — alohida ilova
 
-Bosmaxonadan qolgan / tarqatilmagan biletlarni sanash uchun. **Kirish holatiga ta'sir qilmaydi.**
-1. Inventar → yangi partiya oching (nomi: "Ombor 1-quti" kabi).
-2. Uzluksiz skan qiling. Bir xil raqam ikkinchi marta chiqsa — "Inventar nusxa" (fizik dublikat).
-3. Partiyani yoping. Panel → hisobotlar: dublikatlar, yetishmaganlar, joy ziddiyatlari.
+Qog'oz biletlarni sanash `/inventory` ilovasida, alohida **INVENTORY** rolidagi xodimlar bilan (darvoza xodimi inventar qila olmaydi, inventar xodimi kirita olmaydi). Batafsil: `08_INVENTAR_VA_SOLISHTIRUV.md`.
+
+## 5a. Kamera ishlamasa
+
+Ilova sababini va platformaga mos yo'lni ko'rsatadi (iPhone: «aA → Veb-sayt sozlamalari → Kamera»; Android: «qulf → Ruxsatlar → Kamera»), «Kamerani qayta yoqish» tugmasi bor. Kamerasiz: tashqi 2D skaner (maydonni bo'sh qoldirib skanerlang) yoki raqamni qo'lda yozing va qog'ozdagi sektor/qator/joyni ekrandagi bilan solishtiring. Qurilmani oldindan `/scan-test` da sinang.
 
 ## 6. Admin
 
-- Kirishni ochish/yopish (konsert kuni, darvozalar ochilishidan oldin).
+- Kirishni ochish — faqat aniq tasdiq matni **KIRISHNI OCHISH** bilan (konsert kuni, egasi bilan birga); yopish — bir tugma.
 - `block_held_stock` — tarqatilmagan deb belgilangan biletlarni nazoratga yo'naltirish.
 - Xodim qo'shish (Supabase'da yaratilgan email), rol berish, o'chirish, sessiyani bekor qilish.
 - Tarqatish ro'yxatini CSV import (hammasi yoki hech narsa).
-- Zaxira joylar qo'shish, sig'im (kiritilgan + band qilinganlardan kam bo'lmaydi).
-- Favqulodda kod (8–12 raqam) o'rnatish.
+- Sig'im (11 222) faqat ko'rsatiladi; almashtirish uchun **hech qachon oshirilmaydi**. Zaxira joy faqat: (a) isbotli tashkilotchi zaxirasidagi bilet (asl bilet bekor, joyi zaxiraga — jami o'zgarmaydi) yoki (b) masterda yo'q EXTRA joy, lekin unga almashtirish faqat sig'imda bo'sh o'rin bo'lsa.
+- Favqulodda kod (10–12 raqam) va **favqulodda qurilmani** belgilash (faqat bitta nazoratchi qurilmasi).
 - Audit jurnalini tekshirish ("zanjir butun") va CSV yuklab olish.

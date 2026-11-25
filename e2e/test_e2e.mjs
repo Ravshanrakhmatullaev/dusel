@@ -8,6 +8,21 @@ const out = process.argv[3] || 'shots'; fs.mkdirSync(out, { recursive: true });
 const db = new pg.Client({ host: process.env.PGHOST || '/tmp', port: +(process.env.PGPORT || 5433), user: process.env.PGUSER || 'postgres', password: process.env.PGPASSWORD, database: 'ci_e2e' }); await db.connect();
 const MEDIA = process.env.MEDIA_DIR || '/home/claude/checkin/e2e/media';
 const q = async (s, a) => (await db.query(s, a)).rows;
+// Haqiqiy skaner + telefon kirill (ЙЦУКЕН) tartibida: skaner US jismoniy tugma kodlarini yuboradi, brauzer esa e.key = kirill harf beradi
+const scanAsRuKeyboard = (page, text) => page.evaluate((text) => {
+  const US = "qwertyuiop[]asdfghjkl;'zxcvbnm,./QWERTYUIOP{}ASDFGHJKL:\"ZXCVBNM<>?";
+  const RU = 'йцукенгшщзхъфывапролджэячсмитьбю.ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЯЧСМИТЬБЮ,';
+  const P = { '.': ['Period', 0], '>': ['Period', 1], ',': ['Comma', 0], '<': ['Comma', 1], '/': ['Slash', 0], '?': ['Slash', 1], ';': ['Semicolon', 0], ':': ['Semicolon', 1],
+              '=': ['Equal', 0], '+': ['Equal', 1], '-': ['Minus', 0], '_': ['Minus', 1], '&': ['Digit7', 1] };
+  const fire = (o) => document.body.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...o }));
+  for (const ch of text) {
+    let code, shift = false;
+    if (/[a-z]/.test(ch)) code = 'Key' + ch.toUpperCase(); else if (/[A-Z]/.test(ch)) { code = 'Key' + ch; shift = true; }
+    else if (/[0-9]/.test(ch)) code = 'Digit' + ch; else if (P[ch]) { code = P[ch][0]; shift = !!P[ch][1]; }
+    const i = US.indexOf(ch); fire({ key: i >= 0 ? RU[i] : ch, code, shiftKey: shift });
+  }
+  fire({ key: 'Enter', code: 'Enter' });
+}, text);
 const R = []; const ok = (n, c, d = '') => { R.push({ test: n, ok: !!c, detail: String(d).slice(0, 300) }); console.log((c ? 'PASS ' : 'FAIL ') + n + (d ? ' — ' + d : '')); };
 const launch = (args = []) => chromium.launch({ args }).catch(() => chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args }));
 const b = await launch();
@@ -129,7 +144,7 @@ ok('T08 Aloqa tiklangach "Qayta urinish" — bir xil so\'rov: bitta kirish yozuv
   const w1 = await g.locator('.seat').first().textContent().catch(() => '');
   await g.click('button:has-text("Bekor")');
   await g.evaluate(() => document.activeElement && document.activeElement.blur());
-  await g.keyboard.type('реезыЖ..вгыудюзфпуыювум.,сщву=00341', { delay: 4 }); await g.keyboard.press('Enter');   // RU tartibida yozilgan URL
+  await scanAsRuKeyboard(g, 'https://dusel.pages.dev/?code=00341');   // skaner + kirill tartibdagi telefon
   await g.waitForSelector('.result:not(.info) .big', { timeout: 8000 });
   const w2 = await g.locator('.seat').first().textContent().catch(() => '');
   await g.screenshot({ path: out + '/07b_hw_scanner.png' });

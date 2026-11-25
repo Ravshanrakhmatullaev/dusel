@@ -1051,6 +1051,7 @@ begin
   select id into v_uid from auth.users where lower(email) = lower(p_email);
   if v_uid is null then raise exception 'AUTH_USER_NOT_FOUND' using hint = 'Avval Supabase Authentication da foydalanuvchi yarating'; end if;
   if v_uid = me.user_id and (not p_active or p_role <> 'ADMIN') then raise exception 'CANNOT_DEMOTE_SELF'; end if;
+  if (checkin._setting('environment') #>> '{}') = 'PRODUCTION' and lower(p_email) ~ '(@dusel\.test|@test\.local|^load-|^load[0-9])' then raise exception 'TEST_ACCOUNT_IN_PRODUCTION'; end if;
   insert into checkin.staff (user_id, username, display_name, role, active, created_by)
   values (v_uid, lower(p_email), p_display, p_role, p_active, me.user_id)
   on conflict (user_id) do update set display_name = excluded.display_name, role = excluded.role, active = excluded.active,
@@ -1416,6 +1417,30 @@ begin
           from tk group by print_page) g);
 end $$;
 
+-- ============================================================ xodimlarni dastlabki yaratish (FAQAT service_role: admin noutbukidagi tools/create_staff.mjs)
+create or replace function public.ci_staff_bootstrap(p_rows jsonb) returns jsonb
+language plpgsql security definer set search_path = checkin, auth, pg_temp as $$
+declare me checkin.staff; x jsonb; v_uid uuid; n int := 0; v_env text := checkin._setting('environment') #>> '{}'; out jsonb := '[]'::jsonb;
+begin
+  if coalesce(auth.jwt() ->> 'role', '') <> 'service_role' then raise exception 'SERVICE_ROLE_ONLY' using errcode = '42501'; end if;
+  me.username := 'service_role (create_staff)';
+  if jsonb_typeof(p_rows) <> 'array' or jsonb_array_length(p_rows) = 0 or jsonb_array_length(p_rows) > 500 then raise exception 'ROWS_INVALID'; end if;
+  for x in select * from jsonb_array_elements(p_rows) loop
+    if coalesce(x ->> 'role', '') not in ('INVENTORY', 'GATE', 'SUPERVISOR', 'ADMIN') then raise exception 'ROLE_INVALID: %', x ->> 'email'; end if;
+    if v_env = 'PRODUCTION' and lower(x ->> 'email') ~ '(@dusel\.test|@test\.local|^load-|^load[0-9])' then
+      raise exception 'TEST_ACCOUNT_IN_PRODUCTION: %', x ->> 'email';
+    end if;
+    select id into v_uid from auth.users where lower(email) = lower(x ->> 'email');
+    if v_uid is null then raise exception 'AUTH_USER_NOT_FOUND: %', x ->> 'email'; end if;
+    insert into checkin.staff (user_id, username, display_name, role, active) values (v_uid, lower(x ->> 'email'), coalesce(nullif(x ->> 'display_name', ''), x ->> 'email'), x ->> 'role', true)
+    on conflict (user_id) do update set display_name = excluded.display_name, role = excluded.role, active = true,
+       sessions_valid_after = case when excluded.role <> checkin.staff.role then now() else checkin.staff.sessions_valid_after end;
+    n := n + 1; out := out || jsonb_build_object('email', lower(x ->> 'email'), 'role', x ->> 'role');
+  end loop;
+  perform checkin._audit(me, 'STAFF_BOOTSTRAP', 'staff', n::text, jsonb_build_object('rows', out, 'environment', v_env));
+  return jsonb_build_object('staff', n, 'rows', out);
+end $$;
+
 -- ============================================================ production tayyorligi (faqat o'qish)
 create or replace function public.ci_readiness(p_expect_env text default 'PRODUCTION') returns jsonb
 language plpgsql security definer set search_path = checkin, pg_temp as $$
@@ -1458,7 +1483,10 @@ do $$ declare f record; begin
            where n.nspname = 'public' and p.proname like 'ci\_%' loop
     execute format('revoke all on function %s from public', f.sig);
     if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on function %s from anon', f.sig); end if;
-    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('grant execute on function %s to authenticated', f.sig); end if;
+    if f.sig::text like 'ci_staff_bootstrap%' then
+      if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('revoke all on function %s from authenticated', f.sig); end if;
+      if exists (select 1 from pg_roles where rolname = 'service_role') then execute format('grant execute on function %s to service_role', f.sig); end if;
+    elsif exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('grant execute on function %s to authenticated', f.sig); end if;
   end loop;
   for f in select p.oid::regprocedure sig from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'checkin' loop
     execute format('revoke all on function %s from public', f.sig);

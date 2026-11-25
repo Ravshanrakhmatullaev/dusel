@@ -12,25 +12,29 @@
 
 **Cheklov (halol):** emulyatsiya haqiqiy telefon emas — iOS Safari'ning kamera ruxsat oynasi, haqiqiy linza fokusi, yorug'lik va Bluetooth skaner juftlashuvi faqat qo'lda sinaladi.
 
-## 2. Qo'lda (har bir telefon va skaner, T−7 kun)
+## 2. Haqiqiy telefonlarda (staging tayyor bo'lgach) — protokol
 
-Sahifa: `https://feature-checkin.dusel.pages.dev/scan-test` (server yo'q, hech narsa yozilmaydi). Konsertdan oldin production'da `/scan-test` ham mavjud bo'ladi.
+**Material:** `docs/field_test/DUSEL_sinov_varaqasi.pdf` (A4, 4 varaq). Undagi bilet QR'lari **faqat STAGING'da** bilet (`&t=SINOV` / `DUSELTEST:`); production'da "YAROQSIZ QR" — chop etilgan varaq haqiqiy kirish bera olmaydi (baza testi T25). Kupon namunalari diapazondan tashqari (9999).
 
-| # | Tekshiruv | iPhone Safari | Android Chrome | Izoh |
-|---|---|---|---|---|
-| D1 | Sahifa ochiladi, "HTTPS: ha", "Ilova ichidagi brauzer: yo'q" | | | Telegram ichida ochilsa — Safari/Chrome'da oching |
-| D2 | Kamera so'rovi → "Ruxsat" → kamera ishlaydi | | | |
-| D3 | Asl qog'oz bilet (yorug' zal, 20–30 sm) → "KONSERT BILETI № …" ≤ 1 s | | | |
-| D4 | Xira yorug' / burchak ostida | | | |
-| D5 | GOLD/SILVER/GAL kupon → "KUPON/VAUCHER" | | | |
-| D6 | Ruxsatni rad etish → yo'riqnoma → sozlamadan yoqish → «Kamerani qayta yoqish» | | | |
-| D7 | Bluetooth/USB skaner: 10 bilet ketma-ket → 10 natija | | | |
-| D8 | Telefon klaviaturasi rus tartibida + skaner → baribir to'g'ri | | | |
-| D9 | Qo'lda 5 raqam → to'g'ri | | | |
-| D10 | Ekran qulfi → qaytish → kamera qayta ishlaydi | | | |
-| D11 | «Hisobotni nusxalash» → natijani nazoratchiga yuborish | | | |
+**Qurilmalar (kamida):** 2 × iPhone (iOS 17+, Safari), 2 × Android (Chrome), 1 × USB 2D skaner (OTG), 1 × Bluetooth 2D skaner. Hammasi `https://feature-checkin.dusel.pages.dev`.
 
-Tashqi skaner sozlamasi: HID klaviatura, US tartib, suffiks Enter. iPhone + Bluetooth skaner: skaner ulanganda ekran klaviaturasi yashiriladi — bu normal.
+| # | Sinov | Qadamlar | O'tish mezoni |
+|---|---|---|---|
+| F1 | Kamera ruxsati — birinchi marta | `/scan-test` ochish → so'rovga "Ruxsat" | kamera ishlaydi; "HTTPS: ha" |
+| F2 | Ruxsat rad etilgan | sozlamadan kamerani o'chirib, sahifani qayta ochish | yo'riqnoma (iPhone: «aA»; Android: «Ruxsatlar») + «Kamerani qayta yoqish» ishlaydi |
+| F3 | Ilova ichidagi brauzer | havolani Telegram'da ochish | "Safari/Chrome'da oching" ko'rsatmasi |
+| F4 | Formatlar | 1-varaq, 9 ta QR | har biri "Kutilgan" bilan mos |
+| F5 | Tezlik | 2-varaq, 24 bilet, tezkor rejim, taymer | ≥ 15 bilet/daqiqa (kamera), ≥ 30 (skaner); har biri bir marta yashil |
+| F6 | **Bir vaqtda kiritish** | 3-varaq: 4 telefon bir biletni "3-2-1" bilan | har raqam uchun **aynan 1** yashil, 3 qizil "ALLAQACHON" |
+| F7 | Aloqa uzilishi | KIRITISH bosilishi bilan samolyot rejimi | "NATIJA NOMA'LUM — KIRITMANG", yashil yo'q; qayta ulangach "Qayta urinish" → bitta yozuv |
+| F8 | Wi-Fi ↔ mobil | skan paytida Wi-Fi o'chirish | ≤ 10 s ichida ishlashda davom etadi |
+| F9 | Ekran qulfi | qulf → 1 daqiqa → ochish | kamera qayta ishlaydi (yoki «Kamerani qayta yoqish») |
+| F10 | Tashqi skaner | USB va Bluetooth: 1–2-varaq | har skan bitta natija; telefon klaviaturasi kirill bo'lsa ham to'g'ri |
+| F11 | Inventar takrori | 4-varaq (A, A, B) | A×2 → "o'sha qog'oz"; B → "ikkinchi qog'oz" → TASDIQLANGAN DUBLIKAT; Nazoratda belgi |
+| F12 | Inventar oflayn | samolyot rejimida 10 skan → ilovani yopish → ulanish → ochish | 10 ta aynan bir martadan yuborildi |
+| F13 | Batareya | 30 daqiqa uzluksiz skan | batareya sarfi yozib olinadi (powerbank rejasi uchun) |
+
+Har sinovdan keyin `/scan-test` → «Hisobotni nusxalash» va natija jadvaliga: qurilma modeli, OS versiyasi, brauzer, natija, vaqt. Natija hisoboti: `docs/12_QURILMA_SINOVI_NATIJALARI.md` (staging'dan keyin to'ldiriladi).
 
 ## 3. Ma'lum platforma xususiyatlari
 

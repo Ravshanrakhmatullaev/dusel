@@ -1,16 +1,29 @@
 # 06 — QA natijalari
 
-Sana: 25.11.2026. CI: GitHub Actions `Check-in CI`, run **45632856788** — barcha 4 job yashil.
+Sana: 25.11.2026. CI: GitHub Actions `Check-in CI` — barcha 4 job yashil (oxirgi natijalar quyida).
 Barcha yozuvchi testlar **alohida sinov bazalarida**; production sayt faqat o'qildi; haqiqiy biletlarga hech qanday kirish yozilmagan.
 
 | To'plam | Natija | Qayerda |
 |---|---|---|
-| Baza testlari (`tests/test_db.py`) | **66/66 PASS** | lokal + CI |
-| Brauzer E2E (`e2e/test_e2e.mjs`: `/checkin`, `/inventory`, `/scan-test`) | **44/44 PASS** | lokal + CI |
-| Qurilma testlari HTTPS orqali (`e2e/test_devices.mjs`: WebKit/iPhone 15, Chromium/Pixel 7, Cloudflare preview + production faqat o'qish) | **23/23 PASS** | CI |
-| Yuklama — baza (`tests/load_test.py`, 16 ishchi) | **PASS**: 11 222 kirish, har biletga maks. 1, xato 0 (CI: 1 169 kiritish/s) | lokal + CI |
-| Yuklama — HTTP (`tests/http_load_test.mjs`, 8 darvoza, Auth + /rpc) | **PASS**: 20 mijoz poygasi → 1 muvaffaqiyat; ikki marta kirish 0; invariant butun | lokal + CI |
-| Production moslik (`tests/prod_compat.mjs`, faqat o'qish) | **27/27 PASS** | CI |
+| Baza testlari (`tests/test_db.py`) | **72/72 PASS** | lokal + CI |
+| Sig'imni aylanib o'tish urinishlari (`tests/test_capacity_attack.py`, toza baza, parallel) | **9/9 PASS** | lokal + CI |
+| Brauzer E2E (`e2e/test_e2e.mjs`: `/checkin`, `/inventory`, `/scan-test`) | **47/47 PASS** | lokal + CI |
+| Qurilma testlari HTTPS orqali (WebKit/iPhone 15, Chromium/Pixel 7) | **23/23 PASS** | CI |
+| Yuklama — baza (16 ishchi) va HTTP (8 darvoza, Auth + /rpc, 20 mijoz poygasi) | **PASS** | lokal + CI |
+| Toza migratsiya → production tekshiruvi (`tools/production_verify.sql`) | **17/17 OK** | lokal + CI |
+| Production moslik (faqat o'qish) + ommaviy sahifalar `main` bilan bayt-ma-bayt bir xil | **27/27 PASS** + diff bo'sh | CI |
+
+## 3-bosqich (25.11.2026, kechki) — qo'shilgan tekshiruvlar
+
+| Talab | Natija | Dalil |
+|---|---|---|
+| Takror skan ≠ ikkinchi qog'oz | Takror qarorsiz nusxa hisoblanmaydi; SAME_PAPER/SECOND_COPY; faqat o'z skaniga bir marta; nazoratchi sabab bilan o'zgartiradi; tarix o'chmaydi | T10, T10v, T10i, T10p, E2E T10 |
+| Boshlang'ich zaxira = 0 | yangi baza: 0 zaxira, 0 EXTRA; qarorsiz takror/ortiqcha qog'oz/noma'lum zaxira bo'lmaydi | C0, T13h, production_verify |
+| Dublikat va tarqatish nizosi → belgi, bilet bekor qilinmaydi | avtomatik belgilar; bilet kiritilishi mumkin | T10d, T23, T24, E2E T24 |
+| 11 222 sig'imni aylanib o'tib bo'lmaydi | sozlama/SQL/rol/qarorsiz/noto'g'ri tasdiq — rad; 10 parallel almashtirish (bo'sh o'rin 0) → 0; (bo'sh 1) → 1; 8 parallel to'g'ridan-to'g'ri INSERT (bo'sh 2) → 2; kiritish↔almashtirish va kiritish↔zaxira poygalari (ikkala tartibda) — hech qachon ikkalasi emas; to'liq zalda ≤ 11 222 | C1–C8 |
+| Staging ≠ production | sinov QR production'da yaroqsiz; sayt↔baza muhiti mos kelmasa ilova to'xtaydi; tayyorlik tekshiruvi sinov bazasini rad etadi | T25, T26, E2E T26/T27 |
+| Topilgan nuqson | qarorsiz takrori bor varaqdagi bilet zaxiraga o'tishi mumkin edi → tuzatildi (T13h) | — |
+| Topilgan nuqson | sinov varaqasidagi qisqa QR segno tomonidan Micro QR (telefonlar o'qimaydi) bo'lib chiqardi → oddiy QR majburiy | `tools/make_test_kit.py` |
 
 ## Egasining talab qilgan 14 ta testi
 
@@ -29,7 +42,7 @@ Barcha yozuvchi testlar **alohida sinov bazalarida**; production sayt faqat o'qi
 | 11 | Takror bilet bahsi va almashtirish | **PASS** | T12–T14, T07r–v, T13j, E2E T12 |
 | 12 | Bekor qilish/qayta urinish/timeout — ikki marta kirish yo'q | **PASS** | T08, T08b, E2E T08 |
 | 13 | Kirish hisoblagichlari va sig'im cheklovi | **PASS** (ruxsatlar 11 222 / 11 222) | T07u, T13c–m, E2E T07u/T13d |
-| 14 | Haqiqiy HTTPS bulut yuklama testi | **Rejalashtirilgan, staging kerak** (Supabase Pro ruxsati) | 10-hujjat |
+| 14 | Haqiqiy HTTPS bulut yuklama testi | **Tayyor, staging kerak**: `cloud-load.yml` (qo'lda ishga tushiriladi) | 10-hujjat |
 
 ## 2-bosqichda topilgan va tuzatilgan muammolar
 

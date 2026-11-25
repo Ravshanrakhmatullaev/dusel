@@ -67,7 +67,11 @@ Batafsil: `03_INSIDENT_VA_INTERNET_UZILISHI.md`, `09_ISHONCHLILIK_VA_TARMOQ.md`.
 
 ## 5. Inventar — alohida ilova
 
-Qog'oz biletlarni sanash `/inventory` ilovasida, alohida **INVENTORY** rolidagi xodimlar bilan (darvoza xodimi inventar qila olmaydi, inventar xodimi kirita olmaydi). Batafsil: `08_INVENTAR_VA_SOLISHTIRUV.md`.
+Qog'oz biletlarni sanash `/inventory` ilovasida, alohida **INVENTORY** rolidagi xodimlar bilan (darvoza xodimi inventar qila olmaydi, inventar xodimi kirita olmaydi). Takror skan chiqsa — qog'ozlarni solishtiring: o'sha qog'oz bo'lsa "YO'Q", ikkinchi qog'oz bo'lsa "HA" va uni DUBLIKAT konvertiga soling. Batafsil: `08_INVENTAR_VA_SOLISHTIRUV.md`.
+
+## 5b. Nazoratchi belgilari
+
+Nazorat → "Nazoratchi belgilari": tasdiqlangan bosma dublikatlari va tarqatish nizolari. Belgi biletni bekor qilmaydi. Mijoz kelsa — holat ochib, dalillar asosida qaror qiling.
 
 ## 5a. Kamera ishlamasa
 

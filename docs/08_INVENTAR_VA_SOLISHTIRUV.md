@@ -32,6 +32,31 @@ Himoya qatlamlari:
 5. Dasta tugagach — **Yopish** (yuborilmagan skan bo'lsa yopilmaydi). Faqat **yopilgan** partiyadagi skan "jismonan tasdiqlangan" hisoblanadi.
 6. Xato skan — nazoratchi `ci_inventory_void` bilan bekor qiladi (o'chirilmaydi, izi qoladi).
 
+## 2a. Takror skan ≠ ikkinchi qog'oz (operator qarori)
+
+Bitta raqam ikkinchi marta skanerlansa, tizim buni **avtomatik nusxa deb hisoblamaydi** — bu shunchaki o'sha qog'ozni qayta skanerlash bo'lishi mumkin.
+
+1. Ekranda sariq **"TAKROR SKAN № … — Qo'lingizda IKKI xil qog'oz bormi?"**.
+2. Operator qog'ozlarni yonma-yon qo'yib tekshiradi:
+   - **"YO'Q — o'sha qog'ozni qayta skanerladim"** → `SAME_PAPER`: nusxa hisoblanmaydi;
+   - **"HA — qo'limda IKKINCHI qog'oz bor"** → ikkinchi qog'ozni **"DUBLIKAT" konvertiga** soladi va konvert raqamini yozadi → `SECOND_COPY`: tasdiqlangan 2-qog'oz, nazoratchiga **belgi** (`DUPLICATE_PRINT_CONFIRMED`) avtomatik ketadi;
+   - **"Keyinroq"** → "Qarorlar" bo'limida qoladi (qarorsiz takror nusxa ham, zaxira ham hisoblanmaydi).
+3. Operator faqat **o'z** skaniga va faqat **bir marta** qaror beradi; o'zgartirish faqat nazoratchi orqali, sabab bilan.
+4. Hech bir skan o'chirilmaydi: barcha kuzatuvlar, qarorlar (kim, qachon, izoh) va bekor qilingan skanlar saqlanadi.
+5. Hisoblash: `tasdiqlangan qog'ozlar = birinchi kuzatuv + SECOND_COPY takrorlar`. Qarorsiz takror bo'lgan varaq `REPEAT_UNVERIFIED`.
+
+## 2b. Nazoratchi belgilari — bilet bekor qilinmaydi
+
+Belgilar (`ticket_flags`) biletning holatini **o'zgartirmaydi**: bilet darvozada kiritilishi mumkin, faqat ogohlantirish ko'rinadi. Turlari:
+- `DUPLICATE_PRINT_CONFIRMED` — inventarda ikkinchi qog'oz tasdiqlandi;
+- `DISTRIBUTION_DISPUTED` — ikki diler bitta biletni da'vo qiladi yoki turli manbalar zid holat aytadi (bir manbaning o'z yangilanishi nizo emas);
+- `DISTRIBUTED_BUT_IN_STOCK` — tarqatilgan deb yozilgan, lekin qog'oz zaxirada;
+- `SEAT_MISMATCH`, `OTHER` (qo'lda).
+Nazoratchi: ko'radi → "Holat ochish" (dalillar bilan ko'rib chiqish) → "Ko'rildi" / "Hal qilindi" (izoh majburiy). Belgisi bor bilet **zaxira joyga o'tkazilmaydi**.
+
+## 2c. Boshlang'ich zaxira joy = 0
+Yangi bazada tasdiqlangan zaxira joy **0**, EXTRA joy 0 (tayyorlik tekshiruvi `spare_pool_zero`). Noma'lum, skanerlanmagan, ortiqcha bosilgan yoki qarorsiz takrori bor qog'ozlar hech qachon avtomatik bo'sh joy bo'lmaydi.
+
 ## 3. Toifalar — "ko'rilmagan" ≠ "bosilmagan" ≠ "tarqatilgan"
 
 Har bir bilet aynan bitta toifada:

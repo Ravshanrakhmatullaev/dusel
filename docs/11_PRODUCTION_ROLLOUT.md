@@ -1,78 +1,79 @@
-# 11 — Nazoratli production rollout (kirish YOPIQ holatda) va narx
+# 11 — Production'ga chiqarish: aniq ro'yxat va narx
 
-## 0. Narx (Supabase, 25.11.2026 holatiga — to'lovdan oldin supabase.com/pricing da qayta tekshiring)
+Qaror: **alohida "DUSEL" Supabase Pro tashkiloti**, bitta production loyiha + vaqtinchalik, alohida **staging branch(lar)**. Mavjud `poligrafiya`, `Vectorla` tashkiloti/loyihalariga tegilmaydi.
 
-Supabase hisob-kitobi **tashkilot (organization) bo'yicha**: tarif butun tashkilotga qo'llanadi, kompyut esa har bir loyiha uchun alohida, soatbay. Pro tarifida oyiga $10 kompyut krediti bor — u bitta Micro loyihani qoplaydi.
+## A. Narx taxmini (to'lovdan oldin supabase.com/pricing da qayta tekshiring)
 
-**Muhim:** mavjud tashkilotni (poligrafiya, Vectorla) Pro'ga o'tkazmang — u holda ularning ham kompyuti hisobga qo'shiladi. DUSEL uchun **yangi alohida tashkilot** oching; eski tashkilot Free bo'lib qoladi va loyihalarga tegilmaydi.
-
-| Variant | Tarkib | Oyiga (taxminan) |
+| Qism | Hisob | Summa |
 |---|---|---|
-| **A (tavsiya)** | Yangi "DUSEL" Pro tashkiloti: production (Micro) + staging (Micro) — ikkalasi doimiy | $25 + $10 + $10 − $10 kredit = **$35** |
-| B | Production (Micro) + staging Supabase *branch* sifatida faqat sinov kunlari | $25 + branch soatlari (Micro ≈ $0.01344/soat; masalan 15 kun ≈ $4.8) ≈ **$30** |
-| Konsert kuni zaxira quvvat | Production'ni 1–2 kunga Small'ga ko'tarish | + ≈ $0.007/soat farq (juda kichik) |
+| Pro tarifi (DUSEL tashkiloti) | oyiga | $25.00 |
+| Production kompyut (Micro, 730 soat × $0.01344) | ≈ $9.81, oylik $10 kredit qoplaydi | $0.00 |
+| Konsert haftasida production → Small (7 kun) | 562 × 0.01344 + 168 × 0.0206 = $11.01 − $10 kredit | ≈ $1.01 |
+| Staging branch (Micro, $0.01344/soat; kredit va spend cap **qoplamaydi**) | 14 kun doimiy = 336 soat | ≈ $4.52 |
+| | butun oy doimiy = 730 soat | ≈ $9.81 |
+| Disk (8 GB), trafik (250 GB), MAU (100 000) | tarifga kiradi; DUSEL ehtiyoji juda kichik | $0 |
+| **Jami 1-oy** | staging 2 hafta | **≈ $30.5** |
+| | staging butun oy | **≈ $36** |
 
-Qo'shimcha: 8 GB disk, 250 GB trafik, 100 000 MAU tarifga kiradi — DUSEL (≈50 xodim, kichik baza) buning juda oz qismini ishlatadi. Pro: kundalik zaxira nusxa (7 kun), loyiha pauza qilinmaydi. Branch kompyuti kredit va spend cap bilan qoplanmaydi.
+Soliq/bank to'lovlari alohida bo'lishi mumkin. Branch soatbay hisoblanadi — sinov tugagach o'chirilsa, to'lov to'xtaydi.
 
-**Hech qanday to'lov yoki tarif o'zgarishi egasining aniq ruxsatisiz qilinmaydi.**
+## B. Tasdiq nuqtalari
 
-## 1. Tasdiq nuqtalari
-
-| # | Amal | Kim tasdiqlaydi |
+| # | Amal | Tasdiq |
 |---|---|---|
-| P1 | Yangi Supabase tashkiloti + Pro tarifi (to'lov) | Egasi |
-| P2 | Staging loyihasi (sinov ma'lumoti) — P1 dan keyin avtomatik | — |
-| P3 | Staging'da barcha testlar + bulut yuklama + failover mashqi o'tdi | Texnik rahbar (hisobot) |
-| P4 | Production loyihasi yaratish va **haqiqiy 11 222 bilet** yozish | Egasi |
-| P5 | `feature/checkin` → `main` (production'da `/checkin`, `/inventory`, `/scan-test` paydo bo'ladi) | Egasi |
-| P6 | Haqiqiy xodim akkauntlari | Egasi / Admin |
-| P7 | **Kirishni ochish** — faqat 23.12.2026, darvozalar ochilishidan oldin | Egasi + Admin (ikki kishi) |
+| **P1** | Yangi "DUSEL" tashkiloti + Pro tarifi | Egasi (to'lov) |
+| **P2** | Production loyihasi + migratsiyalar (kirish YOPIQ, 0 kirish, 0 zaxira) | Egasi |
+| **P3** | Staging branch (sinov ma'lumoti) | P1 dan keyin |
+| **P4** | Inventarni boshlash (haqiqiy qog'ozlar) — production bazasida, `inventory-live` manzili orqali | Egasi |
+| **P5** | `feature/checkin` → `main` merge | Egasi |
+| **P6** | Haqiqiy xodim akkauntlari | Egasi / Admin |
+| **P7** | **Kirishni ochish** — faqat 23.12.2026 | Egasi + Admin (ikki kishi) |
 
-## 2. Production'ni tayyorlash (P4) — kirish YOPIQ
+## C. Aniq ro'yxat
 
-1. Loyiha: yangi tashkilotda, mintaqa — Toshkentga eng yaqin (Frankfurt yoki shunga o'xshash), Postgres 15+.
-2. Auth: **Sign-ups o'chirilgan**, parol siyosati ≥ 12 belgi, email tasdiqlash yoqilgan; xodimlar Admin tomonidan qo'lda yaratiladi.
-3. Migratsiyalar, tartib bilan (Supabase SQL editor yoki CLI; `sql/local/*` **qo'llanmaydi**):
-   `001_checkin_schema` → `002_checkin_functions` → `003_seed_tickets` → `004_settings_seed` → `005_print_sheets`.
-4. `004` dan keyin bir marta: `update checkin.settings set value='"PRODUCTION"' where key='environment';` (bu kalit qulflanmagan).
-5. Tekshiruv SQL (natija aynan shunday bo'lishi shart):
-   ```sql
-   select count(*) from checkin.tickets;                                    -- 11222
-   select count(*) from checkin.tickets where status <> 'NOT_ADMITTED';     -- 0
-   select count(*) from checkin.admission_events;                           -- 0
-   select count(*) from checkin.inventory_scans;                            -- 0
-   select value from checkin.settings where key in ('admission_open','capacity','environment','master_sha256','print_layout_sha256');
-   -- false, 11222, "PRODUCTION", e50b9a59…31bb, 3e35be16…13d4
-   ```
-6. Supabase Advisors (Security + Performance) — ogohlantirishlar yo'q yoki izohlangan.
-7. Birinchi Admin (SQL editorda bir marta), qolgan xodimlar ilovadan.
-8. Zaxira nusxa: `tools/backup_encrypted.sh` (shifrlangan, tekshiriladi) + Supabase kundalik backup.
+### C1. Tashkilot va loyiha (P1, P2)
+- [ ] supabase.com → New organization "DUSEL" → **Pro** (eski tashkilotni o'zgartirmang).
+- [ ] Spend cap: **yoqilgan** (branch kompyuti cap bilan qoplanmaydi — branchlarni qo'lda nazorat qiling).
+- [ ] New project "dusel-checkin-prod", mintaqa: Toshkentga eng yaqin (Yevropa markaziy), kuchli DB paroli → parol menejeriga.
+- [ ] Authentication → Sign In / Providers → Email: **Allow new users to sign up = O'CHIQ**; Confirm email = yoqilgan.
+- [ ] Authentication → Policies: parol ≥ 12, harf+raqam (`supabase/config.jsonc` bilan bir xil).
+- [ ] API → Exposed schemas: faqat `public` (`checkin` **ochilmaydi**).
 
-## 3. Saytga chiqarish (P5) — kirish baribir YOPIQ
+### C2. Migratsiyalar (P2) — faqat `supabase/migrations` (= `sql/001–005`)
+- [ ] SQL editor yoki `supabase db push` bilan tartibda: `…01_checkin_schema` → `…02_checkin_functions` → `…03_seed_tickets` → `…04_settings_seed` → `…05_print_sheets`.
+- [ ] **Qo'llanmaydi**: `sql/local/*`, `e2e/seed_*.sql`, `tests/*` (sinov xodimlari/kirishlari).
+- [ ] Bir marta (migratsiya emas): `update checkin.settings set value='"PRODUCTION"' where key='environment';`
+- [ ] `tools/production_verify.sql` → **17 qatorning hammasi `OK`** (11 222 bilet, 0 kirish, 0 hodisa, 0 almashtirish, 0 holat, **0 zaxira joy**, 0 EXTRA, sig'im 11 222, kirish YOPIQ, sinov xodimlari 0, RLS, anon huquqsiz, bootstrap faqat service_role, master va varaq sha256).
+- [ ] Advisors → Security va Performance: ogohlantirishlar yo'q yoki izohlangan.
 
-1. `assets/checkin/config.js` → `PRODUCTION: { url, key }` (faqat publishable kalit; `service_role` hech qachon).
-2. PR `feature/checkin` → `main`; CI yashil; `production-compat` 27/27.
-3. Merge'dan keyin darhol: `production-compat` qayta; `/checkin`, `/inventory`, `/scan-test` ochiladi; eski bilet QR'lari, GOLD/SILVER/GAL o'zgarmagan.
-4. **Kirish avtomatik ochilmaydi**:
-   - `004` kirishni `false` bilan yaratadi va mavjud qiymatni **o'zgartirmaydi** (`on conflict do nothing`);
-   - `admission_open` ni faqat `ci_admission_set(true, 'KIRISHNI OCHISH')` o'zgartiradi (Admin, aniq tasdiq matni); boshqa funksiya, migratsiya yoki to'g'ridan-to'g'ri SQL o'zgartira olmaydi (trigger `ADMISSION_LOCKED`) — T20, T22 testlari;
-   - deploy, migratsiyani qayta qo'llash, sahifa yangilanishi kirishni ochmaydi.
+### C3. Xodimlar (P6)
+- [ ] Admin noutbukida: `SUPABASE_URL=… SERVICE_ROLE_KEY=… node tools/create_staff.mjs staff.csv parollar.csv` (service_role kaliti faqat shu noutbukda; frontendga hech qachon).
+- [ ] Production baza `@dusel.test`, `@test.local`, `load-…` akkauntlarini rad etadi (`TEST_ACCOUNT_IN_PRODUCTION`).
+- [ ] Parollar shaxsan topshiriladi, `parollar.csv` o'chiriladi.
+- [ ] Admin → **Tayyorlik tekshiruvi** → `TAYYOR`.
 
-## 4. Konsert kuni (P7)
+### C4. Staging branch (P3) — sinov uchun, production ma'lumotisiz
+- [ ] Branch yaratish (Dashboard → Branches yoki MCP `create_branch`). **"Include data" O'CHIQ** — production ma'lumoti nusxalanmaydi; branch migratsiyalardan quriladi va `environment = STAGING` bo'ladi.
+- [ ] `assets/checkin/config.js` → `STAGING: { url, key }` (branch publishable kaliti) → `feature/checkin` ga push → `https://feature-checkin.dusel.pages.dev`.
+- [ ] Sinov xodimlari: `create_staff.mjs` (branch URL va branch service kaliti bilan).
+- [ ] Bulut yuklama: GitHub → Actions → "Cloud load test (staging)" (secrets: `STAGING_URL`, `STAGING_ANON_KEY`, `LOAD_GATES`, `LOAD_ADMIN`).
+- [ ] Jismoniy qurilma sinovi (12-hujjat, `docs/field_test/DUSEL_sinov_varaqasi.pdf`).
+- [ ] Sinovlar tugagach: branch **o'chiriladi** (to'lov to'xtaydi). Branch ma'lumoti production'ga hech qachon ko'chirilmaydi.
 
-| Vaqt | Amal |
-|---|---|
-| T−3 soat | `monitor.mjs` ishga tushadi; darvoza telefonlari login; `/scan-test` tezkor tekshiruv; favqulodda qurilma belgilangan |
-| T−2 soat | Shifrlangan backup; Panel: kiritilgan 0, ochiq holat 0, ruxsatlar 11 222 / 11 222 |
-| T−30 daq | Egasi + Admin: **Kirishni ochish** (KIRISHNI OCHISH) |
-| Konsert davomida | Panel va monitor; holatlar nazorat stolida |
-| Darvozalar yopilgach | Kirishni yopish → backup → hisobotlar CSV → audit zanjiri tekshiruvi |
+### C5. Inventarni boshlash (P4) — kirish baribir YOPIQ
+- [ ] `config.js` → `PRODUCTION: { url, key }`; Cloudflare'da `inventory-live` git branch (faqat shu commit) → `https://inventory-live.dusel.pages.dev/inventory` — bu manzilda **faqat inventar** ishlaydi (`/checkin` o'chirilgan); `main` o'zgarmaydi.
+- [ ] Ilova sayt↔baza muhitini tekshiradi: production bazaga faqat production manzillari ulanadi (staging sayt production bazaga ulansa — "MUHIT MOS EMAS").
+- [ ] Inventar xodimlari (INVENTORY roli) — 08-hujjat tartibi.
 
-## 5. Orqaga qaytarish
+### C6. Saytga chiqarish (P5) — kirish YOPIQ
+- [ ] PR `feature/checkin` → `main`; CI yashil: ommaviy sahifalar `main` bilan **bayt-ma-bayt bir xil** (CI tekshiradi), `production-compat` 27/27.
+- [ ] Merge'dan keyin: `production-compat` qayta; eski QR'lar (`/?code=`, `/ticket?code=`, `github.io/dusel/?code=`), GOLD/SILVER/GAL o'zgarmagan.
+- [ ] Production `/checkin` ochiladi, lekin **kirish YOPIQ** (migratsiya, deploy, sahifa yangilanishi uni ochmaydi — T20, T22).
 
-- Sahifa xatosi: Cloudflare Pages → oldingi deploy (mijoz sahifalari o'zgarmagani uchun ta'sir yo'q).
-- Kirishni zudlik bilan to'xtatish: Admin → "Kirishni yopish".
-- Baza: kirish yozuvlari o'chirilmaydi/o'zgartirilmaydi; muammo bo'lsa — zaxiradan **alohida** bazaga tiklab solishtirish.
-- Favqulodda SQL (faqat texnik rahbar, audit izi bilan): `begin; select set_config('checkin.admission_change','approved',true); update checkin.settings set value='false' where key='admission_open'; commit;`
+### C7. Konsert kuni (P7)
+- [ ] T−3 soat: `tools/monitor.mjs`; darvoza telefonlari login; `/scan-test`; favqulodda qurilma belgilangan.
+- [ ] T−2 soat: `tools/backup_encrypted.sh`; Panel: kirgan 0, ruxsatlar 11 222 / 11 222; tayyorlik tekshiruvi (`no_admission_events` = OK).
+- [ ] T−30 daq: Egasi + Admin → **KIRISHNI OCHISH**.
+- [ ] Yakunda: kirishni yopish → backup → hisobotlar → audit zanjiri.
 
-Manbalar: https://supabase.com/pricing · https://supabase.com/docs/guides/platform/billing-on-supabase · https://supabase.com/docs/guides/platform/manage-your-usage/compute · https://supabase.com/docs/guides/platform/manage-your-usage/branching
+Manbalar: https://supabase.com/pricing · https://supabase.com/docs/guides/platform/manage-your-usage/compute · https://supabase.com/docs/guides/platform/manage-your-usage/branching · https://supabase.com/docs/guides/deployment/branching

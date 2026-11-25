@@ -27,7 +27,7 @@ Bular baza mantig'i va HTTP yo'lini tekshiradi, lekin **haqiqiy bulut kechikishi
    | L4 | Poyga | `RACE=20` (bir biletga 20 mijoz) | aynan 1 muvaffaqiyat |
    | L5 | Tarmoq uzilishi | L1 davomida R2 hotspot o'chirib-yoqiladi | "NATIJA NOMA'LUM" → qayta urinish; ikki marta kirish 0 |
    | L6 | Takror/kupon/qayta yuborish | `DUP=0.1 FOREIGN=0.02 RETRY=0.01` | rad etiladi, replay bitta yozuv |
-4. Buyruq (misol):
+4. CI orqali: repo secrets (`STAGING_URL`, `STAGING_ANON_KEY`, `LOAD_GATES`, `LOAD_ADMIN`) va variable `RUN_CLOUD_LOAD=1` → `checkin-backend` ga push → `cloud-load` job. Qo'lda (misol):
    ```bash
    BASE=https://<staging-ref>.supabase.co ANON_KEY=<publishable> \
    GATES="$(cat gates.json)" ADMIN='{"email":"…","password":"…"}' \

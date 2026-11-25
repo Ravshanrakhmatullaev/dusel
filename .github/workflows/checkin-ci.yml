@@ -109,3 +109,30 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: devices-https, path: "e2e/devices" }
+  cloud-load:
+    # BULUT (HTTPS) yuklama — faqat STAGING branch'ga. Yoqish: repo variable RUN_CLOUD_LOAD=1 va secrets
+    # STAGING_URL, STAGING_ANON_KEY, LOAD_GATES (JSON), LOAD_ADMIN (JSON); parametrlar: vars LOAD_PACE_MS, LOAD_TICKETS, LOAD_RACE.
+    # Skript muhit PRODUCTION bo'lsa yoki baza toza bo'lmasa o'zini to'xtatadi.
+    if: ${{ vars.RUN_CLOUD_LOAD == '1' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: HTTPS yuklama (staging)
+        env:
+          BASE: ${{ secrets.STAGING_URL }}
+          ANON_KEY: ${{ secrets.STAGING_ANON_KEY }}
+          GATES: ${{ secrets.LOAD_GATES }}
+          ADMIN: ${{ secrets.LOAD_ADMIN }}
+          PACE_MS: ${{ vars.LOAD_PACE_MS || '3000' }}
+          TICKETS: ${{ vars.LOAD_TICKETS || '1-11222' }}
+          RACE: ${{ vars.LOAD_RACE || '20' }}
+          OUT: cloud_load.json
+        run: |
+          test -n "$BASE" || { echo "STAGING_URL secret yo'q"; exit 1; }
+          cd tests && node http_load_test.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: cloud-load, path: tests/cloud_load.json }

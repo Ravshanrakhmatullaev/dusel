@@ -56,7 +56,7 @@ Soliq/bank to'lovlari alohida bo'lishi mumkin. Branch soatbay hisoblanadi — si
 - [ ] Branch yaratish (Dashboard → Branches yoki MCP `create_branch`). **"Include data" O'CHIQ** — production ma'lumoti nusxalanmaydi; branch migratsiyalardan quriladi va `environment = STAGING` bo'ladi.
 - [ ] `assets/checkin/config.js` → `STAGING: { url, key }` (branch publishable kaliti) → `feature/checkin` ga push → `https://feature-checkin.dusel.pages.dev`.
 - [ ] Sinov xodimlari: `create_staff.mjs` (branch URL va branch service kaliti bilan).
-- [ ] Bulut yuklama: GitHub → Actions → "Cloud load test (staging)" (secrets: `STAGING_URL`, `STAGING_ANON_KEY`, `LOAD_GATES`, `LOAD_ADMIN`).
+- [ ] Bulut yuklama: repo secrets `STAGING_URL`, `STAGING_ANON_KEY`, `LOAD_GATES`, `LOAD_ADMIN` + variable `RUN_CLOUD_LOAD=1` → `checkin-backend` ga push → CI `cloud-load` job (natija artifact `cloud-load`).
 - [ ] Jismoniy qurilma sinovi (12-hujjat, `docs/field_test/DUSEL_sinov_varaqasi.pdf`).
 - [ ] Sinovlar tugagach: branch **o'chiriladi** (to'lov to'xtaydi). Branch ma'lumoti production'ga hech qachon ko'chirilmaydi.
 

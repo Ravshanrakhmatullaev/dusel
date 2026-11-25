@@ -42,7 +42,7 @@ Barcha yozuvchi testlar **alohida sinov bazalarida**; production sayt faqat o'qi
 | 11 | Takror bilet bahsi va almashtirish | **PASS** | T12–T14, T07r–v, T13j, E2E T12 |
 | 12 | Bekor qilish/qayta urinish/timeout — ikki marta kirish yo'q | **PASS** | T08, T08b, E2E T08 |
 | 13 | Kirish hisoblagichlari va sig'im cheklovi | **PASS** (ruxsatlar 11 222 / 11 222) | T07u, T13c–m, E2E T07u/T13d |
-| 14 | Haqiqiy HTTPS bulut yuklama testi | **Tayyor, staging kerak**: `cloud-load.yml` (qo'lda ishga tushiriladi) | 10-hujjat |
+| 14 | Haqiqiy HTTPS bulut yuklama testi | **Tayyor, staging kerak**: CI `cloud-load` job (`RUN_CLOUD_LOAD=1` + staging secrets) | 10-hujjat |
 
 ## 2-bosqichda topilgan va tuzatilgan muammolar
 

@@ -15,6 +15,8 @@
   // server bilan bir xil qoidalar (checkin._parse) — faqat ko'rsatish uchun
   function classify(s) {
     if (/^DUSELR1:[A-Za-z0-9_-]{24}$/.test(s)) return ['info', 'ALMASHTIRISH BILETI (format to\'g\'ri)'];
+    var t = /^DUSELTEST:([0-9]{5})$/.exec(s) || /^https?:\/\/(?:dusel\.pages\.dev\/(?:ticket(?:\.html)?|index\.html)?|ravshanrakhmatullaev\.github\.io\/dusel\/(?:index\.html)?)\?code=([0-9]{5})&t=SINOV$/i.exec(s);
+    if (t) return ['info', 'SINOV BILETI № ' + t[1] + ' — faqat STAGING; haqiqiy kirishda yaroqsiz'];
     var m = /^([0-9]{5})$/.exec(s) || /^https?:\/\/(?:dusel\.pages\.dev\/(?:ticket(?:\.html)?|index\.html)?|ravshanrakhmatullaev\.github\.io\/dusel\/(?:index\.html)?)\?code=([0-9]{5})$/i.exec(s);
     if (m) { var n = +(m[1] || m[2]); return n >= 1 && n <= 11222 ? ['ok', 'KONSERT BILETI № ' + (m[1] || m[2])] : ['bad', 'Diapazondan tashqari raqam']; }
     if (/^https?:\/\/dusel\.pages\.dev\/(gold|silver|gal|coupon)(\.html)?([/?#]|$)/i.test(s)) return ['bad', 'KUPON/VAUCHER — konsert bileti emas'];

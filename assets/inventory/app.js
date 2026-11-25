@@ -47,13 +47,15 @@
     } catch (e) {}
   }
 
+  if (!CFG.disabled && CFG.apps && CFG.apps.indexOf('inventory') < 0) { render(el('section', { class: 'card center' }, el('h1', { text: 'Bu manzilda inventar o\'chirilgan' }))); return; }
   if (CFG.disabled) {
     render(el('section', { class: 'card center' }, el('h1', { text: 'Inventar faollashtirilmagan' }),
       el('p', { class: 'muted', text: 'Bu muhit (' + (CFG.env || '?') + ') uchun server sozlamasi yo\'q.' })));
     return;
   }
   var sb = window.supabase.createClient(CFG.url, CFG.key, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'dusel_inv_auth_' + CFG.env, detectSessionInUrl: false } });
-  var ERR = { AUTH_DENIED: 'Siz xodimlar ro\'yxatida yo\'qsiz', SESSION_REVOKED: 'Sessiya tugagan — qayta kiring', ROLE_DENIED: 'Bu ilova faqat inventar xodimlari uchun',
+  var ERR = { NOT_YOUR_SCAN: 'Bu skan boshqa xodimniki — nazoratchi qaror beradi', ALREADY_DECIDED: 'Qaror allaqachon berilgan — o\'zgartirish faqat nazoratchi orqali',
+              NOTE_REQUIRED: 'Ikkinchi qog\'oz qayerga qo\'yilganini yozing', NOT_A_REPEAT: 'Bu birinchi skan — qaror kerak emas', AUTH_DENIED: 'Siz xodimlar ro\'yxatida yo\'qsiz', SESSION_REVOKED: 'Sessiya tugagan — qayta kiring', ROLE_DENIED: 'Bu ilova faqat inventar xodimlari uchun',
               RATE_LIMIT: 'Juda tez — bir necha soniya kuting', BATCH_NOT_OPEN: 'Partiya yopiq', NAME_REQUIRED: 'Partiya nomini yozing' };
   function errText(e) { if (!e) return 'Xato'; if (e.network) return 'Server bilan aloqa yo\'q'; var m = (e.message || '').split('\n')[0]; return ERR[m] || e.hint || m || 'Xato'; }
   function call(fn, args, ms) {
@@ -69,7 +71,7 @@
       }, function (e) { if (done) return; done = true; clearTimeout(tm); setOnline(false); rej({ network: true, err: e }); });
     });
   }
-  var S = { me: null, device: LS.get('device', null), batch: LS.get('batch', null), tab: 'scan', online: navigator.onLine, queue: [], recent: [], local: {}, stats: { ok: 0, dup: 0, bad: 0 } };
+  var S = { me: null, device: LS.get('device', null), batch: LS.get('batch', null), tab: 'scan', online: navigator.onLine, queue: [], recent: [], local: {}, stats: { ok: 0, dup: 0, bad: 0, rep: 0 }, pendingN: 0 };
   if (!S.device) { S.device = 'inv-' + uuid().slice(0, 8); LS.set('device', S.device); }
   function setOnline(v) {
     S.online = v; var n = document.getElementById('net');
@@ -147,6 +149,11 @@
   }
   function boot() {
     call('ci_me').then(function (me) {
+      var se = String(me.environment == null ? '' : me.environment).replace(/"/g, '');
+      if (CFG.expectServerEnv && se !== CFG.expectServerEnv) {
+        return render(el('section', { class: 'card' }, el('div', { class: 'result bad' }, el('div', { class: 'big', text: 'MUHIT MOS EMAS — ISHLATMANG' }),
+          el('p', { text: 'Sayt: ' + CFG.env + ', baza: ' + (se || '?') + '. Adminga xabar bering.' })), el('button', { class: 'stop', on: { click: function () { signOut(); } }, text: 'Chiqish' })));
+      }
       if (['INVENTORY', 'SUPERVISOR', 'ADMIN'].indexOf(me.role) < 0) {
         return render(el('section', { class: 'card' }, el('h1', { text: 'Ruxsat yo\'q' }), el('p', { text: 'Bu ilova faqat inventar xodimlari uchun. Darvoza xodimlari /checkin dan foydalanadi.' }),
           el('button', { class: 'stop', on: { click: function () { signOut(); } }, text: 'Chiqish' })));
@@ -157,13 +164,13 @@
 
   // ---------------------------------------------------------------- qobiq
   function shell() {
-    var tabs = [['scan', 'Skanerlash'], ['batches', 'Partiyalar'], ['report', 'Solishtiruv']];
+    var tabs = [['scan', 'Skanerlash'], ['pending', 'Qarorlar' + (S.pendingN ? ' (' + S.pendingN + ')' : '')], ['batches', 'Partiyalar'], ['report', 'Solishtiruv']];
     var bar = document.querySelector('.tabs'); if (!bar) { bar = el('nav', { class: 'tabs' }); document.body.appendChild(bar); }
     bar.replaceChildren(); tabs.forEach(function (t) { bar.appendChild(el('button', { class: S.tab === t[0] ? 'on' : '', on: { click: function () { S.tab = t[0]; shell(); } }, text: t[1] })); });
     var head = el('div', { class: 'top' }, el('div', {}, el('b', { text: S.me.display_name }), ' ', el('span', { class: 'pill', text: S.me.role }), ' ', el('span', { class: 'pill', text: 'INVENTAR' })),
       el('button', { class: 'small', on: { click: function () { signOut(); } }, text: 'Chiqish' }));
     window.DuselScanner.unmount();
-    ({ scan: scanView, batches: batchesView, report: reportView }[S.tab] || scanView)(head);
+    ({ scan: scanView, pending: pendingView, batches: batchesView, report: reportView }[S.tab] || scanView)(head);
   }
 
   // ---------------------------------------------------------------- skanerlash
@@ -177,10 +184,11 @@
       el('section', { class: 'card' }, el('div', { class: 'row', style: 'justify-content:space-between;align-items:center' }, bsel,
         el('button', { class: 'small', on: { click: function () { S.tab = 'batches'; shell(); } }, text: 'Partiyani almashtirish' })),
         el('div', { class: 'stats', style: 'margin-top:8px' }, el('div', { class: 'stat' }, el('b', { id: 'st_ok', text: S.stats.ok }), el('span', { text: 'Qayd etildi (sessiya)' })),
-          el('div', { class: 'stat' }, el('b', { id: 'st_dup', text: S.stats.dup }), el('span', { text: 'Dublikatlar' })),
+          el('div', { class: 'stat' }, el('b', { id: 'st_rep', text: S.stats.rep || 0 }), el('span', { text: 'Takror (qaror kerak)' })),
+          el('div', { class: 'stat' }, el('b', { id: 'st_dup', text: S.stats.dup }), el('span', { text: 'Tasdiqlangan 2-qog\'oz' })),
           el('div', { class: 'stat' }, el('b', { id: 'st_bad', text: S.stats.bad }), el('span', { text: 'Noto\'g\'ri QR' })),
           el('div', { class: 'stat' }, el('b', { id: 'qcount', class: 'small', text: '' }), el('span', { text: 'Navbat' })))),
-      cam, $out,
+      $out, cam,
       el('section', { class: 'card' },
         el('form', { class: 'row', on: { submit: function (e) { e.preventDefault(); var v = window.DuselScanner.normalize(manual.value); if (v) { enqueue(v, /^\d{1,5}$/.test(v) ? 'MANUAL' : 'SCANNER', takeNote()); manual.value = ''; } } } },
           manual, el('button', { class: 'primary', type: 'submit', style: 'flex:0 0 auto', text: 'Qayd' })),
@@ -211,17 +219,65 @@
       if (vis) $out.replaceChildren(el('div', { class: 'result bad' }, el('div', { class: 'big', text: r.result === 'FOREIGN' ? 'KUPON/VAUCHER — BILET EMAS' : 'NOTO\'G\'RI / NOMA\'LUM QR' }), el('p', { text: r.message || '' }), el('p', { class: 'small', text: 'Alohida qayd etildi (rad etilgan skanlar).' })));
       return;
     }
-    var c = r.credential, dup = r.copies_total > 1;
+    var c = r.credential, dup = r.confirmed_copies > 1;
+    if (r.needs_verdict) { if (!r.replay) { setStat('rep'); beep('dup'); } feedItem(c.ticket_no + ' · TAKROR (' + r.observation_no + '-kuzatuv) — qaror kerak', 'bad');
+      S.pendingN = (S.pendingN || 0) + (r.replay ? 0 : 1); if (vis) askVerdict(r); return; }
     if (dup) setStat('dup'); else setStat('ok');
     if (!r.replay) beep(dup ? 'dup' : 'ok');
     feedItem(c.ticket_no + ' · ' + (c.kind === 'BLITCHER' ? 'Bl ' : '') + c.sector + ' q' + c.row + ' j' + c.seat + ' · varaq ' + (r.print_sheet || '—') + ' · nusxa ' + r.copies_total + (r.replay ? ' (qayta yuborildi)' : ''), dup ? 'bad' : '');
     if (!vis) return;
     $out.replaceChildren(el('div', { class: 'result ' + (dup ? 'bad' : (r.warnings.length ? 'warn' : 'ok')) },
-      el('div', { class: 'big', text: r.first_duplicate ? 'BIRINCHI DUBLIKAT! № ' + c.ticket_no : dup ? r.copies_total + '-NUSXA! № ' + c.ticket_no : 'Qayd etildi № ' + c.ticket_no }),
+      el('div', { class: 'big', text: dup ? 'TASDIQLANGAN DUBLIKAT № ' + c.ticket_no + ' (' + r.confirmed_copies + ' qog\'oz)' : 'Qayd etildi № ' + c.ticket_no }),
       el('div', { class: 'seat' }, el('div', {}, el('span', { text: 'Bilet' }), el('b', { text: c.ticket_no })), el('div', {}, el('span', { text: c.kind === 'BLITCHER' ? 'Blitcher' : 'Sektor' }), el('b', { text: c.sector })),
         el('div', {}, el('span', { text: 'Qator' }), el('b', { text: c.row })), el('div', {}, el('span', { text: 'Joy' }), el('b', { text: c.seat }))),
-      el('div', { class: 'small', text: 'Bosma varaq ' + (r.print_sheet || '—') + ' · shu partiyada ' + r.copies_in_batch + ' · jami ' + r.copies_total + ' nusxa · kirish holati o\'zgarmadi' }),
+      el('div', { class: 'small', text: 'Bosma varaq ' + (r.print_sheet || '—') + ' · tasdiqlangan qog\'oz ' + r.confirmed_copies + (r.pending_repeats ? ' · qarorsiz takror ' + r.pending_repeats : '') + ' · kirish holati o\'zgarmadi' }),
       r.warnings.length ? el('ul', { class: 'warns' }, r.warnings.map(function (w) { return el('li', { text: '⚠ ' + w.text }); })) : null));
+  }
+  // ---------------------------------------------------------------- takror: o'sha qog'ozmi yoki ikkinchi qog'ozmi? (operator qarori, tarix saqlanadi)
+  function verdictButtons(scanId, ticket, done) {
+    var B = 'width:100%;font-size:18px;padding:14px;text-align:left';
+    return el('div', { style: 'display:flex;flex-direction:column;gap:8px;margin-top:10px' },
+      el('button', { style: B, on: { click: function () { decide(scanId, 'SAME_PAPER', null, ticket, done); } }, text: 'YO\'Q — o\'sha qog\'ozni qayta skanerladim' }),
+      el('button', { class: 'stop', style: B, on: { click: function () {
+        var where = prompt('Ikkinchi qog\'oz № ' + ticket + ' — uni "DUBLIKAT" konvertiga soling va konvert raqamini yozing (masalan: D-3)');
+        if (where && where.trim()) decide(scanId, 'SECOND_COPY', where.trim(), ticket, done);
+      } }, text: 'HA — qo\'limda IKKINCHI qog\'oz bor' }),
+      el('button', { style: 'width:100%', on: { click: function () { if (done) done(); else $out.replaceChildren(); } }, text: 'Keyinroq ("Qarorlar" bo\'limida qoladi)' }));
+  }
+  function askVerdict(r) {
+    var c = r.credential;
+    $out.replaceChildren(el('div', { class: 'result warn', role: 'alert' },
+      el('div', { class: 'big', text: 'TAKROR SKAN № ' + c.ticket_no }),
+      el('p', { style: 'font-weight:800', text: 'Bu raqam avval ham skanerlangan (' + r.observation_no + '-kuzatuv). Qo\'lingizda IKKI xil qog\'oz bormi?' }),
+      el('p', { class: 'small', text: c.sector + ' · qator ' + c.row + ' · joy ' + c.seat + ' · varaq ' + (r.print_sheet || '—') + '. Qaror berilmaguncha bu skan nusxa hisoblanmaydi.' }),
+      verdictButtons(r.scan_id, c.ticket_no)));
+  }
+  function decide(scanId, verdict, note, ticket, done) {
+    call('ci_inventory_verdict', { p_scan: scanId, p_verdict: verdict, p_note: note }).then(function (v) {
+      S.pendingN = Math.max(0, (S.pendingN || 0) - 1);
+      if (verdict === 'SECOND_COPY') { setStat('dup'); beep('dup'); } else beep('ok');
+      feedItem(ticket + ' · ' + (verdict === 'SECOND_COPY' ? 'IKKINCHI QOG\'OZ tasdiqlandi (' + note + ')' : 'o\'sha qog\'oz — nusxa emas'), verdict === 'SECOND_COPY' ? 'bad' : '');
+      if (done) return done();
+      if ($out && document.body.contains($out)) $out.replaceChildren(el('div', { class: 'result ' + (verdict === 'SECOND_COPY' ? 'bad' : 'ok') },
+        el('div', { class: 'big', text: verdict === 'SECOND_COPY' ? 'TASDIQLANGAN DUBLIKAT № ' + ticket : 'Qayta skan — nusxa hisoblanmadi' }),
+        el('p', { class: 'small', text: 'Tasdiqlangan qog\'ozlar: ' + v.confirmed_copies + (verdict === 'SECOND_COPY' ? ' · nazoratchiga belgi yuborildi · bilet bekor qilinmaydi' : '') })));
+    }, function (e) { toast(errText(e)); });
+  }
+  function pendingView(head) {
+    var list = el('div');
+    render(head, el('section', { class: 'card' }, el('h2', { text: 'Qaror kutilayotgan takror skanlar' }),
+      el('p', { class: 'small muted', text: 'Har bir takror uchun: qog\'ozlarni yonma-yon qo\'yib tekshiring. Ikkinchi qog\'oz bo\'lsa — "DUBLIKAT" konvertiga soling. Skan tarixi hech qachon o\'chmaydi.' })), list);
+    function load() {
+      call('ci_inventory_pending', { p_batch: null }).then(function (ps) {
+        S.pendingN = ps.filter(function (p) { return p.mine; }).length;
+        list.replaceChildren(el('section', { class: 'card' }, el('ul', { class: 'list' }, ps.length ? ps.map(function (p) {
+          return el('li', {}, el('b', { text: '№ ' + p.ticket_no + ' · ' + p.sector + ' q' + p.row + ' j' + p.seat + ' · varaq ' + (p.print_sheet || '—') }),
+            el('div', { class: 'small muted', text: p.observation_no + '-kuzatuv · partiya #' + p.batch + ' ' + p.batch_name + ' · ' + p.at + ' · ' + p.operator + ' (birinchi skan: partiya #' + p.first_batch + ')' }),
+            (p.mine || S.me.role !== 'INVENTORY') ? verdictButtons(p.scan_id, p.ticket_no, load) : el('div', { class: 'small', text: 'Boshqa xodimning skani — o\'sha xodim yoki nazoratchi qaror beradi' }));
+        }) : el('li', { class: 'muted', text: 'Qaror kutilayotgan takror yo\'q' }))));
+      }, function (e) { list.replaceChildren(el('div', { class: 'result bad', text: errText(e) })); });
+    }
+    load();
   }
   function showFailed(it, e) {
     setStat('bad'); beep('bad'); feedItem('✕ ' + short(it.payload) + ' — ' + errText(e), 'bad');
@@ -255,7 +311,7 @@
   // ---------------------------------------------------------------- solishtiruv (sektorlar, varaqlar, eksport)
   var CAT = { admitted: 'Kirgan', distributed_confirmed: 'Tarqatilgan (hujjat)', in_stock_confirmed: 'Zaxirada (hujjat+skan)', in_stock_no_record: 'Skanlangan, hujjat yo\'q',
               conflict_distributed_in_stock: 'Ziddiyat: tarqatilgan, lekin qo\'lda', held_but_not_found: 'Zaxirada (hujjat), topilmadi', retired_to_spare: 'Zaxira joyga o\'tgan', cancelled: 'Bekor', unknown: 'Noma\'lum (ko\'rilmagan, hujjat yo\'q)' };
-  var SHEET = { REPRINTED_SUSPECTED: ['bad', 'Ikki marta bosilgan (taxmin)'], FULL_SHEET_IN_STOCK: ['ok', 'To\'liq qo\'lda'], PARTIAL_SHEET_IN_STOCK: ['warn', 'Qisman qo\'lda'],
+  var SHEET = { REPRINTED_SUSPECTED: ['bad', 'Ikkinchi qog\'oz tasdiqlangan (varaq qayta bosilgan bo\'lishi mumkin)'], REPEAT_UNVERIFIED: ['warn', 'Takror skan — qaror kutilmoqda'], FULL_SHEET_IN_STOCK: ['ok', 'To\'liq qo\'lda'], PARTIAL_SHEET_IN_STOCK: ['warn', 'Qisman qo\'lda'],
                 SHEET_ACCOUNTED_OUTSIDE: ['info', 'Tarqatilgan/kirgan'], SHEET_NOT_FOUND_NO_RECORD: ['', 'Ko\'rilmagan, hujjat yo\'q'], SHEET_NOT_FOUND_PARTIAL_RECORD: ['', 'Ko\'rilmagan, qisman hujjat'] };
   function csv(rows, name) {
     if (!rows || !rows.length) { toast('Ma\'lumot yo\'q'); return; }
@@ -281,10 +337,10 @@
             return el('button', { class: 'small', on: { click: function () { call('ci_inventory_report', { p_name: x[0], p_sector: null }, 60000).then(function (r) { csv(r, 'dusel_inventar_' + x[0]); }, function (e) { toast(errText(e)); }); } }, text: x[1] + ' CSV' });
           })),
         el('div', { class: 'tablewrap', style: 'margin-top:10px' }, el('table', {},
-          el('tr', {}, ['Sektor', 'Ajrat.', 'Skan nusxa', 'Dubl. №', 'Ortiqcha', 'Zaxira (hujjat)', 'Hujjatsiz skan', 'Tarqat.', 'Kirgan', 'Noma\'lum', 'Shubhali varaq'].map(function (x) { return el('th', { text: x }); })),
+          el('tr', {}, ['Sektor', 'Ajrat.', 'Tasdiq. qog\'oz', 'Dubl. №', 'Ortiqcha', 'Qarorsiz takror', 'Zaxira (hujjat)', 'Hujjatsiz skan', 'Tarqat.', 'Kirgan', 'Noma\'lum', 'Shubhali varaq'].map(function (x) { return el('th', { text: x }); })),
           rows.map(function (r) {
             return el('tr', { class: r.sector === 'A403' ? 'hl' : '', style: 'cursor:pointer', on: { click: function () { sheets(r, detail); } } },
-              [(r.kind === 'BLITCHER' ? 'Bl ' : '') + r.sector, r.allocated, r.physical_copies_scanned, r.duplicate_numbers, r.surplus_copies, r.in_stock_confirmed, r.in_stock_no_record,
+              [(r.kind === 'BLITCHER' ? 'Bl ' : '') + r.sector, r.allocated, r.physical_copies_scanned, r.duplicate_numbers, r.surplus_copies, r.pending_repeats, r.in_stock_confirmed, r.in_stock_no_record,
                r.distributed_confirmed, r.admitted, r.unknown, (r.reprinted_sheets || []).length].map(function (v) { return el('td', { text: v }); }));
           })))));
       var a403 = rows.filter(function (r) { return r.sector === 'A403'; })[0]; if (a403) sheets(a403, detail);
@@ -298,7 +354,7 @@
         el('div', { class: 'sheets' }, sh.map(function (s) {
           var m = SHEET[s.status] || ['', s.status];
           return el('div', { class: 'sheet ' + m[0], title: m[1] }, el('b', { text: s.sheet }), el('span', { text: s.in_stock + '/' + s.tickets.length + (s.max_copies > 1 ? ' ×' + s.max_copies : '') }),
-            el('small', { text: s.tickets.map(function (t) { return t.ticket_no.slice(-3) + (t.copies > 1 ? '×' + t.copies : t.copies ? '✓' : '·'); }).join(' ') }));
+            el('small', { text: s.tickets.map(function (t) { return t.ticket_no.slice(-3) + (t.copies > 1 ? '×' + t.copies : t.pending ? '?' : t.copies ? '✓' : '·'); }).join(' ') }));
         })),
         el('p', { class: 'small muted', text: Object.keys(SHEET).map(function (k) { return SHEET[k][1]; }).join(' · ') }),
         el('button', { class: 'small', on: { click: function () {

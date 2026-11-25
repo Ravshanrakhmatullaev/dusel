@@ -60,6 +60,11 @@
   }
 
   // ---------------------------------------------------------------- server bilan aloqa
+  if (!CFG.disabled && CFG.apps && CFG.apps.indexOf('checkin') < 0) {
+    render(el('section', { class: 'card center' }, el('h1', { text: 'Bu manzilda kirish nazorati o\'chirilgan' }),
+      el('p', { class: 'muted', text: 'Bu manzil faqat inventar uchun: /inventory' })));
+    return;
+  }
   if (CFG.disabled) {
     render(el('section', { class: 'card center' }, el('h1', { text: 'Kirish nazorati faollashtirilmagan' }),
       el('p', { class: 'muted', text: 'Bu muhit (' + (CFG.env || '?') + ') uchun server sozlamasi yo\'q. Tashkilotchi tasdig\'idan keyin yoqiladi.' })));
@@ -80,7 +85,9 @@
     NOT_PHYSICALLY_VERIFIED: 'Bilet yopilgan inventar partiyasida skanerlanmagan', DUPLICATE_COPIES_RISK: 'Bu raqamning bir necha nusxasi bor — zaxira bo\'lmaydi',
     SHEET_REPRINT_RISK: 'Varaqda dublikat bor — zaxira bo\'lmaydi', GATE_ACTIVITY_EXISTS: 'Bilet darvozada ko\'rilgan — zaxira bo\'lmaydi',
     EVIDENCE_REQUIRED: 'Isbotni batafsil yozing', ORIGINAL_NOT_SUPERSEDABLE: 'Asl bilet kiritilgan — uning o\'rnini bosib bo\'lmaydi',
-    USE_STOCK_RETIREMENT: 'Asl joy faqat "zaxiradagi biletdan" bo\'limi orqali', USE_CAPACITY_CHANGE: 'Sig\'im faqat tashkilotchi qarori bilan'
+    USE_STOCK_RETIREMENT: 'Asl joy faqat "zaxiradagi biletdan" bo\'limi orqali', USE_CAPACITY_CHANGE: 'Sig\'im faqat tashkilotchi qarori bilan',
+    DUPLICATE_UNRESOLVED: 'Inventarda qarorsiz takror skan bor — avval qaror', TICKET_FLAGGED: 'Biletda faol nazoratchi belgisi bor',
+    FLAG_NOT_ACTIVE: 'Belgi faol emas', DETAILS_REQUIRED: 'Tafsilotni yozing (kamida 5 belgi)'
   };
   function errText(e) {
     if (!e) return 'Noma\'lum xato';
@@ -145,6 +152,12 @@
 
   function boot() {
     call('ci_me').then(function (me) {
+      var se = String(me.environment == null ? '' : me.environment).replace(/"/g, '');
+      if (CFG.expectServerEnv && se !== CFG.expectServerEnv) {
+        return render(el('section', { class: 'card' }, el('div', { class: 'result bad' }, el('div', { class: 'big', text: 'MUHIT MOS EMAS — ISHLATMANG' }),
+          el('p', { text: 'Sayt: ' + CFG.env + ', baza: ' + (se || '?') + '. Sinov va haqiqiy ma\'lumotlar aralashmasligi uchun ilova to\'xtatildi. Adminga xabar bering.' })),
+          el('button', { class: 'stop', on: { click: function () { signOut(); } }, text: 'Chiqish' })));
+      }
       if (me.role === 'INVENTORY') {
         return render(el('section', { class: 'card' }, el('h1', { text: 'Bu kirish nazorati emas' }),
           el('p', { text: 'Siz inventar xodimisiz. Inventar ilovasi: /inventory. Kirish nazoratiga ruxsatingiz yo\'q.' }),
@@ -377,12 +390,35 @@
     }
     filter.addEventListener('change', load);
     var tk = el('input', { placeholder: 'Bilet raqami yoki QR', inputmode: 'numeric' });
-    render(head, el('section', { class: 'card' }, el('h2', { text: 'Ko\'rib chiqish holatlari' }), filter,
+    var flagsBox = el('div');
+    render(head, flagsBox, el('section', { class: 'card' }, el('h2', { text: 'Ko\'rib chiqish holatlari' }), filter,
       el('form', { class: 'row', style: 'margin-top:8px', on: { submit: function (e) {
         e.preventDefault(); if (!tk.value.trim()) return;
         call('ci_refer', { p_payload: tk.value.trim(), p_gate: S.gate, p_reason: 'Nazoratchi ochdi' }).then(function (r) { openCase(r.case_id, detail); load(); }, function (er) { toast(errText(er)); });
       } } }, tk, el('button', { class: 'primary', style: 'flex:0 0 auto', text: 'Holat ochish' }))), list, detail);
-    load();
+    load(); loadFlags(flagsBox, detail);
+  }
+  // ---------------------------------------------------------------- nazoratchi belgilari (bilet holatini o'zgartirmaydi)
+  function loadFlags(box, detail) {
+    var ft = el('input', { placeholder: 'Bilet raqami', inputmode: 'numeric', maxlength: 5 }), fk = el('select', {}, [['DISTRIBUTION_DISPUTED', 'Tarqatish nizosi'], ['DUPLICATE_PRINT_CONFIRMED', 'Bosma dublikati'], ['OTHER', 'Boshqa']].map(function (o) { return el('option', { value: o[0], text: o[1] }); })),
+        fd = el('input', { placeholder: 'Tafsilot (kim, nima da\'vo qiladi, hujjat)' });
+    call('ci_flags', { p_status: 'ACTIVE' }).then(function (fs) {
+      box.replaceChildren(el('section', { class: 'card' }, el('h2', { text: 'Nazoratchi belgilari (' + fs.length + ')' }),
+        el('p', { class: 'small muted', text: 'Belgi biletni bekor qilmaydi va to\'xtatmaydi — bilet darvozada kiritilishi mumkin. Darvozada ogohlantirish ko\'rinadi.' }),
+        el('ul', { class: 'list' }, fs.length ? fs.map(function (f) {
+          return el('li', {}, el('b', { text: '#' + f.id + ' · № ' + f.ticket_no + ' · ' + f.sector + ' q' + f.row + ' j' + f.seat + ' · ' + f.status }),
+            el('div', { class: 'small', text: f.text + (f.details ? ' — ' + f.details : '') }),
+            el('div', { class: 'small muted', text: f.source + ' · ' + f.raised_at + ' · bilet: ' + f.ticket_status + (f.case_id ? ' · holat #' + f.case_id : '') }),
+            el('div', { class: 'row', style: 'margin-top:6px' },
+              el('button', { class: 'small', on: { click: function () { call('ci_flag_open_case', { p_id: f.id }).then(function (r) { openCase(r.case_id, detail); loadFlags(box, detail); }, function (e) { toast(errText(e)); }); } }, text: 'Holat ochish' }),
+              el('button', { class: 'small', on: { click: function () { var n = prompt('Izoh (ko\'rildi)'); if (n) call('ci_flag_update', { p_id: f.id, p_status: 'ACKNOWLEDGED', p_note: n }).then(function () { loadFlags(box, detail); }, function (e) { toast(errText(e)); }); } }, text: 'Ko\'rildi' }),
+              el('button', { class: 'small go', on: { click: function () { var n = prompt('Qanday hal qilindi? (dalil bilan)'); if (n) call('ci_flag_update', { p_id: f.id, p_status: 'RESOLVED', p_note: n }).then(function () { loadFlags(box, detail); }, function (e) { toast(errText(e)); }); } }, text: 'Hal qilindi' })));
+        }) : el('li', { class: 'muted', text: 'Faol belgi yo\'q' })),
+        el('h3', { text: 'Qo\'lda belgi qo\'yish' }), el('div', { class: 'row' }, ft, fk), fd,
+        el('button', { class: 'warn', style: 'margin-top:6px', on: { click: function () {
+          call('ci_flag_raise', { p_ticket: ft.value.trim(), p_kind: fk.value, p_details: fd.value }).then(function () { toast('Belgi qo\'yildi'); loadFlags(box, detail); }, function (e) { toast(errText(e)); });
+        } }, text: 'Belgi qo\'yish' })));
+    }, function (e) { box.replaceChildren(el('div', { class: 'result bad', text: errText(e) })); });
   }
   function openCase(id, box) {
     call('ci_case', { p_id: id }).then(function (d) {
@@ -398,7 +434,8 @@
         t ? el('div', { class: 'result ' + (t.status === 'ADMITTED' ? 'bad' : 'info') }, seatGrid(t), el('div', { class: 'small', text: 'Holat: ' + t.status + (t.admitted_at ? ' · kirgan ' + t.admitted_at + ' ' + t.admitted_gate + ' (' + (t.admitted_by || '') + ')' : '') + ' · tarqatish: ' + t.distribution + ' · inventar nusxalari: ' + t.inventory_copies }), warnList(d.warnings)) : null,
         el('h3', { text: 'Kirish urinishlari' }),
         el('ul', { class: 'list small' }, d.admissions.map(function (a) { return el('li', { text: a.at + ' · ' + a.gate + ' · ' + a.decision + ' · ' + (a.staff || '') }); })),
-        d.inventory.length ? [el('h3', { text: 'Inventar' }), el('ul', { class: 'list small' }, d.inventory.map(function (s) { return el('li', { text: s.at + ' · ' + s.batch + (s.seat_note ? ' · ' + s.seat_note : '') + (s.voided ? ' (bekor)' : '') }); }))] : null,
+        d.flags && d.flags.length ? [el('h3', { text: 'Belgilar' }), el('ul', { class: 'list small' }, d.flags.map(function (f) { return el('li', { text: '#' + f.id + ' · ' + f.status + ' · ' + f.text + (f.details ? ' — ' + f.details : '') }); }))] : null,
+        d.inventory.length ? [el('h3', { text: 'Inventar kuzatuvlari' }), el('ul', { class: 'list small' }, d.inventory.map(function (s, i) { return el('li', { text: (i + 1) + '. ' + s.at + ' · ' + s.batch + (s.verdict ? ' · ' + (s.verdict === 'SECOND_COPY' ? 'IKKINCHI QOG\'OZ' : 'o\'sha qog\'oz') : (i ? ' · qarorsiz takror' : '')) + (s.seat_note ? ' · ' + s.seat_note : '') + (s.voided ? ' (bekor)' : '') }); }))] : null,
         d.distribution.length ? [el('h3', { text: 'Tarqatish yozuvlari' }), el('ul', { class: 'list small' }, d.distribution.map(function (x) { return el('li', { text: x.at + ' · ' + x.status + ' · ' + x.source + (x.recipient_ref ? ' · ' + x.recipient_ref : '') }); }))] : null,
         d.replacements.length ? [el('h3', { text: 'Almashtirishlar' }), el('ul', { class: 'list small' }, d.replacements.map(function (r) { return el('li', { text: r.sector + ' q' + r.row + ' j' + r.seat + ' · ' + r.status + ' · …' + r.token_hint }); }))] : null,
         el('p', { class: 'small', style: 'color:var(--warn)', text: 'Eslatma: birinchi bo\'lib kirgan odam haqiqiy egasi ekanini anglatmaydi — nusxa (klon) ham birinchi kirishi mumkin. Qarorni dalillar asosida qiling.' }),
@@ -493,7 +530,7 @@
             stat(a.foreign_rejected, 'Kupon/vaucher rad'), stat(a.invalid_rejected, 'Yaroqsiz QR'))),
           el('section', { class: 'card' }, el('h2', { text: 'Jismoniy inventar (kirishdan alohida)' }),
             el('div', { class: 'stats' }, stat(d.inventory.scans, 'Skanlangan nusxalar'), stat(d.inventory.distinct_tickets, 'Turli raqamlar'),
-              stat(d.inventory.duplicate_tickets, 'Dublikat raqamlar'), stat(d.inventory.surplus_copies, 'Ortiqcha nusxalar'),
+              stat(d.inventory.duplicate_tickets, 'Tasdiqlangan dublikat'), stat(d.inventory.surplus_copies, 'Ortiqcha qog\'oz'), stat(d.inventory.pending_repeats, 'Qarorsiz takror'), stat(d.flags.active, 'Faol belgilar'),
               stat(d.distribution.DISTRIBUTED, 'Tarqatilgan (yozuv)'), stat(d.distribution.HELD, 'Zaxirada (yozuv)'), stat(d.distribution.UNKNOWN, 'Noma\'lum'), stat(d.inventory.seat_mismatch, 'Joy farqi'))),
           el('section', { class: 'card' }, el('h2', { text: 'Darvozalar' }), el('div', { class: 'tablewrap' }, el('table', {},
             el('tr', {}, ['Darvoza', 'Kiritildi', 'Rad', '15 daq', 'Oxirgi skan'].map(function (h) { return el('th', { text: h }); })),
@@ -589,6 +626,14 @@
         el('div', { class: 'row', style: 'margin-top:6px' }, cdev,
         el('button', { on: { click: function () { var d = cdev.value.trim() || S.device; if (!confirm('Favqulodda qurilma: ' + d + ' ?')) return; call('ci_contingency_device_set', { p_device: d }).then(function () { toast('Belgilandi: ' + d); }, function (e) { toast(errText(e)); }); } }, text: 'Qurilmani belgilash' }),
         el('button', { on: { click: function () { call('ci_contingency_device_set', { p_device: null }).then(function () { toast('Favqulodda qurilma olib tashlandi'); }, function (e) { toast(errText(e)); }); } }, text: 'Olib tashlash' }))),
+      el('section', { class: 'card' }, el('h2', { text: 'Tayyorlik tekshiruvi' }), el('p', { class: 'small muted', text: 'Production\'ga chiqishdan oldin: 11 222 bilet, 0 kirish, 0 zaxira joy, kirish yopiq, sinov xodimlari yo\'q, audit butun.' }),
+        el('button', { on: { click: function () {
+          var box2 = document.getElementById('readybox');
+          call('ci_readiness', { p_expect_env: CFG.env === 'PRODUCTION' ? 'PRODUCTION' : 'STAGING' }, 30000).then(function (r) {
+            box2.replaceChildren(el('div', { class: 'result ' + (r.ready ? 'ok' : 'bad') }, el('div', { class: 'big', text: r.ready ? 'TAYYOR' : 'TAYYOR EMAS' }),
+              el('ul', { class: 'list small' }, r.checks.map(function (c) { return el('li', { text: (c.ok ? '✓ ' : '✗ ') + c.check + ' = ' + c.value }); }))));
+          }, function (e) { toast(errText(e)); });
+        } }, text: 'Tekshirish' }), el('div', { id: 'readybox' })),
       el('section', { class: 'card' }, el('h2', { text: 'Audit jurnali' }), el('div', { class: 'row' },
         el('button', { on: { click: function () { call('ci_audit_verify', {}, 30000).then(function (r) { alert(r.ok ? 'Zanjir butun: ' + r.checked + ' yozuv' : 'BUZILISH! Birinchi noto\'g\'ri yozuv #' + r.first_bad_id); }); } }, text: 'Butunligini tekshirish' }),
         el('button', { on: { click: function () { call('ci_audit_tail', { p_limit: 1000 }).then(function (r) { csv(r, 'dusel_audit'); }); } }, text: 'CSV' }))));

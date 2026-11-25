@@ -150,15 +150,34 @@ check("T17c Noto'g'ri QR kirishda rad etiladi va hech bir bilet holatiga ta'sir 
 batch = rpc(I1, "ci_inventory_batch_open", "A403 qoldiq", "Ombor-1", "A403", "Quti-1", "Dasta-1", "inv-dev-1")["id"]
 inv = [rpc(I1, "ci_inventory_scan", str(uuid.uuid4()), batch, U(t), None, "SCANNER", "inv-dev-1", None) for t in [6100, 6101, 6100, 6100, 6102]]
 st = sql("select status from checkin.tickets where ticket_no in ('06100','06101','06102')")
-check("T10 Inventar skanlari kirish holatini o'zgartirmaydi; dublikat nusxalar sanaladi (06100 × 3)",
-      all(s[0] == "NOT_ADMITTED" for s in st) and inv[3]["copies_total"] == 3 and any(w["code"] == "DUPLICATE_COPY" for w in inv[3]["warnings"]), inv[3]["copies_total"])
+check("T10 Inventar: 06100 uch marta — takrorlar QARORSIZ nusxa hisoblanmaydi (1 qog'oz + 2 kutilayotgan takror); kirish holati o'zgarmaydi",
+      all(s[0] == "NOT_ADMITTED" for s in st) and inv[0]["confirmed_copies"] == 1 and inv[2]["needs_verdict"] and inv[2]["first_duplicate"]
+      and inv[3]["confirmed_copies"] == 1 and inv[3]["pending_repeats"] == 2 and any(w["code"] == "REPEAT_NEEDS_VERDICT" for w in inv[3]["warnings"]),
+      (inv[3]["confirmed_copies"], inv[3]["pending_repeats"]))
+# operator qarori: 2-skan — ikkinchi qog'oz (konvertga), 3-skan — o'sha qog'oz qayta skanerlangan
+e_first = err(I1, "ci_inventory_verdict", inv[0]["scan_id"], "SECOND_COPY", "x")
+e_nonote = err(I1, "ci_inventory_verdict", inv[2]["scan_id"], "SECOND_COPY", "")
+v2 = rpc(I1, "ci_inventory_verdict", inv[2]["scan_id"], "SECOND_COPY", "D-konvert 1")
+v3 = rpc(I1, "ci_inventory_verdict", inv[3]["scan_id"], "SAME_PAPER", None)
+e_again = err(I1, "ci_inventory_verdict", inv[3]["scan_id"], "SECOND_COPY", "D-konvert 1")
+e_other = err(I2, "ci_inventory_verdict", inv[3]["scan_id"], "SECOND_COPY", "D-konvert 1")
+e_supnote = err(S1, "ci_inventory_verdict", inv[3]["scan_id"], "SECOND_COPY", "")
+e_gate_v = err(G1, "ci_inventory_verdict", inv[3]["scan_id"], "SAME_PAPER", None)
+hist = sql("select count(*) from checkin.inventory_verdicts v join checkin.inventory_scans s on s.id = v.scan_id where s.ticket_no = '06100'")[0][0]
+obs = sql("select count(*) from checkin.inventory_scans where ticket_no = '06100'")[0][0]
+flag06100 = sql("select kind, status from checkin.ticket_flags where ticket_no = '06100'")
+check("T10v Qaror: SECOND_COPY (joyi yozilgan) → 2 qog'oz, SAME_PAPER → nusxa emas; birinchi skanga qaror yo'q; operator qarorini o'zi o'zgartira olmaydi, boshqa operator/darvoza qaror bera olmaydi; nazoratchi o'zgartirsa sabab shart; skan tarixi o'chmaydi",
+      v2["confirmed_copies"] == 2 and v3["confirmed_copies"] == 2 and v3["pending_repeats"] == 0 and e_first == "NOT_A_REPEAT" and e_nonote == "NOTE_REQUIRED"
+      and e_again == "ALREADY_DECIDED" and e_other == "NOT_YOUR_SCAN" and e_supnote == "NOTE_REQUIRED" and e_gate_v == "ROLE_DENIED" and hist == 2 and obs == 3
+      and flag06100 == [("DUPLICATE_PRINT_CONFIRMED", "OPEN")] and sql("select status from checkin.tickets where ticket_no='06100'")[0][0] == "NOT_ADMITTED",
+      (e_first, e_nonote, e_again, e_other, e_supnote, hist, flag06100))
 rep = rpc(S1, "ci_report", "inventory_duplicates")
-check("T10b Hisobot: bir necha marta skanerlangan raqamlar", [x["ticket_no"] for x in rep] == ["06100"] and rep[0]["copies"] == 3, rep)
+check("T10b Hisobot: tasdiqlangan dublikatlar (06100 — 2 qog'oz)", [x["ticket_no"] for x in rep] == ["06100"] and rep[0]["copies"] == 2 and rep[0]["pending_repeats"] == 0, rep)
 rid_inv = str(uuid.uuid4()); a = rpc(I1, "ci_inventory_scan", rid_inv, batch, U(6103), None, "CAMERA", "inv-dev-1", None); b = rpc(I1, "ci_inventory_scan", rid_inv, batch, U(6103), None, "CAMERA", "inv-dev-1", None)
 check("T10c Inventar skani ham idempotent (bir xil so'rov ikki marta = 1 nusxa)", a["scan_id"] == b["scan_id"] and b["copies_total"] == 1)
 lk = rpc(G2, "ci_lookup", U(6100), "G2", "dev-2")
-check("T10d Darvozada dublikat haqida ogohlantirish chiqadi, lekin bilet kiritilishi mumkin (asl egasini to'smaydi)",
-      lk["admissible"] and any(w["code"] == "INVENTORY_DUPLICATE" for w in lk["warnings"]), lk["warnings"])
+check("T10d Darvozada dublikat va nazoratchi belgisi ko'rinadi, lekin bilet AVTOMATIK bekor qilinmaydi — kiritilishi mumkin",
+      lk["admissible"] and any(w["code"] == "INVENTORY_DUPLICATE" for w in lk["warnings"]) and any(w["code"] == "FLAG_DUPLICATE_PRINT_CONFIRMED" for w in lk["warnings"]), lk["warnings"])
 
 # 11. Bir joyga turli raqamlar
 s11 = rpc(I1, "ci_inventory_scan", str(uuid.uuid4()), batch, U(6110), "A403 qator 1 joy 5", "MANUAL", "inv-dev-1", None)
@@ -207,7 +226,9 @@ check("T13g Qo'shimcha (EXTRA) joy qo'shilsa ham sig'im va ruxsatlar o'zgarmaydi
 rpc(AD, "ci_import_distribution", json.dumps([{"ticket_no": t, "status": "HELD"} for t in ["06650", "06655", "06656", "06661", "06667", "06668"]]
       + [{"ticket_no": "06673", "status": "DISTRIBUTED", "recipient_ref": "Diler B"}]), "Tashkilotchi zaxira jadvali (sinov)")
 sb = rpc(I2, "ci_inventory_batch_open", "A405 zaxira qutisi", "Ofis seyf", "A405", "Q-7", "D-1", "inv-dev-2")["id"]
-for t in [6650, 6655, 6655, 6656, 6661, 6667, 6668]: rpc(I2, "ci_inventory_scan", str(uuid.uuid4()), sb, U(t), None, "SCANNER", "inv-dev-2", None)
+a405 = [rpc(I2, "ci_inventory_scan", str(uuid.uuid4()), sb, U(t), None, "SCANNER", "inv-dev-2", None) for t in [6650, 6655, 6655, 6656, 6661, 6667, 6668]]
+e_pend = err(AD, "ci_spare_from_stock", "06655", "Ombor tekshiruvi 25.11, quti Q-7")     # qarorsiz takror
+rpc(I2, "ci_inventory_verdict", a405[2]["scan_id"], "SECOND_COPY", "D-konvert 7")
 e_open = err(AD, "ci_spare_from_stock", "06650", "Ombor tekshiruvi 25.11, quti Q-7")
 rpc(I2, "ci_inventory_batch_close", sb)
 gh = rpc(G1, "ci_admit", str(uuid.uuid4()), U(6661), "G1", "dev-1")      # zaxiradagi bilet darvozada ko'rindi → nazorat
@@ -216,7 +237,7 @@ e_noev = err(AD, "ci_spare_from_stock", "06667", "qisqa")
 e_sup = err(S1, "ci_spare_from_stock", "06667", "Ombor tekshiruvi 25.11, quti Q-7")
 check("T13h Noma'lum/tarqatilgan/jismonan tasdiqlanmagan/dublikatli/varag'i shubhali/darvozada ko'rilgan bilet zaxira joy bo'la OLMAYDI",
       E["06649"] == "NO_DISTRIBUTION_PROOF" and E["06673"] == "NO_DISTRIBUTION_PROOF" and e_open == "NOT_PHYSICALLY_VERIFIED"
-      and E["06655"] == "DUPLICATE_COPIES_RISK" and E["06656"] == "SHEET_REPRINT_RISK" and E["06661"] == "GATE_ACTIVITY_EXISTS"
+      and e_pend == "NOT_PHYSICALLY_VERIFIED" and E["06655"] == "TICKET_FLAGGED" and E["06656"] == "SHEET_REPRINT_RISK" and E["06661"] == "GATE_ACTIVITY_EXISTS"
       and gh["decision"] == "REFER_HELD_STOCK" and e_noev == "EVIDENCE_REQUIRED" and e_sup == "ROLE_DENIED", (E, e_open, e_noev, e_sup))
 ret = rpc(AD, "ci_spare_from_stock", "06667", "Tashkilotchi zaxirasi: quti Q-7, 25.11 inventar #%d, tekshirdi: Admin" % sb)
 seat_r = ret["seat"]["seat_key"]
@@ -400,7 +421,7 @@ check("T16c Superuser triggerni o'chirib yozuvni o'zgartirsa ham — tekshiruv b
 # 13. dashboard / hisobotlar
 ss = {x["sector"]: x for x in rpc(AD, "ci_report", "sector_summary")}
 check("T13d Sektor bo'yicha panel (A403): ajratilgan 320, inventar nusxalari, ortiqcha nusxa",
-      ss["A403"]["allocated"] == 320 and ss["A403"]["physical_copies"] == 7 and ss["A403"]["surplus_copies"] == 2, {k: ss["A403"][k] for k in ("allocated", "physical_copies", "surplus_copies", "duplicate_numbers")})
+      ss["A403"]["allocated"] == 320 and ss["A403"]["physical_copies"] == 6 and ss["A403"]["surplus_copies"] == 1, {k: ss["A403"][k] for k in ("allocated", "physical_copies", "surplus_copies", "duplicate_numbers")})
 miss = rpc(S1, "ci_report", "inventory_missing")
 cats = {m["category"] for m in miss}
 check("T10e 'Inventarda yo'q' bilet avtomatik 'bosilmagan' deb hisoblanmaydi — kategoriyalar ajratilgan", {"ADMITTED", "UNKNOWN_NOT_IN_STOCK", "DISTRIBUTED_NOT_IN_STOCK"} <= cats | {"DISTRIBUTED_NOT_IN_STOCK"}, sorted(cats))
@@ -441,9 +462,12 @@ d3 = rpc(I1, "ci_inventory_scan", str(uuid.uuid4()), rb2, U(9100), None, "SCANNE
 rid_off = str(uuid.uuid4())
 o1 = rpc(I1, "ci_inventory_scan", rid_off, rb2, U(9101), None, "CAMERA", "inv-dev-1", "2026-11-25T09:00:00+05:00")
 o2 = rpc(I1, "ci_inventory_scan", rid_off, rb2, U(9101), None, "CAMERA", "inv-dev-1", "2026-11-25T09:00:00+05:00")
-check("T10i Bir xil bilet 3 marta → nusxa 1→2→3, birinchi dublikat darhol belgilanadi; oflayn navbat qayta yuborsa nusxa ko'paymaydi",
-      (d1["copies_total"], d2["copies_total"], d3["copies_total"]) == (1, 2, 3) and not d1["first_duplicate"] and d2["first_duplicate"] and not d3["first_duplicate"]
-      and o2["replay"] and o2["copies_total"] == 1 and o1["scan_id"] == o2["scan_id"], (d1["copies_total"], d2["copies_total"], d3["copies_total"], o2["replay"]))
+check("T10i Bir xil bilet 3 marta → kuzatuv 1→2→3, qarorsiz takrorlar nusxa emas (1 qog'oz, 2 kutilmoqda), birinchi takror darhol belgilanadi; oflayn navbat qayta yuborsa kuzatuv ko'paymaydi",
+      (d1["observation_no"], d2["observation_no"], d3["observation_no"]) == (1, 2, 3) and d3["confirmed_copies"] == 1 and d3["pending_repeats"] == 2
+      and not d1["needs_verdict"] and d2["needs_verdict"] and not d1["first_duplicate"] and d2["first_duplicate"] and not d3["first_duplicate"]
+      and o2["replay"] and o2["observation_no"] == 1 and o1["scan_id"] == o2["scan_id"], (d1["observation_no"], d3["pending_repeats"], o2["replay"]))
+pend = rpc(I1, "ci_inventory_pending", rb2)
+check("T10p Kutilayotgan qarorlar ro'yxati: 09100 ning 2 ta takrori (tarix bilan)", sorted(x["observation_no"] for x in pend if x["ticket_no"] == "09100") == [2, 3], len(pend))
 
 # ---------------------------------------------------------------- fizik solishtiruv (sinov ma'lumoti, A405)
 rec = {x["sector"]: x for x in rpc(I1, "ci_reconciliation", "A405")}["A405"]
@@ -457,6 +481,49 @@ check("T21 Solishtiruv (A405): toifalar ajratilgan, noma'lum 'sotilmagan' emas; 
       and sh[1110]["status"] == "REPRINTED_SUSPECTED" and sh[1112]["status"] == "PARTIAL_SHEET_IN_STOCK" and sh[1111]["status"] in ("PARTIAL_SHEET_IN_STOCK",)
       and "NOT_OBSERVED_UNKNOWN" in cats and "NOT_OBSERVED_DISTRIBUTED" in cats,
       {k: rec[k] for k in ("allocated", "in_stock_confirmed", "unknown", "distributed_confirmed", "retired_to_spare", "reprinted_sheets", "sheets_by_status")})
+
+# ---------------------------------------------------------------- tarqatish nizolari va nazoratchi belgilari (bilet bekor qilinmaydi)
+rpc(AD, "ci_import_distribution", json.dumps([{"ticket_no": "06300", "status": "DISTRIBUTED", "recipient_ref": "Diler A"},
+                                              {"ticket_no": "06302", "status": "HELD"}, {"ticket_no": "06303", "status": "HELD"}]), "Tashkilotchi jadvali A")
+rpc(AD, "ci_import_distribution", json.dumps([{"ticket_no": "06300", "status": "DISTRIBUTED", "recipient_ref": "Diler B"},
+                                              {"ticket_no": "06302", "status": "DISTRIBUTED", "recipient_ref": "Diler C"}]), "Diler hisoboti B")
+rpc(AD, "ci_import_distribution", json.dumps([{"ticket_no": "06303", "status": "DISTRIBUTED", "recipient_ref": "Diler A"}]), "Tashkilotchi jadvali A")
+fl = {(r[0], r[1]) for r in sql("select ticket_no, kind from checkin.ticket_flags where status <> 'RESOLVED'")}
+fb = rpc(I1, "ci_inventory_batch_open", "Nizo sinovi", "Ombor-4", "A403", None, None, "inv-dev-1")["id"]
+rpc(I1, "ci_inventory_scan", str(uuid.uuid4()), fb, U(6300), None, "SCANNER", "inv-dev-1", None)
+fl2 = {(r[0], r[1]) for r in sql("select ticket_no, kind from checkin.ticket_flags where status <> 'RESOLVED'")}
+check("T23 Tarqatish nizolari avtomatik belgilanadi: ikki diler bitta biletni da'vo qilsa, turli manbalar zid holat aytsa, tarqatilgan bilet zaxirada topilsa; bir manbaning o'z yangilanishi nizo emas",
+      ("06300", "DISTRIBUTION_DISPUTED") in fl and ("06302", "DISTRIBUTION_DISPUTED") in fl and ("06303", "DISTRIBUTION_DISPUTED") not in fl
+      and ("06300", "DISTRIBUTED_BUT_IN_STOCK") in fl2, sorted(fl2))
+st_before = sql("select ticket_no, status from checkin.tickets where ticket_no in ('06100','06300','06302') order by 1")
+flist = rpc(S1, "ci_flags", "ACTIVE")
+e_gflags = err(G1, "ci_flags", "ACTIVE"); e_iflag = err(I1, "ci_flag_update", flist[0]["id"], "RESOLVED", "inventar xodimi urinishi")
+f300 = [f for f in flist if f["ticket_no"] == "06300" and f["kind"] == "DISTRIBUTION_DISPUTED"][0]
+oc = rpc(S1, "ci_flag_open_case", f300["id"])
+adm300 = rpc(G1, "ci_admit", str(uuid.uuid4()), U(6300), "G1", "dev-1")
+e_short = err(S1, "ci_flag_update", f300["id"], "RESOLVED", "ok")
+res = rpc(S1, "ci_flag_update", f300["id"], "RESOLVED", "Diler A haqiqiy sotuvchi — chek ko'rildi")
+man = rpc(S1, "ci_flag_raise", "06301", "OTHER", "Mijoz telefonda bilet raqamini boshqa odamga bergan deydi")
+check("T24 Nazoratchi belgilari: ro'yxat, holat ochish, hal qilish (sabab bilan), qo'lda belgi; darvoza/inventar xodimi boshqara olmaydi; bilet holati O'ZGARMAYDI va kirish ishlaydi",
+      len(flist) >= 4 and e_gflags == "ROLE_DENIED" and e_iflag == "ROLE_DENIED" and oc["case_id"] and adm300["decision"] == "ADMITTED"
+      and e_short == "NOTE_REQUIRED" and res["status"] == "RESOLVED" and man["status"] == "OPEN"
+      and st_before == [("06100", "NOT_ADMITTED"), ("06300", "NOT_ADMITTED"), ("06302", "NOT_ADMITTED")], (len(flist), adm300["decision"]))
+
+# ---------------------------------------------------------------- SINOV QR: faqat STAGING'da bilet; production'da yaroqsiz
+t1 = rpc(G1, "ci_admit", str(uuid.uuid4()), "DUSELTEST:00777", "G1", "dev-1")["decision"]
+t2 = rpc(G1, "ci_lookup", "https://ravshanrakhmatullaev.github.io/dusel/?code=00778&t=SINOV", "G1", "dev-1")["result"]
+sql("update checkin.settings set value='\"PRODUCTION\"' where key='environment'")
+t3 = rpc(G1, "ci_admit", str(uuid.uuid4()), "DUSELTEST:00779", "G1", "dev-1")
+t4 = rpc(G1, "ci_admit", str(uuid.uuid4()), "https://dusel.pages.dev/ticket?code=00780&t=SINOV", "G1", "dev-1")["decision"]
+t5 = rpc(I1, "ci_inventory_scan", str(uuid.uuid4()), fb, "DUSELTEST:00781", None, "SCANNER", "inv-dev-1", None)["result"]
+sql("update checkin.settings set value='\"STAGING\"' where key='environment'")
+check("T25 Sinov QR (DUSELTEST:/&t=SINOV) STAGING'da ishlaydi, PRODUCTION'da kirishda ham, inventarda ham yaroqsiz — chop etilgan sinov varaqlari haqiqiy kirish bera olmaydi",
+      t1 == "ADMITTED" and t2 == "FOUND" and t3["decision"] == "DENIED_INVALID" and t4 == "DENIED_INVALID" and t5 == "INVALID"
+      and sql("select status from checkin.tickets where ticket_no in ('00779','00780','00781') group by status")[0][0] == "NOT_ADMITTED", (t1, t2, t3["decision"], t4, t5))
+rd = rpc(AD, "ci_readiness", "PRODUCTION")
+bad = sorted(c["check"] for c in rd["checks"] if not c["ok"])
+check("T26 Tayyorlik tekshiruvi sinov bazasini production uchun YAROQSIZ deb topadi (sinov kirishlari, xodimlari, muhit)",
+      not rd["ready"] and {"environment", "all_not_admitted", "no_admission_events", "no_test_staff", "spare_pool_zero"} <= set(bad), bad)
 
 # ---------------------------------------------------------------- 11 222 + dublikatlar + kuponlar inventarda: KIRISH HOLATI O'ZGARMAYDI
 def snapshot():

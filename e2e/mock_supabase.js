@@ -48,6 +48,15 @@ http.createServer((req, res) => {
         const usr = refresh.get(b.refresh_token); if (!usr) return send(res, 400, { error: 'invalid_grant' });
         refresh.delete(b.refresh_token); return send(res, 200, session(usr));
       }
+      const SERVICE = (req.headers.apikey === 'local-test-service-key' && (req.headers.authorization || '') === 'Bearer local-test-service-key');
+      if (u.pathname === '/auth/v1/admin/users' && req.method === 'POST') {          // Supabase Admin API taqlidi (faqat service key)
+        if (!SERVICE) return send(res, 401, { msg: 'service key required' });
+        const b = JSON.parse(body || '{}');
+        const ex = await pool.query('select id from auth.users where lower(email)=lower($1)', [b.email]);
+        if (ex.rows[0]) return send(res, 422, { code: 'email_exists', msg: 'A user with this email address has already been registered' });
+        const r = await pool.query("insert into auth.users (email, encrypted_password) values ($1, extensions.crypt($2, extensions.gen_salt('bf'))) returning id::text", [b.email, b.password]);
+        return send(res, 200, { id: r.rows[0].id, email: b.email });
+      }
       if (u.pathname === '/auth/v1/health') return send(res, 200, { name: 'GoTrue (mock)', version: 'local' });
       if (u.pathname === '/auth/v1/user') {
         const c = verify((req.headers.authorization || '').replace(/^Bearer /, ''));
@@ -57,15 +66,15 @@ http.createServer((req, res) => {
       if (u.pathname === '/auth/v1/logout') { res.writeHead(204, { 'access-control-allow-origin': '*' }); return res.end(); }
       const m = /^\/rest\/v1\/rpc\/([a-z_0-9]+)$/.exec(u.pathname);
       if (m) {
-        const claims = verify((req.headers.authorization || '').replace(/^Bearer /, ''));
+        const claims = SERVICE ? null : verify((req.headers.authorization || '').replace(/^Bearer /, ''));
         const args = JSON.parse(body || '{}'), keys = Object.keys(args);
         const vals = keys.map((k) => args[k] !== null && typeof args[k] === 'object' ? JSON.stringify(args[k]) : (typeof args[k] === 'boolean' && k === 'p_value' ? JSON.stringify(args[k]) : args[k]));
         const sql = `select public.${m[1]}(${keys.map((k, i) => `${k} := $${i + 1}`).join(', ')}) as r`;
         const c = await pool.connect();
         try {
           await c.query('begin');
-          await c.query(`set local role ${claims ? 'authenticated' : 'anon'}`);
-          await c.query("select set_config('request.jwt.claims', $1, true)", [claims ? JSON.stringify(claims) : '']);
+          await c.query(`set local role ${SERVICE ? 'service_role' : claims ? 'authenticated' : 'anon'}`);
+          await c.query("select set_config('request.jwt.claims', $1, true)", [SERVICE ? JSON.stringify({ role: 'service_role' }) : claims ? JSON.stringify(claims) : '']);
           const r = await c.query(sql, vals);
           await c.query('commit');
           return send(res, 200, r.rows[0].r);

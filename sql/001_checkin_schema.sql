@@ -325,6 +325,8 @@ create or replace function checkin._replacements_guard() returns trigger languag
 declare v_cap int := coalesce((select value::text::int from checkin.settings where key = 'capacity'), 11222);
 begin
   if tg_op = 'INSERT' then
+    perform pg_advisory_xact_lock(777001);       -- sig'im tekshiruvi parallel INSERT'larda ham ketma-ket
+    v_cap := coalesce((select value::text::int from checkin.settings where key = 'capacity'), 11222);   -- qulfdan keyin o'qiladi
     if exists (select 1 from checkin.tickets where seat_key = new.seat_key and status <> 'CANCELLED_BY_AUTHORIZED_SUPERVISOR') then
       raise exception 'SEAT_OCCUPIED_BY_TICKET' using hint = 'Bu joyda amaldagi asl bilet bor';
     end if;
@@ -355,7 +357,7 @@ create trigger replacements_no_delete before delete on checkin.replacements for 
 create or replace function checkin._mode_guard() returns trigger language plpgsql as $$
 declare v_mode text := coalesce(current_setting('checkin.mode', true), '');
 begin
-  if tg_table_name = 'inventory_scans' then
+  if tg_table_name in ('inventory_scans', 'inventory_verdicts') then
     if v_mode <> 'INVENTORY' then raise exception 'INVENTORY_WRITE_OUTSIDE_INVENTORY_MODE'; end if;
   elsif v_mode = 'INVENTORY' then
     raise exception 'INVENTORY_MODE_CANNOT_TOUCH_ADMISSION' using hint = tg_table_name || ' jadvaliga inventar rejimida yozib bo''lmaydi';
@@ -369,3 +371,44 @@ do $$ declare t text; begin
     execute format('create trigger %I before insert or update or delete on checkin.%I for each row execute function checkin._mode_guard()', 'mode_guard_' || t, t);
   end loop;
 end $$;
+
+-- ---------------------------------------------------------------- inventar: takror skan ≠ ikkinchi qog'oz (operator/nazoratchi qarori, tarix saqlanadi)
+-- Bir raqamning birinchi skanidan keyingi har bir skan "takror"; u qaror bo'lmaguncha nusxa hisoblanmaydi.
+-- SAME_PAPER — o'sha qog'oz qayta skanerlangan; SECOND_COPY — qo'lda haqiqatan ikkinchi bosma qog'oz bor.
+create table if not exists checkin.inventory_verdicts (
+  id          bigserial primary key,
+  scan_id     bigint not null references checkin.inventory_scans (id),
+  verdict     text not null check (verdict in ('SAME_PAPER', 'SECOND_COPY')),
+  note        text,
+  decided_by  uuid not null,
+  at          timestamptz not null default now()
+);
+create index if not exists inventory_verdicts_scan on checkin.inventory_verdicts (scan_id, id desc);
+alter table checkin.inventory_verdicts enable row level security;
+revoke all on checkin.inventory_verdicts from public, anon, authenticated;
+drop trigger if exists no_change_inventory_verdicts on checkin.inventory_verdicts;
+create trigger no_change_inventory_verdicts before update or delete on checkin.inventory_verdicts for each row execute function checkin._immutable();
+
+-- ---------------------------------------------------------------- nazoratchi belgilari: bilet holatini O'ZGARTIRMAYDI (bekor qilmaydi, to'xtatmaydi)
+create table if not exists checkin.ticket_flags (
+  id           bigserial primary key,
+  ticket_no    text not null references checkin.tickets (ticket_no),
+  kind         text not null check (kind in ('DUPLICATE_PRINT_CONFIRMED', 'DISTRIBUTION_DISPUTED', 'DISTRIBUTED_BUT_IN_STOCK', 'SEAT_MISMATCH', 'OTHER')),
+  details      text,
+  source       text not null,             -- INVENTORY | IMPORT | SUPERVISOR
+  source_ref   text,
+  raised_by    uuid,
+  raised_at    timestamptz not null default now(),
+  status       text not null default 'OPEN' check (status in ('OPEN', 'ACKNOWLEDGED', 'RESOLVED')),
+  case_id      bigint,
+  resolution   text,
+  resolved_by  uuid,
+  resolved_at  timestamptz
+);
+create unique index if not exists ticket_flags_one_active on checkin.ticket_flags (ticket_no, kind) where status <> 'RESOLVED';
+alter table checkin.ticket_flags enable row level security;
+revoke all on checkin.ticket_flags from public, anon, authenticated;
+drop trigger if exists ticket_flags_no_delete on checkin.ticket_flags;
+create trigger ticket_flags_no_delete before delete on checkin.ticket_flags for each row execute function checkin._immutable();
+drop trigger if exists mode_guard_inventory_verdicts on checkin.inventory_verdicts;
+create trigger mode_guard_inventory_verdicts before insert or update or delete on checkin.inventory_verdicts for each row execute function checkin._mode_guard();

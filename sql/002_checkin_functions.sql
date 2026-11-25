@@ -50,6 +50,12 @@ begin
   if length(s) = 0 or length(s) > 300 then kind := 'INVALID'; reason := 'EMPTY_OR_TOO_LONG'; return; end if;
   m := regexp_match(s, '^DUSELR1:([A-Za-z0-9_-]{24})$');
   if m is not null then kind := 'REPLACEMENT'; token := m[1]; return; end if;
+  -- SINOV QR (faqat STAGING'da bilet sifatida qabul qilinadi; production'da yaroqsiz): DUSELTEST:NNNNN yoki tarixiy URL + '&t=SINOV'
+  m := regexp_match(s, '^DUSELTEST:([0-9]{5})$');
+  if m is null then
+    m := regexp_match(s, '^https?://(?:dusel\.pages\.dev/(?:ticket(?:\.html)?|index\.html)?|ravshanrakhmatullaev\.github\.io/dusel/(?:index\.html)?)\?code=([0-9]{5})&t=SINOV$', 'i');
+  end if;
+  if m is not null then kind := 'TEST'; ticket_no := m[1]; return; end if;
   m := regexp_match(s, '^([0-9]{5})$');                                         -- qo'lda kiritish
   if m is null then                                                            -- barcha tarixiy bilet QR formatlari
     m := regexp_match(s, '^https?://(?:dusel\.pages\.dev/(?:ticket(?:\.html)?|index\.html)?|ravshanrakhmatullaev\.github\.io/dusel/(?:index\.html)?)\?code=([0-9]{5})$', 'i');
@@ -65,15 +71,37 @@ begin
   kind := 'INVALID'; reason := 'UNKNOWN_FORMAT';
 end $$;
 
+-- Muhitga bog'liq tahlil: SINOV QR faqat STAGING'da bilet; boshqa muhitda (PRODUCTION) — yaroqsiz
+create or replace function checkin._parse_env(p text, out kind text, out ticket_no text, out token text, out reason text)
+language plpgsql stable security definer set search_path = checkin, pg_temp as $$
+declare pr record;
+begin
+  pr := checkin._parse(p); kind := pr.kind; ticket_no := pr.ticket_no; token := pr.token; reason := pr.reason;
+  if pr.kind = 'TEST' then
+    if (checkin._setting('environment') #>> '{}') = 'STAGING' and pr.ticket_no::int between 1 and 11222 then kind := 'TICKET';
+    else kind := 'INVALID'; ticket_no := null; reason := 'TEST_QR_NOT_VALID_HERE'; end if;
+  end if;
+end $$;
+
 create or replace function checkin._dist(p_ticket text) returns text
 language sql stable security definer set search_path = checkin, pg_temp as $$
   select coalesce((select status from checkin.distribution_records where ticket_no = p_ticket order by id desc limit 1), 'UNKNOWN')
 $$;
 
 create or replace function checkin._copies(p_ticket text) returns int
-language sql stable security definer set search_path = checkin, pg_temp as $$
-  select count(*)::int from checkin.inventory_scans s
-  where s.ticket_no = p_ticket and s.ticket_no is not null and not exists (select 1 from checkin.inventory_voids v where v.scan_id = s.id)
+language plpgsql stable security definer set search_path = checkin, pg_temp as $$
+begin return coalesce((select copies from checkin._live_copies(p_ticket)), 0); end $$;
+
+create or replace function checkin._pending(p_ticket text) returns int
+language plpgsql stable security definer set search_path = checkin, pg_temp as $$
+begin return coalesce((select pending from checkin._live_copies(p_ticket)), 0); end $$;
+
+create or replace function checkin._flag_text(p_kind text) returns text language sql immutable as $$
+  select case p_kind when 'DUPLICATE_PRINT_CONFIRMED' then 'Bosma dublikati tasdiqlangan (inventarda ikkinchi qog''oz) — nazoratchi kuzatuvida'
+                     when 'DISTRIBUTION_DISPUTED' then 'Tarqatish yozuvlari ziddiyatli — nazoratchi kuzatuvida'
+                     when 'DISTRIBUTED_BUT_IN_STOCK' then 'Tarqatilgan deb yozilgan, lekin qog''ozi zaxirada topilgan'
+                     when 'SEAT_MISMATCH' then 'Qog''ozdagi joy masterdan farq qiladi'
+                     else 'Nazoratchi belgisi' end
 $$;
 
 create or replace function checkin._tz(t timestamptz) returns text language sql immutable as $$
@@ -91,6 +119,8 @@ begin
     'admitted_at', checkin._tz(t.admitted_at), 'admitted_gate', t.admitted_gate,
     'admitted_by', (select username from checkin.staff where user_id = t.admitted_by),
     'distribution', checkin._dist(t.ticket_no), 'inventory_copies', checkin._copies(t.ticket_no),
+    'inventory_pending_repeats', checkin._pending(t.ticket_no),
+    'open_flags', (select coalesce(jsonb_agg(f.kind order by f.id), '[]') from checkin.ticket_flags f where f.ticket_no = t.ticket_no and f.status <> 'RESOLVED'),
     'open_case', v_case);
   return j;
 end $$;
@@ -105,7 +135,9 @@ begin
   if t.status = 'CANCELLED_BY_AUTHORIZED_SUPERVISOR' then w := w || jsonb_build_object('code', 'CANCELLED', 'text', 'Nazoratchi tomonidan bekor qilingan'); end if;
   if checkin._dist(t.ticket_no) = 'HELD' then w := w || jsonb_build_object('code', 'HELD_STOCK', 'text', 'Tarqatish yozuvida: tashkilotchi zaxirasida (tarqatilmagan)'); end if;
   if checkin._copies(t.ticket_no) > 1 then w := w || jsonb_build_object('code', 'INVENTORY_DUPLICATE', 'text',
-       'Inventarda bu raqamning ' || checkin._copies(t.ticket_no) || ' ta jismoniy nusxasi topilgan (bosmaxona dublikati)'); end if;
+       'Inventarda bu raqamning ' || checkin._copies(t.ticket_no) || ' ta jismoniy nusxasi tasdiqlangan (bosmaxona dublikati)'); end if;
+  w := w || coalesce((select jsonb_agg(jsonb_build_object('code', 'FLAG_' || f.kind, 'text', checkin._flag_text(f.kind) || ' (belgi #' || f.id || ')') order by f.id)
+                      from checkin.ticket_flags f where f.ticket_no = t.ticket_no and f.status <> 'RESOLVED'), '[]'::jsonb);
   select id into v_case from checkin.review_cases where ticket_no = t.ticket_no and status in ('OPEN', 'IN_REVIEW', 'ESCALATED_NO_SEAT') limit 1;
   if v_case is not null then w := w || jsonb_build_object('code', 'OPEN_CASE', 'text', 'Ochiq ko''rib chiqish holati #' || v_case); end if;
   return w;
@@ -174,7 +206,7 @@ declare me checkin.staff; pr record; t checkin.tickets; r checkin.replacements; 
 begin
   me := checkin._me(array['GATE', 'SUPERVISOR', 'ADMIN']);
   perform checkin._rate(me);
-  pr := checkin._parse(p_payload);
+  pr := checkin._parse_env(p_payload);
   if pr.kind = 'TICKET' then
     select * into t from checkin.tickets where ticket_no = pr.ticket_no;
     if not found then res := jsonb_build_object('result', 'NOT_FOUND');
@@ -219,7 +251,7 @@ begin
     end if;
     if p_offline_at > now() + interval '5 minutes' or p_offline_at < now() - interval '2 days' then raise exception 'OFFLINE_TIME_INVALID'; end if;
   end if;
-  pr := checkin._parse(p_payload);
+  pr := checkin._parse_env(p_payload);
   v_hold := coalesce(checkin._setting('block_held_stock')::text::boolean, true);
 
   if not coalesce(checkin._setting('admission_open')::text::boolean, false) then
@@ -305,7 +337,7 @@ language plpgsql security definer set search_path = checkin, pg_temp as $$
 declare me checkin.staff; pr record; v_case bigint;
 begin
   me := checkin._me(array['GATE', 'SUPERVISOR', 'ADMIN']);
-  pr := checkin._parse(p_payload);
+  pr := checkin._parse_env(p_payload);
   if pr.kind <> 'TICKET' then raise exception 'REFER_TICKET_ONLY'; end if;
   v_case := checkin._case_touch(pr.ticket_no, 'GATE_REFERRAL', p_gate, me.user_id, left(coalesce(p_reason, 'Darvozadan yuborildi'), 500));
   perform checkin._audit(me, 'CASE_REFER', 'ticket', pr.ticket_no, jsonb_build_object('case', v_case, 'gate', p_gate, 'reason', p_reason));
@@ -341,7 +373,10 @@ begin
     'warnings', case when t.ticket_no is not null then checkin._warnings(t) end,
     'admissions', (select coalesce(jsonb_agg(checkin._event_json(e) || jsonb_build_object('staff', (select username from checkin.staff where user_id = e.staff)) order by e.id), '[]')
                    from checkin.admission_events e where e.ticket_no = c.ticket_no),
+    'flags', (select coalesce(jsonb_agg(to_jsonb(f) || jsonb_build_object('text', checkin._flag_text(f.kind), 'raised_at', checkin._tz(f.raised_at)) order by f.id), '[]')
+              from checkin.ticket_flags f where f.ticket_no = c.ticket_no),
     'inventory', (select coalesce(jsonb_agg(jsonb_build_object('scan_id', s.id, 'batch', b.name, 'at', checkin._tz(s.at), 'seat_note', s.seat_note,
+                       'verdict', (select v.verdict from checkin.inventory_verdicts v where v.scan_id = s.id order by v.id desc limit 1),
                        'voided', exists (select 1 from checkin.inventory_voids v where v.scan_id = s.id)) order by s.id), '[]')
                   from checkin.inventory_scans s join checkin.inventory_batches b on b.id = s.batch_id where s.ticket_no = c.ticket_no),
     'distribution', (select coalesce(jsonb_agg(jsonb_build_object('status', d.status, 'source', d.source, 'recipient_ref', d.recipient_ref,
@@ -607,7 +642,7 @@ create or replace function public.ci_inventory_scan(p_request uuid, p_batch bigi
 language plpgsql security definer set search_path = checkin, pg_temp as $$
 -- FAQAT inventar: biletlar, kirish hodisalari, almashtirishlar va holatlarga TEGMAYDI (bundan tashqari _mode_guard trigger buni bazada taqiqlaydi)
 declare me checkin.staff; pr record; t checkin.tickets; s checkin.inventory_scans; w jsonb := '[]'::jsonb; v_copies int; v_in_batch int;
-        v_replay boolean := false; v_first_dup boolean := false;
+        v_replay boolean := false; v_first_dup boolean := false; v_pending int; v_obs int; v_verdict text;
 begin
   me := checkin._me(array['INVENTORY', 'SUPERVISOR', 'ADMIN']);
   perform set_config('checkin.mode', 'INVENTORY', true);
@@ -620,7 +655,7 @@ begin
   else
     perform checkin._rate(me);
     if not exists (select 1 from checkin.inventory_batches where id = p_batch and closed_at is null) then raise exception 'BATCH_NOT_OPEN'; end if;
-    pr := checkin._parse(p_payload);
+    pr := checkin._parse_env(p_payload);
     insert into checkin.inventory_scans (request_id, batch_id, ticket_no, payload_kind, payload_sample, seat_note, seat_mismatch, operator, device, source, client_at)
     values (p_request, p_batch, case when pr.kind = 'TICKET' then pr.ticket_no end,
             case when pr.kind = 'TICKET' then 'TICKET' else pr.kind end, left(p_payload, 120),
@@ -637,17 +672,35 @@ begin
                  else 'Noma''lum yoki noto''g''ri QR' end);
   end if;
   select * into t from checkin.tickets where ticket_no = s.ticket_no;
-  v_copies := checkin._copies(t.ticket_no);
+  select coalesce(lc.copies, 0), coalesce(lc.pending, 0) into v_copies, v_pending from checkin._live_copies(t.ticket_no) lc;
+  v_copies := coalesce(v_copies, 0); v_pending := coalesce(v_pending, 0);
   select count(*) into v_in_batch from checkin.inventory_scans x where x.ticket_no = t.ticket_no and x.batch_id = s.batch_id
      and not exists (select 1 from checkin.inventory_voids v where v.scan_id = x.id);
-  v_first_dup := v_copies = 2 and not v_replay;
-  if v_copies > 1 then w := w || jsonb_build_object('code', 'DUPLICATE_COPY', 'text', 'DUBLIKAT: bu raqamning ' || v_copies || '-nusxasi'); end if;
+  select count(*) into v_obs from checkin.inventory_scans x where x.ticket_no = t.ticket_no and x.id <= s.id
+     and not exists (select 1 from checkin.inventory_voids v where v.scan_id = x.id);
+  select v.verdict into v_verdict from checkin.inventory_verdicts v where v.scan_id = s.id order by v.id desc limit 1;
+  v_first_dup := v_obs = 2 and not v_replay;
+  if v_obs > 1 and v_verdict is null then w := w || jsonb_build_object('code', 'REPEAT_NEEDS_VERDICT', 'text',
+       'TAKROR SKAN: bu raqam avval ham skanerlangan. Qo''lingizda IKKI xil qog''oz bormi? Qaror bering.'); end if;
+  if v_copies > 1 then w := w || jsonb_build_object('code', 'DUPLICATE_COPY', 'text', 'TASDIQLANGAN DUBLIKAT: ' || v_copies || ' ta qog''oz'); end if;
+  -- avtomatik belgilar (bilet holatiga tegmaydi)
+  if not v_replay and checkin._dist(t.ticket_no) = 'DISTRIBUTED' then
+    insert into checkin.ticket_flags (ticket_no, kind, details, source, source_ref, raised_by)
+    values (t.ticket_no, 'DISTRIBUTED_BUT_IN_STOCK', 'Inventarda topildi (skan #' || s.id || ')', 'INVENTORY', 'scan:' || s.id, me.user_id)
+    on conflict (ticket_no, kind) where status <> 'RESOLVED' do nothing;
+  end if;
+  if not v_replay and s.seat_mismatch then
+    insert into checkin.ticket_flags (ticket_no, kind, details, source, source_ref, raised_by)
+    values (t.ticket_no, 'SEAT_MISMATCH', 'Qog''ozda: ' || s.seat_note, 'INVENTORY', 'scan:' || s.id, me.user_id)
+    on conflict (ticket_no, kind) where status <> 'RESOLVED' do nothing;
+  end if;
   if t.status = 'ADMITTED' then w := w || jsonb_build_object('code', 'ALREADY_ADMITTED', 'text', 'Bu bilet bilan kirish qayd etilgan!'); end if;
   if checkin._dist(t.ticket_no) = 'DISTRIBUTED' then w := w || jsonb_build_object('code', 'RECORDED_DISTRIBUTED', 'text', 'Tarqatilgan deb qayd etilgan, lekin zaxirada turibdi'); end if;
   if s.seat_mismatch then w := w || jsonb_build_object('code', 'SEAT_MISMATCH', 'text', 'Qog''ozdagi joy masterdan farq qiladi: ' || s.seat_note); end if;
   return jsonb_build_object('result', 'RECORDED', 'scan_id', s.id, 'replay', v_replay, 'credential', checkin._ticket_json(t),
-                            'copies_total', v_copies, 'copies_in_batch', v_in_batch, 'first_duplicate', v_first_dup,
-                            'print_sheet', t.print_page, 'warnings', w);
+                            'copies_total', v_copies, 'confirmed_copies', v_copies, 'pending_repeats', v_pending, 'copies_in_batch', v_in_batch,
+                            'observation_no', v_obs, 'repeat', v_obs > 1, 'needs_verdict', v_obs > 1 and v_verdict is null, 'verdict', v_verdict,
+                            'first_duplicate', v_first_dup, 'print_sheet', t.print_page, 'warnings', w);
 end $$;
 
 create or replace function public.ci_inventory_void(p_scan bigint, p_reason text) returns jsonb
@@ -663,6 +716,122 @@ begin
   return jsonb_build_object('voided', p_scan);
 end $$;
 
+-- Takror skan bo'yicha qaror: SAME_PAPER (o'sha qog'oz) yoki SECOND_COPY (ikkinchi bosma qog'oz). Tarix o'chmaydi; nazoratchi keyin o'zgartira oladi.
+create or replace function public.ci_inventory_verdict(p_scan bigint, p_verdict text, p_note text default null) returns jsonb
+language plpgsql security definer set search_path = checkin, pg_temp as $$
+declare me checkin.staff; s checkin.inventory_scans; v_obs int; v_prev text; lc record;
+begin
+  me := checkin._me(array['INVENTORY', 'SUPERVISOR', 'ADMIN']);
+  perform set_config('checkin.mode', 'INVENTORY', true);
+  if p_verdict not in ('SAME_PAPER', 'SECOND_COPY') then raise exception 'VERDICT_INVALID'; end if;
+  select * into s from checkin.inventory_scans where id = p_scan for update;
+  if not found or s.ticket_no is null then raise exception 'SCAN_NOT_FOUND'; end if;
+  if exists (select 1 from checkin.inventory_voids v where v.scan_id = p_scan) then raise exception 'SCAN_VOIDED'; end if;
+  select count(*) into v_obs from checkin.inventory_scans x where x.ticket_no = s.ticket_no and x.id <= s.id
+     and not exists (select 1 from checkin.inventory_voids v where v.scan_id = x.id);
+  if v_obs < 2 then raise exception 'NOT_A_REPEAT' using hint = 'Birinchi skan uchun qaror kerak emas'; end if;
+  select verdict into v_prev from checkin.inventory_verdicts where scan_id = p_scan order by id desc limit 1;
+  if me.role = 'INVENTORY' then
+    if s.operator <> me.user_id then raise exception 'NOT_YOUR_SCAN'; end if;
+    if v_prev is not null then raise exception 'ALREADY_DECIDED' using hint = 'O''zgartirish faqat nazoratchi orqali'; end if;
+  elsif v_prev is not null and length(btrim(coalesce(p_note, ''))) < 5 then
+    raise exception 'NOTE_REQUIRED' using hint = 'Qarorni o''zgartirish sababini yozing';
+  end if;
+  if p_verdict = 'SECOND_COPY' and length(btrim(coalesce(p_note, ''))) < 2 then
+    raise exception 'NOTE_REQUIRED' using hint = 'Ikkinchi qog''oz qayerga qo''yilganini yozing (masalan: D-konvert 3)';
+  end if;
+  insert into checkin.inventory_verdicts (scan_id, verdict, note, decided_by) values (p_scan, p_verdict, nullif(btrim(coalesce(p_note, '')), ''), me.user_id);
+  if p_verdict = 'SECOND_COPY' then
+    insert into checkin.ticket_flags (ticket_no, kind, details, source, source_ref, raised_by)
+    values (s.ticket_no, 'DUPLICATE_PRINT_CONFIRMED', 'Ikkinchi qog''oz tasdiqlandi (skan #' || p_scan || ', ' || coalesce(p_note, '') || ')', 'INVENTORY', 'scan:' || p_scan, me.user_id)
+    on conflict (ticket_no, kind) where status <> 'RESOLVED' do nothing;
+  end if;
+  perform checkin._audit(me, 'INVENTORY_VERDICT', 'inventory_scan', p_scan::text,
+          jsonb_build_object('ticket', s.ticket_no, 'verdict', p_verdict, 'previous', v_prev, 'note', p_note));
+  select * into lc from checkin._live_copies(s.ticket_no);
+  return jsonb_build_object('scan_id', p_scan, 'ticket_no', s.ticket_no, 'verdict', p_verdict, 'previous', v_prev,
+                            'confirmed_copies', coalesce(lc.copies, 0), 'pending_repeats', coalesce(lc.pending, 0), 'observations', coalesce(lc.observations, 0));
+end $$;
+
+-- Qaror kutilayotgan takror skanlar
+create or replace function public.ci_inventory_pending(p_batch bigint default null) returns jsonb
+language plpgsql security definer set search_path = checkin, pg_temp as $$
+declare me checkin.staff;
+begin
+  me := checkin._me(array['INVENTORY', 'SUPERVISOR', 'ADMIN']);
+  return (with o as (
+      select s.*, row_number() over (partition by s.ticket_no order by s.id) rn,
+             first_value(s.id) over (partition by s.ticket_no order by s.id) first_id,
+             (select v.verdict from checkin.inventory_verdicts v where v.scan_id = s.id order by v.id desc limit 1) verdict
+      from checkin.inventory_scans s
+      where s.ticket_no is not null and not exists (select 1 from checkin.inventory_voids v where v.scan_id = s.id))
+    select coalesce(jsonb_agg(jsonb_build_object('scan_id', o.id, 'ticket_no', o.ticket_no, 'sector', t.sector, 'row', t.row_no, 'seat', t.seat_no,
+             'print_sheet', t.print_page, 'observation_no', o.rn, 'batch', o.batch_id, 'batch_name', b.name, 'at', checkin._tz(o.at),
+             'first_scan', o.first_id, 'first_batch', (select f.batch_id from checkin.inventory_scans f where f.id = o.first_id),
+             'operator', (select username from checkin.staff where user_id = o.operator), 'mine', o.operator = me.user_id) order by o.id), '[]')
+    from o join checkin.tickets t using (ticket_no) join checkin.inventory_batches b on b.id = o.batch_id
+    where o.rn > 1 and o.verdict is null and (p_batch is null or o.batch_id = p_batch));
+end $$;
+
+-- ============================================================ nazoratchi belgilari (bilet holatini o'zgartirmaydi)
+create or replace function public.ci_flags(p_status text default 'ACTIVE') returns jsonb
+language plpgsql security definer set search_path = checkin, pg_temp as $$
+declare me checkin.staff;
+begin
+  me := checkin._me(array['SUPERVISOR', 'ADMIN']);
+  return (select coalesce(jsonb_agg(to_jsonb(f) || jsonb_build_object('raised_at', checkin._tz(f.raised_at), 'resolved_at', checkin._tz(f.resolved_at),
+            'text', checkin._flag_text(f.kind), 'sector', t.sector, 'row', t.row_no, 'seat', t.seat_no, 'ticket_status', t.status,
+            'raised_by_name', (select username from checkin.staff where user_id = f.raised_by)) order by f.id desc), '[]')
+          from checkin.ticket_flags f join checkin.tickets t using (ticket_no)
+          where p_status is null or (p_status = 'ACTIVE' and f.status <> 'RESOLVED') or f.status = p_status);
+end $$;
+
+create or replace function public.ci_flag_raise(p_ticket text, p_kind text, p_details text) returns jsonb
+language plpgsql security definer set search_path = checkin, pg_temp as $$
+declare me checkin.staff; f checkin.ticket_flags;
+begin
+  me := checkin._me(array['SUPERVISOR', 'ADMIN']);
+  perform set_config('checkin.mode', 'REVIEW', true);
+  if length(btrim(coalesce(p_details, ''))) < 5 then raise exception 'DETAILS_REQUIRED'; end if;
+  if not exists (select 1 from checkin.tickets where ticket_no = p_ticket) then raise exception 'TICKET_NOT_FOUND'; end if;
+  insert into checkin.ticket_flags (ticket_no, kind, details, source, raised_by) values (p_ticket, p_kind, p_details, 'SUPERVISOR', me.user_id)
+  on conflict (ticket_no, kind) where status <> 'RESOLVED' do update set details = checkin.ticket_flags.details || ' | ' || excluded.details
+  returning * into f;
+  perform checkin._audit(me, 'FLAG_RAISE', 'ticket', p_ticket, jsonb_build_object('flag', f.id, 'kind', p_kind, 'details', p_details));
+  return to_jsonb(f);
+end $$;
+
+create or replace function public.ci_flag_update(p_id bigint, p_status text, p_note text) returns jsonb
+language plpgsql security definer set search_path = checkin, pg_temp as $$
+declare me checkin.staff; f checkin.ticket_flags;
+begin
+  me := checkin._me(array['SUPERVISOR', 'ADMIN']);
+  perform set_config('checkin.mode', 'REVIEW', true);
+  if p_status not in ('ACKNOWLEDGED', 'RESOLVED') then raise exception 'STATUS_NOT_ALLOWED'; end if;
+  if length(btrim(coalesce(p_note, ''))) < 5 then raise exception 'NOTE_REQUIRED'; end if;
+  update checkin.ticket_flags set status = p_status, resolution = coalesce(resolution || ' | ', '') || p_note,
+         resolved_by = case when p_status = 'RESOLVED' then me.user_id end, resolved_at = case when p_status = 'RESOLVED' then now() end
+   where id = p_id and status <> 'RESOLVED' returning * into f;
+  if not found then raise exception 'FLAG_NOT_ACTIVE'; end if;
+  perform checkin._audit(me, 'FLAG_' || p_status, 'flag', p_id::text, jsonb_build_object('ticket', f.ticket_no, 'note', p_note));
+  return to_jsonb(f);
+end $$;
+
+-- Belgidan ko'rib chiqish holati ochish (bilet baribir kiritilishi mumkin — holat faqat kuzatuv uchun)
+create or replace function public.ci_flag_open_case(p_id bigint) returns jsonb
+language plpgsql security definer set search_path = checkin, pg_temp as $$
+declare me checkin.staff; f checkin.ticket_flags; v_case bigint;
+begin
+  me := checkin._me(array['SUPERVISOR', 'ADMIN']);
+  perform set_config('checkin.mode', 'REVIEW', true);
+  select * into f from checkin.ticket_flags where id = p_id and status <> 'RESOLVED' for update;
+  if not found then raise exception 'FLAG_NOT_ACTIVE'; end if;
+  v_case := checkin._case_touch(f.ticket_no, 'INVENTORY', null, me.user_id, 'Belgi #' || f.id || ': ' || checkin._flag_text(f.kind));
+  update checkin.ticket_flags set case_id = v_case, status = case when status = 'OPEN' then 'ACKNOWLEDGED' else status end where id = p_id;
+  perform checkin._audit(me, 'FLAG_CASE', 'flag', p_id::text, jsonb_build_object('case', v_case, 'ticket', f.ticket_no));
+  return jsonb_build_object('case_id', v_case, 'flag', p_id);
+end $$;
+
 -- Inventar xodimi uchun hisobotlar (kirish ma'lumotlarini o'zgartirmaydi; tarqatish oluvchilari ko'rsatilmaydi)
 create or replace function public.ci_inventory_report(p_name text, p_sector text default null) returns jsonb
 language plpgsql security definer set search_path = checkin, pg_temp as $$
@@ -670,25 +839,27 @@ declare me checkin.staff; v jsonb;
 begin
   me := checkin._me(array['INVENTORY', 'SUPERVISOR', 'ADMIN']);
   if p_name not in ('observed', 'not_observed', 'duplicates', 'rejected_scans', 'scans') then raise exception 'UNKNOWN_REPORT'; end if;
+  -- 'not_observed' = hech skanerlanmagan; 'duplicates' = tasdiqlangan ikkinchi qog'oz YOKI qarorsiz takror
   with lc as materialized (select * from checkin._live_copies()),
   dist as materialized (select distinct on (ticket_no) ticket_no, status from checkin.distribution_records order by ticket_no, id desc),
   tk as materialized (select t.ticket_no, t.kind, t.zone, t.sector, t.row_no, t.seat_no, t.print_page, t.print_slot, t.status,
-                coalesce(d.status, 'UNKNOWN') dist, coalesce(lc.copies, 0) copies,
+                coalesce(d.status, 'UNKNOWN') dist, coalesce(lc.copies, 0) copies, coalesce(lc.pending, 0) pending_repeats, coalesce(lc.observations, 0) observations,
                 checkin._recon_category(t.status, coalesce(d.status, 'UNKNOWN'), coalesce(lc.copies, 0), t.retired_to_spare_at is not null) cat
          from checkin.tickets t left join dist d using (ticket_no) left join lc using (ticket_no) where p_sector is null or t.sector = upper(p_sector))
   select case p_name
-    when 'observed' then (select jsonb_agg(to_jsonb(tk) - 'cat' order by ticket_no) from tk where copies > 0)
+    when 'observed' then (select jsonb_agg(to_jsonb(tk) - 'cat' order by ticket_no) from tk where observations > 0)
     when 'not_observed' then (select jsonb_agg(jsonb_build_object('ticket_no', ticket_no, 'kind', kind, 'sector', sector, 'row', row_no, 'seat', seat_no,
          'print_sheet', print_page, 'distribution', dist, 'status', status,
          'category', case when status = 'ADMITTED' then 'ADMITTED' when dist = 'DISTRIBUTED' then 'NOT_OBSERVED_DISTRIBUTED'
-                          when dist in ('HELD', 'RETURNED') then 'NOT_OBSERVED_HELD_BUT_MISSING' else 'NOT_OBSERVED_UNKNOWN' end) order by ticket_no) from tk where copies = 0)
-    when 'duplicates' then (select jsonb_agg(to_jsonb(tk) - 'cat' order by ticket_no) from tk where copies > 1)
+                          when dist in ('HELD', 'RETURNED') then 'NOT_OBSERVED_HELD_BUT_MISSING' else 'NOT_OBSERVED_UNKNOWN' end) order by ticket_no) from tk where observations = 0)
+    when 'duplicates' then (select jsonb_agg(to_jsonb(tk) - 'cat' order by ticket_no) from tk where copies > 1 or pending_repeats > 0)
     when 'rejected_scans' then (select jsonb_agg(jsonb_build_object('scan_id', s.id, 'at', checkin._tz(s.at), 'batch', s.batch_id, 'kind', s.payload_kind,
          'payload', s.payload_sample, 'operator', (select username from checkin.staff where user_id = s.operator)) order by s.id)
          from checkin.inventory_scans s where s.ticket_no is null)
     when 'scans' then (select jsonb_agg(jsonb_build_object('scan_id', s.id, 'at', checkin._tz(s.at), 'client_at', checkin._tz(s.client_at), 'batch', s.batch_id,
          'batch_name', b.name, 'box', b.box, 'stack', b.stack, 'ticket_no', s.ticket_no, 'kind', s.payload_kind, 'source', s.source, 'device', s.device,
          'seat_note', s.seat_note, 'voided', exists (select 1 from checkin.inventory_voids v where v.scan_id = s.id),
+         'verdict', (select v.verdict from checkin.inventory_verdicts v where v.scan_id = s.id order by v.id desc limit 1),
          'operator', (select username from checkin.staff where user_id = s.operator)) order by s.id)
          from checkin.inventory_scans s join checkin.inventory_batches b on b.id = s.batch_id
          where p_sector is null or b.sector = upper(p_sector) or s.ticket_no in (select ticket_no from tk))
@@ -716,6 +887,22 @@ begin
   select x ->> 'ticket_no', x ->> 'status', nullif(x ->> 'recipient_ref', ''), p_source, nullif(x ->> 'note', ''), me.user_id
   from jsonb_array_elements(p_rows) x;
   get diagnostics v_n = row_count;
+  -- Nizo: DISTRIBUTED yozuvlarida turli oluvchilar, yoki turli manbalar turli holat aytadi → nazoratchi belgisi (bilet o'zgarmaydi)
+  insert into checkin.ticket_flags (ticket_no, kind, details, source, source_ref, raised_by)
+  select d.ticket_no, 'DISTRIBUTION_DISPUTED',
+         'Zid yozuvlar: ' || string_agg(d.status || coalesce(' → ' || d.recipient_ref, '') || ' [' || d.source || ']', '; ' order by d.id),
+         'IMPORT', p_source, me.user_id
+  from checkin.distribution_records d
+  where d.ticket_no in (select x ->> 'ticket_no' from jsonb_array_elements(p_rows) x)
+  group by d.ticket_no
+  having count(distinct d.recipient_ref) filter (where d.status = 'DISTRIBUTED' and d.recipient_ref is not null) > 1
+      or (count(distinct d.source) > 1 and count(distinct d.status) > 1)
+  on conflict (ticket_no, kind) where status <> 'RESOLVED' do nothing;
+  insert into checkin.ticket_flags (ticket_no, kind, details, source, source_ref, raised_by)
+  select l.ticket_no, 'DISTRIBUTED_BUT_IN_STOCK', 'Import: tarqatilgan deb yozildi, lekin inventarda ' || l.copies || ' qog''oz', 'IMPORT', p_source, me.user_id
+  from checkin._live_copies() l where checkin._dist(l.ticket_no) = 'DISTRIBUTED'
+    and l.ticket_no in (select x ->> 'ticket_no' from jsonb_array_elements(p_rows) x)
+  on conflict (ticket_no, kind) where status <> 'RESOLVED' do nothing;
   perform checkin._audit(me, 'DISTRIBUTION_IMPORT', 'distribution', p_source, jsonb_build_object('rows', v_n,
           'by_status', (select jsonb_object_agg(st, n) from (select x ->> 'status' st, count(*) n from jsonb_array_elements(p_rows) x group by 1) q)));
   return jsonb_build_object('imported', v_n, 'rejected', 0);
@@ -752,12 +939,11 @@ begin
     'spares', jsonb_build_object('available', (select count(*) from checkin.seats where spare_status = 'AVAILABLE'),
       'reserved', (select count(*) from checkin.seats where spare_status = 'RESERVED'),
       'assigned', (select count(*) from checkin.seats where spare_status = 'ASSIGNED')),
-    'inventory', jsonb_build_object(
-      'scans', (select count(*) from checkin.inventory_scans s where not exists (select 1 from checkin.inventory_voids v where v.scan_id = s.id)),
-      'distinct_tickets', (select count(distinct ticket_no) from checkin.inventory_scans s where not exists (select 1 from checkin.inventory_voids v where v.scan_id = s.id)),
-      'duplicate_tickets', (select count(*) from (select ticket_no from checkin.inventory_scans s where not exists (select 1 from checkin.inventory_voids v where v.scan_id = s.id) group by ticket_no having count(*) > 1) q),
-      'surplus_copies', (select coalesce(sum(n - 1), 0) from (select count(*) n from checkin.inventory_scans s where not exists (select 1 from checkin.inventory_voids v where v.scan_id = s.id) group by ticket_no having count(*) > 1) q),
-      'seat_mismatch', (select count(*) from checkin.inventory_scans where seat_mismatch)),
+    'inventory', (select jsonb_build_object('scans', coalesce(sum(observations), 0), 'distinct_tickets', count(*),
+                    'duplicate_tickets', count(*) filter (where copies > 1), 'surplus_copies', coalesce(sum(greatest(copies - 1, 0)), 0),
+                    'pending_repeats', coalesce(sum(pending), 0), 'rejected', (select count(*) from checkin.inventory_scans where ticket_no is null),
+                    'seat_mismatch', (select count(*) from checkin.inventory_scans where seat_mismatch)) from checkin._live_copies()),
+    'flags', (select jsonb_build_object('active', count(*) filter (where status <> 'RESOLVED'), 'open', count(*) filter (where status = 'OPEN')) from checkin.ticket_flags),
     'distribution', (select jsonb_build_object('DISTRIBUTED', count(*) filter (where d = 'DISTRIBUTED'), 'HELD', count(*) filter (where d = 'HELD'),
                        'RETURNED', count(*) filter (where d = 'RETURNED'), 'UNKNOWN', count(*) filter (where d = 'UNKNOWN'))
                      from (select checkin._dist(ticket_no) d from checkin.tickets) q),
@@ -773,8 +959,9 @@ language plpgsql security definer set search_path = checkin, pg_temp as $$
 declare me checkin.staff; v jsonb;
 begin
   me := checkin._me(array['SUPERVISOR', 'ADMIN']);
-  with live as (select s.* from checkin.inventory_scans s where not exists (select 1 from checkin.inventory_voids v where v.scan_id = s.id)),
-       cnt as (select ticket_no, count(*) copies, string_agg(distinct batch_id::text, ',') batches from live group by ticket_no)
+  with live as (select s.* from checkin.inventory_scans s where s.ticket_no is not null and not exists (select 1 from checkin.inventory_voids v where v.scan_id = s.id)),
+       cnt as (select l.ticket_no, l.copies, l.pending, (select string_agg(distinct x.batch_id::text, ',') from live x where x.ticket_no = l.ticket_no) batches
+               from checkin._live_copies() l)
   select case p_name
     when 'sector_summary' then (select jsonb_agg(row_to_json(q) order by q.kind, q.sector) from (
         select t.kind, t.zone, t.sector, count(*) allocated,
@@ -789,8 +976,8 @@ begin
                count(*) filter (where c.ticket_no is null and checkin._dist(t.ticket_no) <> 'DISTRIBUTED') not_scanned_not_distributed
         from checkin.tickets t left join cnt c on c.ticket_no = t.ticket_no group by t.kind, t.zone, t.sector) q)
     when 'inventory_duplicates' then (select jsonb_agg(jsonb_build_object('ticket_no', t.ticket_no, 'kind', t.kind, 'sector', t.sector, 'row', t.row_no, 'seat', t.seat_no,
-        'copies', c.copies, 'batches', c.batches, 'status', t.status, 'distribution', checkin._dist(t.ticket_no)) order by t.ticket_no)
-        from cnt c join checkin.tickets t using (ticket_no) where c.copies > 1)
+        'copies', c.copies, 'pending_repeats', c.pending, 'batches', c.batches, 'status', t.status, 'distribution', checkin._dist(t.ticket_no)) order by t.ticket_no)
+        from cnt c join checkin.tickets t using (ticket_no) where c.copies > 1 or c.pending > 0)
     when 'inventory_missing' then (select jsonb_agg(jsonb_build_object('ticket_no', t.ticket_no, 'kind', t.kind, 'sector', t.sector, 'row', t.row_no, 'seat', t.seat_no,
         'status', t.status, 'distribution', checkin._dist(t.ticket_no),
         'category', case when t.status = 'ADMITTED' then 'ADMITTED' when checkin._dist(t.ticket_no) = 'DISTRIBUTED' then 'DISTRIBUTED_NOT_IN_STOCK'
@@ -864,6 +1051,7 @@ begin
   select id into v_uid from auth.users where lower(email) = lower(p_email);
   if v_uid is null then raise exception 'AUTH_USER_NOT_FOUND' using hint = 'Avval Supabase Authentication da foydalanuvchi yarating'; end if;
   if v_uid = me.user_id and (not p_active or p_role <> 'ADMIN') then raise exception 'CANNOT_DEMOTE_SELF'; end if;
+  if (checkin._setting('environment') #>> '{}') = 'PRODUCTION' and lower(p_email) ~ '(@dusel\.test|@test\.local|^load-|^load[0-9])' then raise exception 'TEST_ACCOUNT_IN_PRODUCTION'; end if;
   insert into checkin.staff (user_id, username, display_name, role, active, created_by)
   values (v_uid, lower(p_email), p_display, p_role, p_active, me.user_id)
   on conflict (user_id) do update set display_name = excluded.display_name, role = excluded.role, active = excluded.active,
@@ -997,12 +1185,21 @@ begin
 end $$;
 
 -- ============================================================ yordamchilar
-create or replace function checkin._live_copies() returns table (ticket_no text, copies int, closed_copies int)
+drop function if exists checkin._live_copies();
+create or replace function checkin._live_copies(p_ticket text default null)
+returns table (ticket_no text, copies int, closed_copies int, pending int, observations int)
 language sql stable security definer set search_path = checkin, pg_temp as $$
-  select s.ticket_no, count(*)::int, count(*) filter (where b.closed_at is not null)::int
-  from checkin.inventory_scans s join checkin.inventory_batches b on b.id = s.batch_id
-  where s.ticket_no is not null and not exists (select 1 from checkin.inventory_voids v where v.scan_id = s.id)
-  group by s.ticket_no
+  -- copies = tasdiqlangan qog'ozlar: birinchi kuzatuv + SECOND_COPY qarorli takrorlar. Qarorsiz takror — "pending", nusxa EMAS.
+  with o as (
+    select s.id, s.ticket_no, b.closed_at is not null closed,
+           row_number() over (partition by s.ticket_no order by s.id) rn,
+           (select v.verdict from checkin.inventory_verdicts v where v.scan_id = s.id order by v.id desc limit 1) verdict
+    from checkin.inventory_scans s join checkin.inventory_batches b on b.id = s.batch_id
+    where s.ticket_no is not null and (p_ticket is null or s.ticket_no = p_ticket)
+      and not exists (select 1 from checkin.inventory_voids v where v.scan_id = s.id))
+  select o.ticket_no, (count(*) filter (where rn = 1) + count(*) filter (where rn > 1 and verdict = 'SECOND_COPY'))::int,
+         count(*) filter (where closed)::int, count(*) filter (where rn > 1 and verdict is null)::int, count(*)::int
+  from o group by o.ticket_no
 $$;
 
 -- Bilet bo'yicha solishtiruv toifasi (bir-birini istisno qiladi). "Noma'lum" hech qachon "sotilmagan" deb hisoblanmaydi.
@@ -1041,6 +1238,7 @@ begin
   perform checkin._audit(me, 'CAPACITY_CHANGE', 'setting', 'capacity', jsonb_build_object('old', v_old, 'new', p_new, 'approval_ref', p_approval_ref));
   return jsonb_build_object('capacity', p_new, 'old', v_old);
 end $$;
+
 
 -- ============================================================ kirishni ochish/yopish (avtomatik ochilmaydi)
 create or replace function public.ci_admission_set(p_open boolean, p_confirm text default null) returns jsonb
@@ -1081,11 +1279,17 @@ begin
   if c.ticket_no is null or c.closed_copies < 1 then
     raise exception 'NOT_PHYSICALLY_VERIFIED' using hint = 'Bilet yopilgan inventar partiyasida skanerlanmagan';
   end if;
+  if c.pending > 0 then
+    raise exception 'DUPLICATE_UNRESOLVED' using hint = 'Bu raqamda qarorsiz takror skan bor — avval inventar qarori';
+  end if;
+  if exists (select 1 from checkin.ticket_flags f where f.ticket_no = p_ticket and f.status <> 'RESOLVED') then
+    raise exception 'TICKET_FLAGGED' using hint = 'Biletda faol nazoratchi belgisi bor';
+  end if;
   if c.copies > 1 then
     raise exception 'DUPLICATE_COPIES_RISK' using hint = 'Bu raqamning ' || c.copies || ' nusxasi topilgan — boshqa nusxa mijozda bo''lishi mumkin';
   end if;
   select count(*) into v_sheet_dup from checkin.tickets x join checkin._live_copies() lc on lc.ticket_no = x.ticket_no
-   where x.print_page = t.print_page and lc.copies > 1;
+   where x.print_page = t.print_page and (lc.copies > 1 or lc.pending > 0);       -- tasdiqlangan YOKI qarorsiz takror
   if t.print_page is not null and v_sheet_dup > 0 then
     raise exception 'SHEET_REPRINT_RISK' using hint = t.print_page || '-varaqda dublikat bor — varaq ikki marta bosilgan bo''lishi mumkin';
   end if;
@@ -1122,6 +1326,8 @@ begin
     'replacements_live', (select count(*) from checkin.replacements where status <> 'CANCELLED'),
     'entitlements', v_ent, 'headroom', v_cap - v_ent,
     'extra_seats', (select count(*) from checkin.seats where origin = 'EXTRA'),
+    'spares_available', (select count(*) from checkin.seats where spare_status = 'AVAILABLE'),
+    'spares_reserved', (select count(*) from checkin.seats where spare_status = 'RESERVED'),
     'capacity_changes', (select coalesce(jsonb_agg(jsonb_build_object('at', checkin._tz(at), 'old', old_value, 'new', new_value, 'approval_ref', approval_ref) order by id), '[]') from checkin.capacity_changes),
     'invariant_ok', v_ent <= v_cap
        and not exists (select seat_key from (select seat_key from checkin.tickets where status <> 'CANCELLED_BY_AUTHORIZED_SUPERVISOR'
@@ -1138,13 +1344,14 @@ begin
   with lc as materialized (select * from checkin._live_copies()),
   dist as materialized (select distinct on (ticket_no) ticket_no, status from checkin.distribution_records order by ticket_no, id desc),
   tk as materialized (
-    select t.ticket_no, t.kind, t.zone, t.sector, t.status, t.print_page, coalesce(d.status, 'UNKNOWN') dist, coalesce(lc.copies, 0) copies,
+    select t.ticket_no, t.kind, t.zone, t.sector, t.status, t.print_page, coalesce(d.status, 'UNKNOWN') dist, coalesce(lc.copies, 0) copies, coalesce(lc.pending, 0) pending,
            checkin._recon_category(t.status, coalesce(d.status, 'UNKNOWN'), coalesce(lc.copies, 0), t.retired_to_spare_at is not null) cat
     from checkin.tickets t left join dist d using (ticket_no) left join lc using (ticket_no)
     where p_sector is null or t.print_page in (select print_page from checkin.tickets where sector = upper(p_sector))),
   shc as materialized (
     select print_page, case
              when max(copies) > 1 then 'REPRINTED_SUSPECTED'
+             when max(pending) > 0 then 'REPEAT_UNVERIFIED'
              when count(*) filter (where copies > 0) = count(*) then 'FULL_SHEET_IN_STOCK'
              when count(*) filter (where copies > 0) > 0 then 'PARTIAL_SHEET_IN_STOCK'
              when count(*) filter (where dist = 'DISTRIBUTED' or status = 'ADMITTED') = count(*) then 'SHEET_ACCOUNTED_OUTSIDE'
@@ -1172,7 +1379,8 @@ begin
       count(*) filter (where cat = 'UNKNOWN') unknown,
       coalesce(sum(copies), 0) physical_copies_scanned,
       count(*) filter (where copies > 1) duplicate_numbers,
-      coalesce(sum(greatest(copies - 1, 0)), 0) surplus_copies
+      coalesce(sum(greatest(copies - 1, 0)), 0) surplus_copies,
+      coalesce(sum(pending), 0) pending_repeats
     from tk where p_sector is null or sector = upper(p_sector) group by kind, zone, sector)
   select jsonb_agg(to_jsonb(agg) || jsonb_build_object('sheets_by_status', coalesce(sso.sheets_by_status, '{}'),
                    'reprinted_sheets', coalesce(ss.reprinted_sheets, '[]'), 'sheets_not_found_no_record', coalesce(ss.sheets_not_found_no_record, '[]'))
@@ -1192,20 +1400,81 @@ begin
   return (with lc as materialized (select * from checkin._live_copies()),
     dist as materialized (select distinct on (ticket_no) ticket_no, status from checkin.distribution_records order by ticket_no, id desc),
     tk as (select t.ticket_no, t.sector, t.row_no, t.seat_no, t.print_page, t.print_slot, t.status, coalesce(d.status, 'UNKNOWN') dist,
-                  coalesce(lc.copies, 0) copies,
+                  coalesce(lc.copies, 0) copies, coalesce(lc.pending, 0) pending,
                   checkin._recon_category(t.status, coalesce(d.status, 'UNKNOWN'), coalesce(lc.copies, 0), t.retired_to_spare_at is not null) cat
            from checkin.tickets t left join dist d using (ticket_no) left join lc using (ticket_no)
            where t.print_page in (select print_page from checkin.tickets where sector = upper(p_sector)))
     select coalesce(jsonb_agg(jsonb_build_object('sheet', print_page, 'tickets', tickets, 'in_stock', in_stock, 'max_copies', max_copies,
-             'status', case when max_copies > 1 then 'REPRINTED_SUSPECTED' when in_stock = n then 'FULL_SHEET_IN_STOCK'
+             'pending_repeats', pending_n,
+             'status', case when max_copies > 1 then 'REPRINTED_SUSPECTED' when pending_n > 0 then 'REPEAT_UNVERIFIED' when in_stock = n then 'FULL_SHEET_IN_STOCK'
                             when in_stock > 0 then 'PARTIAL_SHEET_IN_STOCK' when acc = n then 'SHEET_ACCOUNTED_OUTSIDE'
                             when unknown_n = n then 'SHEET_NOT_FOUND_NO_RECORD' else 'SHEET_NOT_FOUND_PARTIAL_RECORD' end)
              order by print_page), '[]')
-    from (select print_page, count(*) n, count(*) filter (where copies > 0) in_stock, max(copies) max_copies,
+    from (select print_page, count(*) n, count(*) filter (where copies > 0) in_stock, max(copies) max_copies, sum(pending) pending_n,
                  count(*) filter (where dist = 'DISTRIBUTED' or status = 'ADMITTED') acc, count(*) filter (where dist = 'UNKNOWN') unknown_n,
                  jsonb_agg(jsonb_build_object('ticket_no', ticket_no, 'sector', sector, 'row', row_no, 'seat', seat_no, 'slot', print_slot,
-                           'copies', copies, 'distribution', dist, 'category', cat) order by print_slot) tickets
+                           'copies', copies, 'pending', pending, 'distribution', dist, 'category', cat) order by print_slot) tickets
           from tk group by print_page) g);
+end $$;
+
+-- ============================================================ xodimlarni dastlabki yaratish (FAQAT service_role: admin noutbukidagi tools/create_staff.mjs)
+create or replace function public.ci_staff_bootstrap(p_rows jsonb) returns jsonb
+language plpgsql security definer set search_path = checkin, auth, pg_temp as $$
+declare me checkin.staff; x jsonb; v_uid uuid; n int := 0; v_env text := checkin._setting('environment') #>> '{}'; out jsonb := '[]'::jsonb;
+begin
+  if coalesce(auth.jwt() ->> 'role', '') <> 'service_role' then raise exception 'SERVICE_ROLE_ONLY' using errcode = '42501'; end if;
+  me.username := 'service_role (create_staff)';
+  if jsonb_typeof(p_rows) <> 'array' or jsonb_array_length(p_rows) = 0 or jsonb_array_length(p_rows) > 500 then raise exception 'ROWS_INVALID'; end if;
+  for x in select * from jsonb_array_elements(p_rows) loop
+    if coalesce(x ->> 'role', '') not in ('INVENTORY', 'GATE', 'SUPERVISOR', 'ADMIN') then raise exception 'ROLE_INVALID: %', x ->> 'email'; end if;
+    if v_env = 'PRODUCTION' and lower(x ->> 'email') ~ '(@dusel\.test|@test\.local|^load-|^load[0-9])' then
+      raise exception 'TEST_ACCOUNT_IN_PRODUCTION: %', x ->> 'email';
+    end if;
+    select id into v_uid from auth.users where lower(email) = lower(x ->> 'email');
+    if v_uid is null then raise exception 'AUTH_USER_NOT_FOUND: %', x ->> 'email'; end if;
+    insert into checkin.staff (user_id, username, display_name, role, active) values (v_uid, lower(x ->> 'email'), coalesce(nullif(x ->> 'display_name', ''), x ->> 'email'), x ->> 'role', true)
+    on conflict (user_id) do update set display_name = excluded.display_name, role = excluded.role, active = true,
+       sessions_valid_after = case when excluded.role <> checkin.staff.role then now() else checkin.staff.sessions_valid_after end;
+    n := n + 1; out := out || jsonb_build_object('email', lower(x ->> 'email'), 'role', x ->> 'role');
+  end loop;
+  perform checkin._audit(me, 'STAFF_BOOTSTRAP', 'staff', n::text, jsonb_build_object('rows', out, 'environment', v_env));
+  return jsonb_build_object('staff', n, 'rows', out);
+end $$;
+
+-- ============================================================ production tayyorligi (faqat o'qish)
+create or replace function public.ci_readiness(p_expect_env text default 'PRODUCTION') returns jsonb
+language plpgsql security definer set search_path = checkin, pg_temp as $$
+declare me checkin.staff; c jsonb := '[]'::jsonb; v_audit jsonb;
+begin
+  me := checkin._me(array['ADMIN']);
+  v_audit := public.ci_audit_verify();
+  with k(name, ok, value) as (values
+    ('environment', (checkin._setting('environment') #>> '{}') = p_expect_env, checkin._setting('environment') #>> '{}'),
+    ('tickets_11222', (select count(*) from checkin.tickets) = 11222, (select count(*) from checkin.tickets)::text),
+    ('master_sha256', (checkin._setting('master_sha256') #>> '{}') = 'e50b9a597d5e7f5f74a3270ad6689968c8f1572c3a2fbdeac71eadc417b831bb', checkin._setting('master_sha256') #>> '{}'),
+    ('print_layout_sha256', (checkin._setting('print_layout_sha256') #>> '{}') = '3e35be16c86f445b1c551b46f5a11add694a9c0d6f42790c405a1dce472e13d4', checkin._setting('print_layout_sha256') #>> '{}'),
+    ('print_pages_11222', (select count(*) from checkin.tickets where print_page is not null) = 11222, (select count(*) from checkin.tickets where print_page is not null)::text),
+    ('all_not_admitted', not exists (select 1 from checkin.tickets where status <> 'NOT_ADMITTED'), (select count(*) from checkin.tickets where status <> 'NOT_ADMITTED')::text),
+    ('no_admission_events', not exists (select 1 from checkin.admission_events), (select count(*) from checkin.admission_events)::text),
+    ('no_admit_scans', not exists (select 1 from checkin.scan_log where mode = 'ADMIT'), (select count(*) from checkin.scan_log where mode = 'ADMIT')::text),
+    ('no_replacements', not exists (select 1 from checkin.replacements), (select count(*) from checkin.replacements)::text),
+    ('no_review_cases', not exists (select 1 from checkin.review_cases), (select count(*) from checkin.review_cases)::text),
+    ('spare_pool_zero', not exists (select 1 from checkin.seats where spare_status <> 'NONE'), (select count(*) from checkin.seats where spare_status <> 'NONE')::text),
+    ('no_extra_seats', not exists (select 1 from checkin.seats where origin = 'EXTRA'), (select count(*) from checkin.seats where origin = 'EXTRA')::text),
+    ('capacity_11222', (checkin._setting('capacity') #>> '{}') = '11222', checkin._setting('capacity') #>> '{}'),
+    ('no_capacity_changes', not exists (select 1 from checkin.capacity_changes), (select count(*) from checkin.capacity_changes)::text),
+    ('admission_closed', (checkin._setting('admission_open') #>> '{}') = 'false', checkin._setting('admission_open') #>> '{}'),
+    ('no_test_staff', not exists (select 1 from checkin.staff where username ~* '(@dusel\.test|@test\.local|^load-|^load[0-9])'), (select count(*) from checkin.staff where username ~* '(@dusel\.test|@test\.local|^load-|^load[0-9])')::text),
+    ('active_admin_exists', exists (select 1 from checkin.staff where role = 'ADMIN' and active), (select count(*) from checkin.staff where role = 'ADMIN' and active)::text),
+    ('contingency_device_unset_or_set', true, coalesce(checkin._setting('contingency_device') #>> '{}', '(belgilanmagan)')),
+    ('audit_chain_ok', (v_audit ->> 'ok')::boolean, v_audit ->> 'checked'))
+  select jsonb_agg(jsonb_build_object('check', name, 'ok', ok, 'value', value)) into c from k;
+  return jsonb_build_object('ready', not exists (select 1 from jsonb_array_elements(c) x where not (x ->> 'ok')::boolean),
+                            'expected_environment', p_expect_env, 'checks', c,
+                            'info', jsonb_build_object('inventory_observations', (select count(*) from checkin.inventory_scans),
+                                                       'distribution_records', (select count(*) from checkin.distribution_records),
+                                                       'active_flags', (select count(*) from checkin.ticket_flags where status <> 'RESOLVED'),
+                                                       'staff', (select count(*) from checkin.staff where active)));
 end $$;
 
 -- ============================================================ huquqlar: faqat tizimga kirgan xodimlar
@@ -1214,7 +1483,10 @@ do $$ declare f record; begin
            where n.nspname = 'public' and p.proname like 'ci\_%' loop
     execute format('revoke all on function %s from public', f.sig);
     if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on function %s from anon', f.sig); end if;
-    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('grant execute on function %s to authenticated', f.sig); end if;
+    if f.sig::text like 'ci_staff_bootstrap%' then
+      if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('revoke all on function %s from authenticated', f.sig); end if;
+      if exists (select 1 from pg_roles where rolname = 'service_role') then execute format('grant execute on function %s to service_role', f.sig); end if;
+    elsif exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('grant execute on function %s to authenticated', f.sig); end if;
   end loop;
   for f in select p.oid::regprocedure sig from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'checkin' loop
     execute format('revoke all on function %s from public', f.sig);

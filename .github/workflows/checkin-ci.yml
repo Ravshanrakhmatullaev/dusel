@@ -27,6 +27,16 @@ jobs:
         run: ./e2e/reset_db.sh ci_test
       - name: Ma'lumotlar bazasi testlari
         run: cd tests && python3 test_db.py "host=localhost port=5432 dbname=ci_test user=postgres password=postgres"
+      - name: Sig'imni aylanib o'tish urinishlari (toza bazada, parallel)
+        run: ./e2e/reset_db.sh ci_cap && cd tests && python3 test_capacity_attack.py "host=localhost port=5432 dbname=ci_cap user=postgres password=postgres"
+      - name: Toza migratsiyadan keyin production tekshiruvi (muhit PRODUCTION qilib)
+        run: |
+          ./e2e/reset_db.sh ci_fresh
+          psql -d ci_fresh -qc "update checkin.settings set value='\"PRODUCTION\"' where key='environment'"
+          psql -d ci_fresh -At -f tools/production_verify.sql | tee verify.txt
+          ! grep -q '^XATO' verify.txt
+      - name: supabase/migrations sql/ bilan bir xil
+        run: ./tools/sync_supabase_migrations.sh >/dev/null && git diff --exit-code supabase/migrations
       - name: Yuklama testi (16 parallel qurilma, 11 222 kirish)
         run: ./e2e/reset_db.sh ci_load && cd tests && python3 load_test.py "host=localhost port=5432 dbname=ci_load user=postgres password=postgres" 16
       - uses: actions/upload-artifact@v4
@@ -72,6 +82,11 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - run: cd tests && npm init -y >/dev/null && npm install playwright@1.63.0 && npx playwright install --with-deps chromium
+      - name: Ommaviy sahifalar (bilet, GOLD/SILVER/GAL, 404) main va feature/checkin da bayt-ma-bayt bir xil
+        run: |
+          git fetch -q --depth=1 origin main feature/checkin
+          git diff --exit-code --stat origin/main origin/feature/checkin -- index.html ticket.html 404.html gold.html silver.html coupon.html gal.html
+          echo "OK: merge ommaviy sahifalarni o'zgartirmaydi"
       - name: Production faqat o'qish — tarixiy bilet QR formatlari, kuponlar, /checkin holati, staging preview
         run: cd tests && node prod_compat.mjs compat
       - uses: actions/upload-artifact@v4

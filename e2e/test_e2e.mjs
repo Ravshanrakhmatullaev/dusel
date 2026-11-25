@@ -51,9 +51,11 @@ async function page404check() {
   const t1 = await p.locator('.result .big').first().textContent().catch(() => '');
   await p.fill('#manual', '05000'); await p.click('#f button');
   const t2 = await p.locator('.result .big').first().textContent().catch(() => '');
+  await p.fill('#manual', 'DUSELTEST:05000'); await p.click('#f button');
+  const t3 = await p.locator('.result .big').first().textContent().catch(() => '');
   const net = await p.evaluate(() => performance.getEntriesByType('resource').filter((r) => /rest\/v1|auth\/v1/.test(r.name)).length);
   await p.screenshot({ path: out + '/14_scan_test.png', fullPage: true });
-  ok('T10t /scan-test qurilma sinovi: serverga so\'rovsiz kupon/biletni ajratadi, tashqi skaner ishlaydi', /KUPON/.test(t1) && /05000/.test(t2) && net === 0 && e.length === 0, t1 + ' | ' + t2);
+  ok('T10t /scan-test qurilma sinovi: serverga so\'rovsiz kupon/bilet/SINOV QR ni ajratadi, tashqi skaner ishlaydi', /KUPON/.test(t1) && /05000/.test(t2) && /SINOV BILETI/.test(t3) && net === 0 && e.length === 0, t1 + ' | ' + t2 + ' | ' + t3);
   await c.close();
 }
 const status = async (t) => (await q('select status from checkin.tickets where ticket_no=$1', [t]))[0].status;
@@ -174,10 +176,10 @@ const sctx = await b.newContext(PHONE); const s = await sctx.newPage();
 await login(s, 'sup@dusel.test', 'Sup-Test-2026');
 const evBefore = (await q('select count(*)::int n from checkin.admission_events'))[0].n;
 const ictx = await b.newContext(PHONE); const iv = await ictx.newPage(); const ierrs = []; iv.on('pageerror', (e) => ierrs.push(e.message));
-iv.on('dialog', (d) => d.accept());
+iv.on('dialog', (d) => (d.type() === 'prompt' ? d.accept('D-1') : d.accept()));
 await iv.goto(base + '/inventory'); await iv.fill('input[type=email]', 'inv@dusel.test'); await iv.fill('input[type=password]', 'Inv-Test-2026'); await iv.click('button[type=submit]');
 await iv.waitForSelector('nav.tabs');
-ok('T10a /inventory alohida ilova: inventar xodimi kiradi, faqat Skanerlash/Partiyalar/Solishtiruv', (await iv.locator('nav.tabs button').allTextContents()).join(',') === 'Skanerlash,Partiyalar,Solishtiruv');
+ok('T10a /inventory alohida ilova: inventar xodimi kiradi, faqat Skanerlash/Qarorlar/Partiyalar/Solishtiruv', (await iv.locator('nav.tabs button').allTextContents()).join(',') === 'Skanerlash,Qarorlar,Partiyalar,Solishtiruv');
 await iv.click('nav.tabs button:has-text("Partiyalar")'); await iv.waitForSelector('text=Yangi partiya');
 await iv.fill('input[placeholder^="Nomi"]', 'A403 qoldiq — 1-quti'); await iv.fill('input[placeholder^="Sektor"]', 'A403'); await iv.fill('input[placeholder="Quti"]', 'Q-1'); await iv.fill('input[placeholder="Dasta"]', 'D-1');
 await iv.click('button:has-text("Ochish va skanerlashni boshlash")'); await iv.waitForSelector('#qcount');
@@ -186,12 +188,18 @@ const invManual = async (v) => { await iv.fill('input[placeholder^="Raqam yoki Q
   return (await iv.locator('.result .big').first().textContent()).trim(); };
 const r1 = await invManual('https://dusel.pages.dev/?code=06114');
 const r2 = await invManual('https://dusel.pages.dev/?code=06114');
-await iv.screenshot({ path: out + '/08_inventory_first_duplicate.png' });
-await invManual('https://ravshanrakhmatullaev.github.io/dusel/?code=06101'); await invManual('https://dusel.pages.dev/ticket?code=06101'); await invManual('06087');
+await iv.screenshot({ path: out + '/08_inventory_repeat_question.png' });
+await iv.click('button:has-text("HA — qo\'limda IKKINCHI qog\'oz bor")'); await iv.waitForSelector('.result.bad .big:has-text("TASDIQLANGAN DUBLIKAT")');
+const r2b = (await iv.locator('.result .big').first().textContent()).trim();
+await iv.screenshot({ path: out + '/08_inventory_confirmed_duplicate.png' });
+await invManual('https://ravshanrakhmatullaev.github.io/dusel/?code=06101'); const r3 = await invManual('https://dusel.pages.dev/ticket?code=06101');
+await iv.click('button:has-text("YO\'Q — o\'sha qog\'ozni qayta skanerladim")'); await iv.waitForSelector('.result.ok .big:has-text("nusxa hisoblanmadi")');
+await invManual('06087');
 const rg = await invManual('https://dusel.pages.dev/gold?code=0001');
 const inv = await q("select ticket_no, count(*)::int n from checkin.inventory_scans where ticket_no is not null group by 1 order by 1");
-ok('T10 Inventar: 06114 ×2 → "BIRINCHI DUBLIKAT" darhol; 06101 ×2 (turli URL formatlari); kupon rad; biletlar kiritilmagan',
-   /Qayd etildi/.test(r1) && /BIRINCHI DUBLIKAT/.test(r2) && /KUPON/.test(rg)
+const copies = await q("select (select count(*) from checkin.inventory_verdicts v join checkin.inventory_scans s on s.id=v.scan_id where s.ticket_no='06114' and v.verdict='SECOND_COPY')::int a, (select count(*) from checkin.inventory_verdicts v join checkin.inventory_scans s on s.id=v.scan_id where s.ticket_no='06101' and v.verdict='SAME_PAPER')::int b");
+ok('T10 Inventar: takror skan darhol "TAKROR — qaror bering"; 06114 → operator "ikkinchi qog\'oz" (D-1) → TASDIQLANGAN DUBLIKAT; 06101 (boshqa URL formati) → "o\'sha qog\'oz"; kupon rad; skan tarixi saqlanadi; biletlar kiritilmagan',
+   /Qayd etildi/.test(r1) && /TAKROR SKAN/.test(r2) && /TASDIQLANGAN DUBLIKAT/.test(r2b) && /TAKROR SKAN/.test(r3) && copies[0].a === 1 && copies[0].b === 1 && /KUPON/.test(rg)
    && JSON.stringify(inv) === JSON.stringify([{ ticket_no: '06087', n: 1 }, { ticket_no: '06101', n: 2 }, { ticket_no: '06114', n: 2 }]) && (await status('06114')) === 'NOT_ADMITTED', r2 + ' | ' + JSON.stringify(inv));
 // oflayn: skanlar qurilmada saqlanadi, sahifa yopilsa ham yo'qolmaydi, keyin aynan bir marta yuboriladi
 await ictx.setOffline(true);
@@ -210,7 +218,7 @@ await iv2.click('nav.tabs button:has-text("Solishtiruv")'); await iv2.waitForSel
 const firstRow = await iv2.locator('table tr').nth(1).textContent();
 const sh1019 = await iv2.locator('.sheet:has(b:text-is("1019"))').getAttribute('class');
 await iv2.screenshot({ path: out + '/08c_reconciliation_A403.png', fullPage: true });
-ok('T21 Solishtiruv paneli: A403 birinchi; 06114 varag\'i (1019) "ikki marta bosilgan" deb belgilandi; noma\'lumlar alohida',
+ok('T21 Solishtiruv paneli: A403 birinchi; 06114 varag\'i (1019) "ikkinchi qog\'oz tasdiqlangan" deb belgilandi; noma\'lumlar alohida',
    /^A403/.test(firstRow.trim()) && /bad/.test(sh1019 || '') && (await iv2.locator('text=Noma\'lum (ko\'rilmagan, hujjat yo\'q)').count()) > 0, firstRow.slice(0, 60) + ' | ' + sh1019);
 const evAfter = (await q('select count(*)::int n from checkin.admission_events'))[0].n;
 ok('T10z Inventar ilovasi bitta ham kirish hodisasi yaratmadi; JS xatolari yo\'q', evAfter === evBefore && ierrs.length === 0, evBefore + '→' + evAfter + ' ' + ierrs.join('|'));
@@ -307,6 +315,16 @@ await s.waitForSelector('text=Sektorlar bo\'yicha', { timeout: 10000 });
 await s.screenshot({ path: out + '/12_dashboard.png', fullPage: true });
 const dtext = await s.locator('main').textContent();
 ok('T13d Boshqaruv paneli: ruxsatlar 11222 / 11222, sig\'im nazorati bloki, takroriy skanlar, inventar alohida', /11222 \/ 11222/.test(dtext) && /Sig'im nazorati/.test(dtext) && /Takroriy skanlar/.test(dtext) && /Jismoniy inventar/.test(dtext));
+// ---------------------------------------------------------------- 5b. Nazoratchi belgilari va tayyorlik tekshiruvi
+await s.click('nav.tabs button:has-text("Nazorat")'); await s.waitForSelector('text=Nazoratchi belgilari');
+const ftxt = await s.locator('section:has-text("Nazoratchi belgilari")').first().textContent();
+await s.screenshot({ path: out + '/10b_flags.png', fullPage: true });
+const st06114 = await status('06114');
+ok('T24 Nazoratchi belgilari: tasdiqlangan bosma dublikati (06114) ro\'yxatda; bilet bekor qilinmagan (birinchi egasi kirgan holicha)', /06114/.test(ftxt) && /Bosma dublikati tasdiqlangan/.test(ftxt) && st06114 === 'ADMITTED', st06114);
+await a.click('nav.tabs button:has-text("Admin")'); await a.waitForSelector('text=Tayyorlik tekshiruvi');
+await a.click('section:has-text("Tayyorlik tekshiruvi") button:has-text("Tekshirish")'); await a.waitForSelector('#readybox .big', { timeout: 15000 });
+const rtxt = await a.locator('#readybox').textContent();
+ok('T26 Tayyorlik tekshiruvi sinov bazasida "TAYYOR EMAS" (sinov kirishlari va xodimlari bor) — production\'ga sinov holati o\'tmaydi', /TAYYOR EMAS/.test(rtxt) && /✗ no_test_staff/.test(rtxt) && /✗ all_not_admitted/.test(rtxt), rtxt.slice(0, 120));
 // ---------------------------------------------------------------- 6. Nazoratli favqulodda rejim — faqat belgilangan YAGONA nazoratchi qurilmasi
 const octx = await b.newContext(PHONE); const o = await octx.newPage();
 const dialogs = []; o.on('dialog', async (d) => { dialogs.push(d.message()); if (d.type() === 'prompt') await d.accept('2468135790'); else await d.accept(); });
@@ -362,6 +380,20 @@ const ver = (await q("select count(*)::int n from checkin.audit_log"))[0].n;
 ok('T16 Barcha admin/nazoratchi amallari audit jurnalida', ver > 10, ver + ' yozuv');
 ok('T00 Sahifada JavaScript xatolari yo\'q', errs.length === 0, errs.join(' | '));
 await page404check();
+{
+  await db.query("update checkin.settings set value='\"PRODUCTION\"' where key='environment'");
+  const ec = await b.newContext(PHONE); const ep = await ec.newPage();
+  await ep.goto(base + '/checkin'); await ep.fill('input[type=email]', 'gate2@dusel.test'); await ep.fill('input[type=password]', 'Gate-Test-2026'); await ep.click('button[type=submit]');
+  await ep.waitForSelector('text=MUHIT MOS EMAS', { timeout: 8000 }).catch(() => {});
+  const m1 = await ep.locator('text=MUHIT MOS EMAS').count();
+  await ep.goto(base + '/inventory'); await ep.fill('input[type=email]', 'inv@dusel.test'); await ep.fill('input[type=password]', 'Inv-Test-2026'); await ep.click('button[type=submit]');
+  await ep.waitForSelector('text=MUHIT MOS EMAS', { timeout: 8000 }).catch(() => {});
+  const m2 = await ep.locator('text=MUHIT MOS EMAS').count();
+  await ep.screenshot({ path: out + '/15_env_mismatch.png' });
+  await db.query("update checkin.settings set value='\"STAGING\"' where key='environment'");
+  ok('T27 Sayt muhiti (sinov) va baza muhiti (PRODUCTION) mos kelmasa — /checkin ham, /inventory ham ishlamaydi', m1 === 1 && m2 === 1);
+  await ec.close();
+}
 await b.close(); await db.end();
 fs.writeFileSync(out + '/e2e_results.json', JSON.stringify(R, null, 1));
 console.log(`\n${R.filter((r) => r.ok).length}/${R.length} PASS`);

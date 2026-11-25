@@ -48,6 +48,7 @@ http.createServer((req, res) => {
         const usr = refresh.get(b.refresh_token); if (!usr) return send(res, 400, { error: 'invalid_grant' });
         refresh.delete(b.refresh_token); return send(res, 200, session(usr));
       }
+      if (u.pathname === '/auth/v1/health') return send(res, 200, { name: 'GoTrue (mock)', version: 'local' });
       if (u.pathname === '/auth/v1/user') {
         const c = verify((req.headers.authorization || '').replace(/^Bearer /, ''));
         if (!c) return send(res, 401, { msg: 'invalid' });
@@ -82,10 +83,10 @@ http.createServer((req, res) => {
       if (!f) { f = path.join(SITE, '404.html'); code = 404; }
       const hdr = { 'content-type': MIME[path.extname(f)] || 'application/octet-stream' };
       // Cloudflare _headers dagi CSP ni taqlid qilamiz — ilova CSP bilan ishlashini tekshirish uchun
-      if (/^\/checkin(\.html)?$/.test(u.pathname)) {
+      {
         const rules = fs.readFileSync(path.join(SITE, '_headers'), 'utf8').split('\n');
-        const i = rules.indexOf('/checkin');
-        for (let j = i + 1; j < rules.length && /^\s/.test(rules[j]); j++) { const k = rules[j].trim(); const c = k.indexOf(':'); hdr[k.slice(0, c)] = k.slice(c + 1).trim(); }
+        const i = rules.indexOf(u.pathname);                 // aniq yo'l mosligi (/checkin, /inventory, /scan-test …)
+        if (i >= 0) for (let j = i + 1; j < rules.length && /^\s/.test(rules[j]); j++) { const k = rules[j].trim(); const c = k.indexOf(':'); hdr[k.slice(0, c)] = k.slice(c + 1).trim(); }
       }
       res.writeHead(code, hdr);
       fs.createReadStream(f).pipe(res);

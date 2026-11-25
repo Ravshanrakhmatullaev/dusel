@@ -19,7 +19,9 @@ for i in range(WORKERS):
     uids.append(str(uid))
 for gi in range(1, 17):
     admin.execute("insert into checkin.gates values (%s, %s, true) on conflict do nothing", (f"L{gi}", f"Load {gi}"))
-admin.execute("update checkin.settings set value='true' where key='admission_open'")
+with admin.transaction():   # sinov bazasi: kirish faqat maxsus bayroq bilan ochiladi (trigger)
+    admin.execute("select set_config('checkin.admission_change', 'approved', true)")
+    admin.execute("update checkin.settings set value='true' where key='admission_open'")
 admin.execute("update checkin.settings set value='100000' where key='rate_limit_per_10s'")
 
 tickets = [f"{i:05d}" for i in range(1, 11223)]

@@ -14,3 +14,7 @@ create or replace function auth.uid() returns uuid language sql stable as $$
 grant usage on schema auth to anon, authenticated;
 grant execute on all functions in schema auth to anon, authenticated;
 grant usage on schema public to anon, authenticated;
+-- Supabase Auth sessiya jadvallarining soddalashtirilgan o'xshashi (sessiyalarni bekor qilishni sinash uchun)
+create table if not exists auth.sessions (id uuid primary key default gen_random_uuid(), user_id uuid not null, created_at timestamptz default now());
+create table if not exists auth.refresh_tokens (id bigserial primary key, token text, user_id varchar(255), revoked boolean default false,
+  session_id uuid references auth.sessions (id) on delete cascade);

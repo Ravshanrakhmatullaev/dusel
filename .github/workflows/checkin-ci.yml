@@ -55,6 +55,13 @@ jobs:
           node e2e/mock_supabase.js "$GITHUB_WORKSPACE/site" 8799 ci_e2e > mock.log 2>&1 &
           sleep 2
           cd e2e && MEDIA_DIR="$GITHUB_WORKSPACE/e2e/media" node test_e2e.mjs http://127.0.0.1:8799 shots
+      - name: HTTP yuklama (8 darvoza, Auth + /rpc orqali, 20 mijoz poygasi)
+        run: |
+          ./e2e/reset_db.sh ci_http seed && psql -d ci_http -v ON_ERROR_STOP=1 -q -f e2e/seed_http_load.sql
+          node e2e/mock_supabase.js "$GITHUB_WORKSPACE/site" 8800 ci_http > mock_http.log 2>&1 &
+          sleep 2
+          cd tests && GATES=$(python3 -c "import json;print(json.dumps([{'email':f'load-g{i}@dusel.test','password':'Load-Test-2026','gate':f'L{i}'} for i in range(1,9)]))") \
+            ADMIN='{"email":"admin@dusel.test","password":"Admin-Test-2026"}' BASE=http://127.0.0.1:8800 OUT=../e2e/shots/http_load.json node http_load_test.mjs | tail -40
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: e2e-screenshots, path: "e2e/shots" }
@@ -70,3 +77,18 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: production-compat, path: "tests/compat" }
+  devices-https:
+    # Haqiqiy HTTPS: Cloudflare staging preview (feature-checkin) + production faqat o'qish. WebKit = iPhone Safari dvigateli.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - run: pip install segno==1.6.1 && ./e2e/make_media.sh e2e/media
+      - run: cd e2e && npm init -y >/dev/null && npm install playwright@1.63.0 && npx playwright install --with-deps chromium webkit
+      - name: iPhone Safari (WebKit) va Android Chrome (Chromium) — HTTPS orqali
+        run: cd e2e && node test_devices.mjs https://feature-checkin.dusel.pages.dev https://dusel.pages.dev devices "$GITHUB_WORKSPACE/e2e/media"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: devices-https, path: "e2e/devices" }

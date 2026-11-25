@@ -23,13 +23,13 @@ def sql(q, *a):
 # ---------------------------------------------------------------- sinov xodimlari
 USERS = {}
 for name, role, active in [("admin", "ADMIN", True), ("sup1", "SUPERVISOR", True), ("sup2", "SUPERVISOR", True),
-                           ("gate1", "GATE", True), ("gate2", "GATE", True), ("gate3", "GATE", True), ("gone", "GATE", False)]:
+                           ("gate1", "GATE", True), ("gate2", "GATE", True), ("gate3", "GATE", True), ("gone", "GATE", False),
+                           ("inv1", "INVENTORY", True), ("inv2", "INVENTORY", True)]:
     uid = sql("insert into auth.users (email) values (%s) on conflict (email) do update set email = excluded.email returning id", f"{name}@test.local")[0][0]
     sql("insert into checkin.staff (user_id, username, display_name, role, active) values (%s,%s,%s,%s,%s) on conflict (user_id) do update set role=excluded.role, active=excluded.active, sessions_valid_after='2000-01-01'",
         uid, f"{name}@test.local", name.upper(), role, active)
     USERS[name] = str(uid)
 USERS["stranger"] = str(sql("insert into auth.users (email) values ('stranger@test.local') on conflict (email) do update set email = excluded.email returning id")[0][0])
-sql("update checkin.settings set value = 'true' where key = 'admission_open'")
 sql("update checkin.settings set value = '100000' where key = 'rate_limit_per_10s'")
 
 def conn(user=None, iat=None, role="authenticated"):
@@ -56,6 +56,17 @@ def err(c, fn, *args):
 U = lambda n: f"https://dusel.pages.dev/?code={n:05d}"
 G1, G2 = conn("gate1"), conn("gate2")
 S1, S2, AD = conn("sup1"), conn("sup2"), conn("admin")
+I1, I2 = conn("inv1"), conn("inv2")
+
+# T20 Kirish avtomatik ochilmaydi: yangi deploydan keyin YOPIQ; ochish faqat admin + aniq tasdiq matni bilan
+fresh = sql("select value::text from checkin.settings where key='admission_open'")[0][0]
+e_noconf = err(AD, "ci_admission_set", True, None)
+e_gate_open = err(G1, "ci_admission_set", True, "KIRISHNI OCHISH")
+try: sql("update checkin.settings set value='true' where key='admission_open'"); raw = "allowed"
+except psycopg.Error as e: raw = e.diag.message_primary
+check("T20 Deploydan keyin kirish YOPIQ; tasdiqsiz/darvoza xodimi/to'g'ridan-to'g'ri SQL bilan ochib bo'lmaydi",
+      fresh == "false" and e_noconf == "CONFIRMATION_MISMATCH" and e_gate_open == "ROLE_DENIED" and raw == "ADMISSION_LOCKED", (fresh, e_noconf, e_gate_open, raw))
+rpc(AD, "ci_admission_set", True, "KIRISHNI OCHISH")
 
 # 3. 11 222 yozuv
 n, nd, mn, mx = sql("select count(*), count(distinct seat_key), min(ticket_no), max(ticket_no) from checkin.tickets")[0]
@@ -136,21 +147,21 @@ check("T17c Noto'g'ri QR kirishda rad etiladi va hech bir bilet holatiga ta'sir 
       all(rpc(G1, "ci_admit", str(uuid.uuid4()), s, "G1", "dev-1")["decision"] == "DENIED_INVALID" for s in REJECT[:10]))
 
 # 10. Inventar — kirishni iste'mol qilmaydi, dublikatlar qayd etiladi
-batch = rpc(S1, "ci_inventory_batch_open", "A403 qoldiq", "Ombor-1")["id"]
-inv = [rpc(G1, "ci_inventory_scan", str(uuid.uuid4()), batch, U(t), None) for t in [6100, 6101, 6100, 6100, 6102]]
+batch = rpc(I1, "ci_inventory_batch_open", "A403 qoldiq", "Ombor-1", "A403", "Quti-1", "Dasta-1", "inv-dev-1")["id"]
+inv = [rpc(I1, "ci_inventory_scan", str(uuid.uuid4()), batch, U(t), None, "SCANNER", "inv-dev-1", None) for t in [6100, 6101, 6100, 6100, 6102]]
 st = sql("select status from checkin.tickets where ticket_no in ('06100','06101','06102')")
 check("T10 Inventar skanlari kirish holatini o'zgartirmaydi; dublikat nusxalar sanaladi (06100 × 3)",
       all(s[0] == "NOT_ADMITTED" for s in st) and inv[3]["copies_total"] == 3 and any(w["code"] == "DUPLICATE_COPY" for w in inv[3]["warnings"]), inv[3]["copies_total"])
 rep = rpc(S1, "ci_report", "inventory_duplicates")
 check("T10b Hisobot: bir necha marta skanerlangan raqamlar", [x["ticket_no"] for x in rep] == ["06100"] and rep[0]["copies"] == 3, rep)
-rid_inv = str(uuid.uuid4()); a = rpc(G1, "ci_inventory_scan", rid_inv, batch, U(6103), None); b = rpc(G1, "ci_inventory_scan", rid_inv, batch, U(6103), None)
+rid_inv = str(uuid.uuid4()); a = rpc(I1, "ci_inventory_scan", rid_inv, batch, U(6103), None, "CAMERA", "inv-dev-1", None); b = rpc(I1, "ci_inventory_scan", rid_inv, batch, U(6103), None, "CAMERA", "inv-dev-1", None)
 check("T10c Inventar skani ham idempotent (bir xil so'rov ikki marta = 1 nusxa)", a["scan_id"] == b["scan_id"] and b["copies_total"] == 1)
 lk = rpc(G2, "ci_lookup", U(6100), "G2", "dev-2")
 check("T10d Darvozada dublikat haqida ogohlantirish chiqadi, lekin bilet kiritilishi mumkin (asl egasini to'smaydi)",
       lk["admissible"] and any(w["code"] == "INVENTORY_DUPLICATE" for w in lk["warnings"]), lk["warnings"])
 
 # 11. Bir joyga turli raqamlar
-s11 = rpc(G1, "ci_inventory_scan", str(uuid.uuid4()), batch, U(6110), "A403 qator 1 joy 5")
+s11 = rpc(I1, "ci_inventory_scan", str(uuid.uuid4()), batch, U(6110), "A403 qator 1 joy 5", "MANUAL", "inv-dev-1", None)
 conf = rpc(S1, "ci_report", "seat_conflicts")
 check("T11 Qog'ozdagi joy master bilan farq qilsa (boshqa raqam bir joyga) — belgilanadi va hisobotga tushadi",
       any(w["code"] == "SEAT_MISMATCH" for w in s11["warnings"]) and any(c["type"] == "PRINTED_SEAT_MISMATCH" and c["ticket_no"] == "06110" for c in conf), conf[:2])
@@ -176,48 +187,124 @@ check("T13 Amaldagi biletga tegishli (band) joyni zaxira qilib/ajratib bo'lmaydi
 iss_bad = err(S1, "ci_issue_replacement", r2["case_id"], "SEKTOR:A403:1:1", "sabab yozildi", "dalil yozildi")
 check("T13b Band qilinmagan joyga almashtirish bilet berib bo'lmaydi", iss_bad == "SEAT_NOT_RESERVED_FOR_CASE", iss_bad)
 
-# zaxira joylar: zaldagi qo'shimcha (masterda yo'q) joylar
-for k in range(1, 4):
-    rpc(AD, "ci_admin_spare_add", "SEKTOR", "2-qavat", "B206", 15, 15 + k, "Excel: 'можно добавить ещё 2 места' — joyida tekshirildi")
-e_capset = err(G1, "ci_setting_set", "capacity", "11225")
-rpc(AD, "ci_setting_set", "capacity", "11225")     # qo'shimcha joylar tasdiqlangani uchun sig'imni admin oshiradi (audit)
-check("T13e Sig'imni faqat admin o'zgartira oladi (audit bilan)", e_capset == "ROLE_DENIED")
-# 14. Ikki nazoratchi bir joyni bir vaqtda band qila olmaydi
+# ---------------------------------------------------------------- SIG'IM: tasdiqlangan 11 222 hech qachon almashtirish uchun oshirilmaydi
+def cap_now(): return int(sql("select value::text from checkin.settings where key='capacity'")[0][0])
+ENT0 = rpc(AD, "ci_capacity_status")["entitlements"]
+e_capg = err(G1, "ci_capacity_change", 11225, "x" * 12, "SIGIM 11225")
+e_capset = err(AD, "ci_setting_set", "capacity", "11225")
+try: sql("update checkin.settings set value='11225' where key='capacity'"); raw_cap = "allowed"
+except psycopg.Error as e: raw_cap = e.diag.message_primary
+check("T13e Sig'im qulflangan: darvoza/oddiy sozlama/to'g'ridan-to'g'ri SQL bilan o'zgarmaydi (11 222 qoladi)",
+      e_capg == "ROLE_DENIED" and e_capset == "USE_CAPACITY_CHANGE" and raw_cap == "CAPACITY_LOCKED" and cap_now() == 11222 and ENT0 == 11222,
+      (e_capg, e_capset, raw_cap, cap_now(), ENT0))
+
+# zaldagi qo'shimcha (masterda yo'q) joylar — EXTRA joy sig'imni oshirmaydi
+extra = [rpc(AD, "ci_admin_spare_add", "SEKTOR", "2-qavat", "B206", 15, 15 + k, "Excel: 'можно добавить ещё 2 места' — joyida tekshirildi") for k in range(1, 4)]
+check("T13g Qo'shimcha (EXTRA) joy qo'shilsa ham sig'im va ruxsatlar o'zgarmaydi (headroom 0)",
+      all(x["origin"] == "EXTRA" for x in extra) and extra[-1]["headroom"] == 0 and cap_now() == 11222, extra[-1]["headroom"])
+
+# isbotli zaxira: faqat tarqatilmagan (HELD/RETURNED), jismonan yopiq partiyada 1 nusxa, varaqda dublikat yo'q, darvozada ko'rilmagan bilet
+rpc(AD, "ci_import_distribution", json.dumps([{"ticket_no": t, "status": "HELD"} for t in ["06650", "06655", "06656", "06661", "06667", "06668"]]
+      + [{"ticket_no": "06673", "status": "DISTRIBUTED", "recipient_ref": "Diler B"}]), "Tashkilotchi zaxira jadvali (sinov)")
+sb = rpc(I2, "ci_inventory_batch_open", "A405 zaxira qutisi", "Ofis seyf", "A405", "Q-7", "D-1", "inv-dev-2")["id"]
+for t in [6650, 6655, 6655, 6656, 6661, 6667, 6668]: rpc(I2, "ci_inventory_scan", str(uuid.uuid4()), sb, U(t), None, "SCANNER", "inv-dev-2", None)
+e_open = err(AD, "ci_spare_from_stock", "06650", "Ombor tekshiruvi 25.11, quti Q-7")
+rpc(I2, "ci_inventory_batch_close", sb)
+gh = rpc(G1, "ci_admit", str(uuid.uuid4()), U(6661), "G1", "dev-1")      # zaxiradagi bilet darvozada ko'rindi → nazorat
+E = {t: err(AD, "ci_spare_from_stock", t, "Ombor tekshiruvi 25.11, quti Q-7") for t in ["06649", "06673", "06655", "06656", "06661"]}
+e_noev = err(AD, "ci_spare_from_stock", "06667", "qisqa")
+e_sup = err(S1, "ci_spare_from_stock", "06667", "Ombor tekshiruvi 25.11, quti Q-7")
+check("T13h Noma'lum/tarqatilgan/jismonan tasdiqlanmagan/dublikatli/varag'i shubhali/darvozada ko'rilgan bilet zaxira joy bo'la OLMAYDI",
+      E["06649"] == "NO_DISTRIBUTION_PROOF" and E["06673"] == "NO_DISTRIBUTION_PROOF" and e_open == "NOT_PHYSICALLY_VERIFIED"
+      and E["06655"] == "DUPLICATE_COPIES_RISK" and E["06656"] == "SHEET_REPRINT_RISK" and E["06661"] == "GATE_ACTIVITY_EXISTS"
+      and gh["decision"] == "REFER_HELD_STOCK" and e_noev == "EVIDENCE_REQUIRED" and e_sup == "ROLE_DENIED", (E, e_open, e_noev, e_sup))
+ret = rpc(AD, "ci_spare_from_stock", "06667", "Tashkilotchi zaxirasi: quti Q-7, 25.11 inventar #%d, tekshirdi: Admin" % sb)
+seat_r = ret["seat"]["seat_key"]
+cs1 = rpc(AD, "ci_capacity_status")
+check("T13i Isbotli zaxira: asl bilet bekor, joyi zaxirada; ruxsatlar 11 221, sig'im 11 222 (o'zgarmadi)",
+      ret["ticket"]["status"] == "CANCELLED_BY_AUTHORIZED_SUPERVISOR" and ret["seat"]["spare_status"] == "AVAILABLE"
+      and cs1["entitlements"] == 11221 and cs1["approved_capacity"] == 11222 and cs1["retired_to_spare"] == 1, (seat_r, cs1["entitlements"]))
+
+# 14. Ikki nazoratchi bir zaxira joyni bir vaqtda band qila olmaydi
 case2 = rpc(G1, "ci_refer", U(5000), "G1", "ikkinchi holat")["case_id"]
 def reserve(args):
     c = conn(args[0]);
-    try: return rpc(c, "ci_spare_reserve", args[1], "SEKTOR:B206:15:16")["spare_status"]
+    try: return rpc(c, "ci_spare_reserve", args[1], seat_r)["spare_status"]
     except psycopg.Error as e: return e.diag.message_primary
     finally: c.close()
 with ThreadPoolExecutor(8) as ex: rr = list(ex.map(reserve, [("sup1", r2["case_id"]), ("sup2", case2)] * 4))
 check("T14 Ikki nazoratchi bir zaxira joyni parallel band qilmoqchi — faqat 1 ta muvaffaqiyat", rr.count("RESERVED") == 1, rr)
-owner_case = sql("select reserved_case from checkin.seats where seat_key='SEKTOR:B206:15:16'")[0][0]
+owner_case = sql("select reserved_case from checkin.seats where seat_key=%s", seat_r)[0][0]
 
-# almashtirish bileti
-rep_res = rpc(S1 if owner_case == r2["case_id"] else S2, "ci_issue_replacement", owner_case, "SEKTOR:B206:15:16",
-              "Bosmaxona dublikati — haqiqiy xaridor", "Distribyutor cheki №123, asl qog'oz bilet ko'rildi")
+# almashtirish bileti (takror skan holati uchun: asl 00330 kirgan, ikkinchi haqiqiy xaridor isbotli zaxira joyga)
+rep_res = rpc(S1 if owner_case == r2["case_id"] else S2, "ci_issue_replacement", owner_case, seat_r,
+              "Bosmaxona dublikati — haqiqiy xaridor", "Distribyutor cheki №123, asl qog'oz bilet ko'rildi", False)
 tok = rep_res["payload"]
 check("T07r Almashtirish bileti: taxmin qilib bo'lmaydigan token (144 bit), bazada faqat xeshi",
       re.fullmatch(r"DUSELR1:[A-Za-z0-9_-]{24}", tok) and sql("select count(*) from checkin.replacements where token_hash = %s", hashlib.sha256(tok[8:].encode()).hexdigest())[0][0] == 1
       and not sql("select count(*) from checkin.replacements where token_hash like %s", "%" + tok[8:] + "%")[0][0], tok[:12] + "…")
 ra = rpc(G2, "ci_admit", str(uuid.uuid4()), tok, "G2", "dev-2"); rb = rpc(G1, "ci_admit", str(uuid.uuid4()), tok, "G1", "dev-1")
-check("T07s Almashtirish bileti bir marta kiritadi, ikkinchisi bloklanadi", ra["decision"] == "ADMITTED" and ra["credential"]["seat"] == 16 and rb["decision"] == "DENIED_ALREADY_ADMITTED", (ra["decision"], rb["decision"]))
+check("T07s Almashtirish bileti bir marta kiritadi, ikkinchisi bloklanadi", ra["decision"] == "ADMITTED" and ra["credential"]["sector"] == "A405" and rb["decision"] == "DENIED_ALREADY_ADMITTED", (ra["decision"], rb["decision"]))
 fake = rpc(G1, "ci_admit", str(uuid.uuid4()), "DUSELR1:" + "A" * 24, "G1", "dev-1")["decision"]
 check("T07t Soxta almashtirish tokeni rad etiladi", fake == "DENIED_NOT_FOUND", fake)
-dash = rpc(AD, "ci_dashboard")
-check("T07u Sig'im: almashtirish faqat haqiqiy qo'shimcha joy bilan; ruxsatlar soni nazoratda",
-      dash["admission"]["entitlements"] == 11223 and dash["replacements"]["issued"] == 1, dash["admission"]["entitlements"])
+old_copy = rpc(G2, "ci_admit", str(uuid.uuid4()), U(6667), "G2", "dev-2")
+check("T07v Zaxiraga o'tkazilgan asl bilet nusxasi darvozada rad etiladi va nazoratga tushadi (joy ikki marta berilmaydi)",
+      old_copy["decision"] == "DENIED_CANCELLED" and old_copy["case_id"], old_copy["decision"])
+cs2 = rpc(AD, "ci_capacity_status")
+check("T07u Almashtirishdan keyin: ruxsatlar 11 222 = tasdiqlangan sig'im 11 222; sig'im o'zgarishlari yo'q; invariant butun",
+      cs2["entitlements"] == 11222 and cs2["approved_capacity"] == 11222 and cs2["capacity_changes"] == [] and cs2["invariant_ok"] and cs2["headroom"] == 0,
+      {k: cs2[k] for k in ("entitlements", "approved_capacity", "headroom", "invariant_ok")})
 
-# sig'im chegarasi
-rpc(S1, "ci_spare_reserve", case2 if owner_case != case2 else r2["case_id"], "SEKTOR:B206:15:17")
+# sig'im chegarasi: EXTRA joy bor, lekin sig'imda bo'sh o'rin yo'q → tashkilotchiga
 other = case2 if owner_case != case2 else r2["case_id"]
-rpc(AD, "ci_setting_set", "capacity", "11223")
-cap = rpc(S1, "ci_issue_replacement", other, "SEKTOR:B206:15:17", "sabab yozildi", "dalil yozildi")
+rpc(S1, "ci_spare_reserve", other, "SEKTOR:B206:15:16")
+cap = rpc(S1, "ci_issue_replacement", other, "SEKTOR:B206:15:16", "sabab yozildi", "dalil yozildi", False)
 st_other = sql("select status from checkin.review_cases where id=%s", other)[0][0]
-check("T13c Sig'imdan oshib ketadigan almashtirish bloklanadi → holat 'ESCALATED_NO_SEAT' (tashkilotchiga)",
-      cap.get("error") == "CAPACITY_EXCEEDED" and st_other == "ESCALATED_NO_SEAT", (cap, st_other))
-e_low = err(AD, "ci_setting_set", "capacity", "11000")
-check("T13f Sig'imni mavjud ruxsatlardan pastga tushirib bo'lmaydi", e_low == "CAPACITY_BELOW_ENTITLEMENTS", e_low)
+check("T13c Sig'imdan oshadigan almashtirish bloklanadi → 'ESCALATED_NO_SEAT'; sig'im avtomatik oshirilmaydi",
+      cap.get("error") == "CAPACITY_EXCEEDED" and st_other == "ESCALATED_NO_SEAT" and cap_now() == 11222, (cap, st_other))
+
+# asl bilet hali kiritilmagan (shikastlangan/yo'qolgan): yangi QR uning O'RNIGA, o'sha joyda — ruxsatlar soni o'zgarmaydi
+seat_4000 = sql("select seat_key from checkin.tickets where ticket_no='04000'")[0][0]
+sup = rpc(S1, "ci_issue_replacement", ref["case_id"], seat_4000, "Bilet shikastlangan — QR o'qilmaydi", "Mijoz pasporti va xarid cheki ko'rildi", True)
+t4000 = sql("select status, superseded_by_case from checkin.tickets where ticket_no='04000'")[0]
+g4000 = rpc(G1, "ci_admit", str(uuid.uuid4()), U(4000), "G1", "dev-1")["decision"]
+s4000 = rpc(G2, "ci_admit", str(uuid.uuid4()), sup["payload"], "G2", "dev-2")["decision"]
+cs3 = rpc(AD, "ci_capacity_status")
+check("T13j O'rnini bosuvchi almashtirish: asl bilet bekor, yangi QR o'sha joyda bir marta kiradi, ruxsatlar 11 222 da qoladi",
+      sup["superseded_original"] and t4000[0] == "CANCELLED_BY_AUTHORIZED_SUPERVISOR" and g4000 == "DENIED_CANCELLED" and s4000 == "ADMITTED"
+      and cs3["entitlements"] == 11222 and cs3["invariant_ok"], (t4000, g4000, s4000, cs3["entitlements"]))
+rpc(G1, "ci_admit", str(uuid.uuid4()), U(331), "G1", "dev-1"); d331 = rpc(G2, "ci_admit", str(uuid.uuid4()), U(331), "G2", "dev-2")
+rpc(S1, "ci_spare_reserve", d331["case_id"], "SEKTOR:B206:15:17")
+e_sup331 = err(S1, "ci_issue_replacement", d331["case_id"], "SEKTOR:B206:15:17", "sabab yozildi", "dalil yozildi", True)
+check("T13k Kiritilgan asl biletning o'rnini bosib bo'lmaydi (bekor qilinmaydi)", e_sup331 == "ORIGINAL_NOT_SUPERSEDABLE", e_sup331)
+
+# baza darajasidagi himoya (funksiyadagi xatoga qarshi): superuser ham band joyga/sig'imdan ortiq almashtirish yoza olmaydi
+def raw(q, *a):
+    try: sql(q, *a); return "allowed"
+    except psycopg.Error as e: return e.diag.message_primary
+ins = "insert into checkin.replacements (token_hash, token_hint, original_ticket, case_id, seat_key, reason, evidence_summary, issued_by) values (md5(random()::text), 'xxxx', null, %s, %s, 'r', 'e', %s)"
+r_occ = raw(ins, ref["case_id"], "SEKTOR:A403:1:1", USERS["admin"])
+r_cap = raw(ins, ref["case_id"], "SEKTOR:B206:15:18", USERS["admin"])
+r_back = raw("update checkin.tickets set status='NOT_ADMITTED' where ticket_no='04000'")
+r_unadm = raw("update checkin.tickets set status='NOT_ADMITTED', admitted_at=null where ticket_no='00330'")
+r_del = raw("delete from checkin.tickets where ticket_no='00001'")
+check("T13l Bazada qulf: band joyga yoki sig'imdan ortiq almashtirish, bekor/kiritilgan biletni qaytarish, bilet o'chirish — taqiqlangan",
+      r_occ == "SEAT_OCCUPIED_BY_TICKET" and r_cap == "CAPACITY_EXCEEDED" and r_back == "TICKET_STATUS_FINAL" and r_unadm == "TICKET_STATUS_FINAL" and r_del.startswith("IMMUTABLE"),
+      (r_occ, r_cap, r_back, r_unadm, r_del))
+conf2 = [c for c in rpc(S1, "ci_report", "seat_conflicts") if c["type"] == "MULTIPLE_ENTITLEMENTS"]
+adm_total = sql("select (select count(*) from checkin.tickets where status='ADMITTED') + (select count(*) from checkin.replacements where status='ADMITTED')")[0][0]
+check("T13m Bir joyga ikki amaldagi huquq yo'q; jami kirishlar ≤ sig'im", conf2 == [] and adm_total <= 11222, (conf2, adm_total))
+
+# tasdiqlangan sig'imni o'zgartirish — faqat tashkilotchining yozma qarori, aniq tasdiq matni bilan, alohida jurnalga
+e_low = err(AD, "ci_capacity_change", 11000, "Tashkilotchi qarori №1 25.11", "SIGIM 11000")
+e_ref = err(AD, "ci_capacity_change", 11223, "", "SIGIM 11223")
+e_cf = err(AD, "ci_capacity_change", 11223, "Tashkilotchi qarori №1 25.11", "ha")
+ok_up = rpc(AD, "ci_capacity_change", 11223, "SINOV: Humo Arena ma'muriyati xati №7 (sinov)", "SIGIM 11223")
+ok_dn = rpc(AD, "ci_capacity_change", 11222, "SINOV: sinovdan keyin qaytarildi", "SIGIM 11222")
+chg = rpc(AD, "ci_capacity_status")["capacity_changes"]
+check("T13f Sig'im o'zgarishi faqat yozma qaror + tasdiq matni bilan; ruxsatlardan pastga tushmaydi; har biri jurnalda",
+      e_low == "CAPACITY_BELOW_ENTITLEMENTS" and e_ref == "APPROVAL_REF_REQUIRED" and e_cf == "CONFIRMATION_MISMATCH"
+      and ok_up["capacity"] == 11223 and ok_dn["capacity"] == 11222 and len(chg) == 2 and cap_now() == 11222, (e_low, e_ref, e_cf, len(chg)))
 
 # 15. Ruxsatsiz foydalanuvchilar
 e_gate = err(G1, "ci_ticket_set_status", "00010", "CANCELLED_BY_AUTHORIZED_SUPERVISOR", "ruxsatsiz urinish")
@@ -239,7 +326,11 @@ check("T15 Ruxsatsiz: darvoza xodimi bekor qila/sozlay olmaydi; begona/faolsiz/a
 
 # 18. Sessiya bekor qilish / chiqish
 old = conn("gate3", iat=time.time() - 10)
+sid = sql("insert into auth.sessions (user_id) values (%s) returning id", USERS["gate3"])[0][0]
+sql("insert into auth.refresh_tokens (token, user_id, session_id) values ('rt-gate3', %s, %s)", USERS["gate3"], sid)
 rpc(AD, "ci_staff_revoke_sessions", "gate3@test.local")
+check("T18c Sessiyani bekor qilish Supabase Auth sessiyasi va refresh tokenni ham o'chiradi (yangi token olib bo'lmaydi)",
+      sql("select count(*) from auth.sessions where user_id=%s", USERS["gate3"])[0][0] == 0 and sql("select count(*) from auth.refresh_tokens where user_id=%s and not revoked", USERS["gate3"])[0][0] == 0)
 e_rev = err(old, "ci_lookup", U(10), "G1", "x")
 newc = conn("gate3", iat=time.time() + 2)
 check("T18 Admin sessiyalarni bekor qilsa eski token ishlamaydi, qayta kirgandan keyin ishlaydi", e_rev == "SESSION_REVOKED" and rpc(newc, "ci_lookup", U(10), "G1", "x")["result"] == "FOUND", e_rev)
@@ -260,9 +351,9 @@ e_sa = err(S1, "ci_supervisor_admit", r2["case_id"], str(uuid.uuid4()), "G1", "s
 check("T12d Allaqachon kiritilgan biletni nazoratchi ham qayta kirita olmaydi (faqat almashtirish orqali)", e_sa in ("TICKET_NOT_ADMISSIBLE", "CASE_NOT_FOUND_OR_CLOSED"), e_sa)
 
 # kirish yopiq / tezlik cheklovi
-sql("update checkin.settings set value='false' where key='admission_open'")
+rpc(AD, "ci_admission_set", False, None)
 cl = rpc(G1, "ci_admit", str(uuid.uuid4()), U(7000), "G1", "dev-1")["decision"]
-sql("update checkin.settings set value='true' where key='admission_open'")
+rpc(AD, "ci_admission_set", True, "KIRISHNI OCHISH")
 check("T05d Kirish rasman ochilmaguncha hech kim kiritilmaydi", cl == "DENIED_ADMISSION_CLOSED" and sql("select status from checkin.tickets where ticket_no='07000'")[0][0] == "NOT_ADMITTED")
 sql("update checkin.settings set value='15' where key='rate_limit_per_10s'")
 rl = None
@@ -272,19 +363,28 @@ for i in range(30):
 sql("update checkin.settings set value='100000' where key='rate_limit_per_10s'")
 check("T15b Tezlik cheklovi: bitta xodim juda ko'p so'rov yuborsa to'xtatiladi (raqam terib chiqishga qarshi)", rl and rl[1] == "RATE_LIMIT", rl)
 
-# oflayn kontingensiya — keyin solishtirish
-rpc(AD, "ci_set_contingency_code", "12345678")
-off_ok = rpc(G1, "ci_admit", str(uuid.uuid4()), U(8000), "G1", "dev-off", "2026-11-25T10:00:00+05:00")
-off_conf = rpc(G2, "ci_admit", str(uuid.uuid4()), U(8000), "G2", "dev-off2", "2026-11-25T10:01:00+05:00")
-cfc = sql("select source from checkin.review_cases where ticket_no='08000'")[0][0]
-check("T19 Oflayn yozuvlar keyin sinxronlanadi: ikkinchi qurilmadagi bir xil bilet 'OFFLINE_CONFLICT' holatiga tushadi",
+# nazoratli favqulodda rejim: faqat Admin belgilagan YAGONA nazoratchi qurilmasi; darvozalar mustaqil oflayn kirita olmaydi
+rpc(AD, "ci_set_contingency_code", "1234567890")
+rpc(AD, "ci_contingency_device_set", "sup-device-0001")
+cg = rpc(G1, "ci_contingency", "sup-device-0001"); cw = rpc(S1, "ci_contingency", "other-device-01"); cr = rpc(S1, "ci_contingency", "sup-device-0001")
+e_gate_off = err(G1, "ci_admit", str(uuid.uuid4()), U(8000), "G1", "sup-device-0001", "2026-11-25T10:00:00+05:00")
+e_sup_off = err(S1, "ci_admit", str(uuid.uuid4()), U(8000), "G1", "other-device-01", "2026-11-25T10:00:00+05:00")
+check("T19a Oflayn kirishni darvoza xodimi yoki belgilanmagan qurilma yubora olmaydi; kod faqat belgilangan nazoratchi qurilmasiga beriladi",
+      not cg["allowed"] and not cw["allowed"] and cr["allowed"] and cr["alg"] == "PBKDF2-SHA256" and cr["iter"] >= 100000
+      and e_gate_off == "CONTINGENCY_DEVICE_ONLY" and e_sup_off == "CONTINGENCY_DEVICE_ONLY", (cg, cw.get("allowed"), e_gate_off, e_sup_off))
+rpc(G1, "ci_admit", str(uuid.uuid4()), U(8001), "G1", "dev-1")                     # aloqa uzilgan paytda boshqa darvoza onlayn kiritgan
+off_ok = rpc(S1, "ci_admit", str(uuid.uuid4()), U(8000), "G1", "sup-device-0001", "2026-11-25T10:00:00+05:00")
+off_conf = rpc(S1, "ci_admit", str(uuid.uuid4()), U(8001), "G1", "sup-device-0001", "2026-11-25T10:01:00+05:00")
+cfc = sql("select source from checkin.review_cases where ticket_no='08001'")[0][0]
+check("T19 Nazoratli oflayn yozuvlar keyin sinxronlanadi: allaqachon kirgan bilet 'OFFLINE_CONFLICT' holatiga tushadi",
       off_ok["decision"] == "ADMITTED" and off_conf["decision"] == "DENIED_ALREADY_ADMITTED" and cfc == "OFFLINE_CONFLICT", cfc)
-check("T19b Kontingensiya kodi bazada ochiq holda saqlanmaydi", "12345678" not in json.dumps(rpc(G1, "ci_contingency")))
+check("T19b Kontingensiya kodi bazada ochiq holda saqlanmaydi (PBKDF2)", "1234567890" not in json.dumps(cr) and len(cr["hash"]) == 64)
 
 # 16. Audit
 acts = {a for (a,) in sql("select distinct action from checkin.audit_log")}
 need = {"ADMISSION_ADMITTED", "ADMISSION_DENIED_ALREADY_ADMITTED", "CASE_UPDATE", "SPARE_ADD", "SPARE_RESERVE", "REPLACEMENT_ISSUE", "STAFF_SET" if False else "SESSIONS_REVOKE",
-        "DISTRIBUTION_IMPORT", "SUPERVISOR_ADMIT", "INVENTORY_BATCH_OPEN", "CONTINGENCY_CODE_SET", "REPORT_EXPORT", "CASE_REFER"}
+        "DISTRIBUTION_IMPORT", "SUPERVISOR_ADMIT", "INVENTORY_BATCH_OPEN", "CONTINGENCY_CODE_SET", "REPORT_EXPORT", "CASE_REFER",
+        "SPARE_FROM_STOCK", "CAPACITY_CHANGE", "ADMISSION_OPEN", "ADMISSION_CLOSE", "CONTINGENCY_DEVICE_SET", "INVENTORY_BATCH_CLOSE"}
 ver = rpc(AD, "ci_audit_verify")
 check("T16 Barcha muhim amallar audit jurnalida; xesh-zanjir butun", need <= acts and ver["ok"], (sorted(need - acts), ver))
 try: sql("update checkin.audit_log set action='X' where id=1"); upd_ok = True
@@ -304,6 +404,91 @@ check("T13d Sektor bo'yicha panel (A403): ajratilgan 320, inventar nusxalari, or
 miss = rpc(S1, "ci_report", "inventory_missing")
 cats = {m["category"] for m in miss}
 check("T10e 'Inventarda yo'q' bilet avtomatik 'bosilmagan' deb hisoblanmaydi — kategoriyalar ajratilgan", {"ADMITTED", "UNKNOWN_NOT_IN_STOCK", "DISTRIBUTED_NOT_IN_STOCK"} <= cats | {"DISTRIBUTED_NOT_IN_STOCK"}, sorted(cats))
+
+
+# ---------------------------------------------------------------- INVENTAR ↔ KIRISH qat'iy ajratish
+e_g_inv = err(G1, "ci_inventory_scan", str(uuid.uuid4()), batch, U(9000), None, None, None, None)
+e_i_adm = err(I1, "ci_admit", str(uuid.uuid4()), U(9000), "G1", "inv-dev-1")
+e_i_lk = err(I1, "ci_lookup", U(9000), "G1", "inv-dev-1")
+e_i_case = err(I1, "ci_cases", None)
+check("T10f Rollar ajratilgan: darvoza xodimi inventar qila olmaydi; inventar xodimi kiritish/ko'rish/holatlarga kira olmaydi",
+      e_g_inv == "ROLE_DENIED" and e_i_adm == "ROLE_DENIED" and e_i_lk == "ROLE_DENIED" and e_i_case == "ROLE_DENIED", (e_g_inv, e_i_adm, e_i_lk, e_i_case))
+def in_mode(mode, q):
+    try:
+        with admin.transaction():
+            with admin.cursor() as k:
+                k.execute("select set_config('checkin.mode', %s, true)", (mode,)); k.execute(q)
+        return "allowed"
+    except psycopg.Error as e: return e.diag.message_primary
+m1 = in_mode("INVENTORY", "update checkin.tickets set status='ADMITTED', admitted_at=now() where ticket_no='09001'")
+m2 = in_mode("INVENTORY", "insert into checkin.admission_events (request_id, credential_type, ticket_no, payload_kind, decision, gate, staff) values (gen_random_uuid(), 'TICKET', '09001', 'TICKET', 'ADMITTED', 'G1', gen_random_uuid())")
+m3 = in_mode("INVENTORY", "update checkin.replacements set reason = reason")
+m4 = in_mode("ADMISSION", "insert into checkin.inventory_scans (request_id, batch_id, ticket_no, payload_kind, operator) values (gen_random_uuid(), %d, '09001', 'TICKET', gen_random_uuid())" % batch)
+src = sql("select string_agg(prosrc, ' ') from pg_proc where proname like 'ci\\_inventory%%'")[0][0].lower()
+static_ok = not re.search(r"update\s+checkin\.tickets|insert\s+into\s+checkin\.admission_events|update\s+checkin\.replacements|checkin\._case_touch", src)
+check("T10g Baza darajasida: INVENTORY rejimida bilet/kirish/almashtirishga yozish taqiqlangan; inventar skanini kirish rejimi yoza olmaydi; inventar funksiyalarida kirish kodi yo'q",
+      m1 == m2 == m3 == "INVENTORY_MODE_CANNOT_TOUCH_ADMISSION" and m4 == "INVENTORY_WRITE_OUTSIDE_INVENTORY_MODE" and static_ok
+      and sql("select status from checkin.tickets where ticket_no='09001'")[0][0] == "NOT_ADMITTED", (m1, m2, m3, m4, static_ok))
+rb2 = rpc(I1, "ci_inventory_batch_open", "Sinov: noto'g'ri QR", "Ombor-2", None, None, None, "inv-dev-1")["id"]
+rj = [rpc(I1, "ci_inventory_scan", str(uuid.uuid4()), rb2, x, None, "SCANNER", "inv-dev-1", None)["result"]
+      for x in ["https://dusel.pages.dev/gold?code=0001", "https://dusel.pages.dev/gal?code=0005", "salom dunyo", "https://dusel.pages.dev/?code=11223"]]
+rej = rpc(I1, "ci_inventory_report", "rejected_scans", None)
+check("T10h Noma'lum/noto'g'ri QR va kuponlar inventarda alohida qayd etiladi (bilet sifatida sanalmaydi)",
+      rj == ["FOREIGN", "FOREIGN", "INVALID", "INVALID"] and len(rej) == 4, rj)
+d1 = rpc(I1, "ci_inventory_scan", str(uuid.uuid4()), rb2, U(9100), None, "SCANNER", "inv-dev-1", None)
+d2 = rpc(I1, "ci_inventory_scan", str(uuid.uuid4()), rb2, U(9100), None, "SCANNER", "inv-dev-1", None)
+d3 = rpc(I1, "ci_inventory_scan", str(uuid.uuid4()), rb2, U(9100), None, "SCANNER", "inv-dev-1", None)
+rid_off = str(uuid.uuid4())
+o1 = rpc(I1, "ci_inventory_scan", rid_off, rb2, U(9101), None, "CAMERA", "inv-dev-1", "2026-11-25T09:00:00+05:00")
+o2 = rpc(I1, "ci_inventory_scan", rid_off, rb2, U(9101), None, "CAMERA", "inv-dev-1", "2026-11-25T09:00:00+05:00")
+check("T10i Bir xil bilet 3 marta → nusxa 1→2→3, birinchi dublikat darhol belgilanadi; oflayn navbat qayta yuborsa nusxa ko'paymaydi",
+      (d1["copies_total"], d2["copies_total"], d3["copies_total"]) == (1, 2, 3) and not d1["first_duplicate"] and d2["first_duplicate"] and not d3["first_duplicate"]
+      and o2["replay"] and o2["copies_total"] == 1 and o1["scan_id"] == o2["scan_id"], (d1["copies_total"], d2["copies_total"], d3["copies_total"], o2["replay"]))
+
+# ---------------------------------------------------------------- fizik solishtiruv (sinov ma'lumoti, A405)
+rec = {x["sector"]: x for x in rpc(I1, "ci_reconciliation", "A405")}["A405"]
+sh = {x["sheet"]: x for x in rpc(I1, "ci_reconciliation_sheets", "A405")}
+notobs = rpc(I1, "ci_inventory_report", "not_observed", "A405")
+cats = {}
+for x in notobs: cats[x["category"]] = cats.get(x["category"], 0) + 1
+check("T21 Solishtiruv (A405): toifalar ajratilgan, noma'lum 'sotilmagan' emas; dublikatli varaq 'REPRINTED_SUSPECTED'",
+      rec["allocated"] == 445 and rec["retired_to_spare"] == 1 and rec["in_stock_confirmed"] == 5 and rec["unknown"] == 445 - 7
+      and rec["distributed_confirmed"] == 1 and rec["duplicate_numbers"] == 1 and rec["surplus_copies"] == 1 and rec["reprinted_sheets"] == [1110]
+      and sh[1110]["status"] == "REPRINTED_SUSPECTED" and sh[1112]["status"] == "PARTIAL_SHEET_IN_STOCK" and sh[1111]["status"] in ("PARTIAL_SHEET_IN_STOCK",)
+      and "NOT_OBSERVED_UNKNOWN" in cats and "NOT_OBSERVED_DISTRIBUTED" in cats,
+      {k: rec[k] for k in ("allocated", "in_stock_confirmed", "unknown", "distributed_confirmed", "retired_to_spare", "reprinted_sheets", "sheets_by_status")})
+
+# ---------------------------------------------------------------- 11 222 + dublikatlar + kuponlar inventarda: KIRISH HOLATI O'ZGARMAYDI
+def snapshot():
+    return sql("""select md5(string_agg(ticket_no || status || coalesce(admitted_at::text, '') || coalesce(admit_request::text, ''), ',' order by ticket_no)),
+                         (select count(*) from checkin.admission_events), (select count(*) from checkin.review_cases),
+                         (select md5(coalesce(string_agg(id::text || status, ',' order by id), '')) from checkin.replacements)
+                  from checkin.tickets""")[0]
+before = snapshot()
+sweep = rpc(I2, "ci_inventory_batch_open", "To'liq sinov supurish", "Ombor-3", None, None, None, "inv-dev-2")["id"]
+payloads = [U(n) for n in range(1, 11223)] + [U(n) for n in range(1, 11223, 22)] + ["https://dusel.pages.dev/silver?code=0002", tok, "https://ravshanrakhmatullaev.github.io/dusel/?code=00330", "https://dusel.pages.dev/ticket?code=00330"]
+def inv_worker(chunk):
+    c = conn("inv2"); out = 0
+    for x in chunk:
+        out += rpc(c, "ci_inventory_scan", str(uuid.uuid4()), sweep, x, None, "SCANNER", "inv-dev-2", None)["result"] == "RECORDED"
+    c.close(); return out
+t0 = time.time()
+with ThreadPoolExecutor(8) as ex: recorded = sum(ex.map(inv_worker, [payloads[i::8] for i in range(8)]))
+after = snapshot()
+check("T10j %d ta inventar skani (barcha 11 222 + dublikatlar + eski URL formatlari + kupon + almashtirish QR): kirish holati, hodisalar, holatlar va almashtirishlar O'ZGARMADI" % len(payloads),
+      before == after and recorded == len(payloads) - 2, dict(recorded=recorded, seconds=round(time.time() - t0, 1), events=after[1]))
+
+# ---------------------------------------------------------------- migratsiyalarni qayta qo'llash: ma'lumot va kirish holati saqlanadi
+import subprocess, os
+snap_m = snapshot(); adm_before = sql("select value::text from checkin.settings where key='admission_open'")[0][0]
+here = os.path.dirname(os.path.abspath(__file__))
+outs = [subprocess.run(["psql", DSN, "-v", "ON_ERROR_STOP=1", "-q", "-f", os.path.join(here, "..", "sql", f)], capture_output=True, text=True)
+        for f in ["001_checkin_schema.sql", "002_checkin_functions.sql", "003_seed_tickets.sql", "004_settings_seed.sql", "005_print_sheets.sql"]]
+check("T22 Migratsiyalarni qayta qo'llash xavfsiz: biletlar, kirish holati (admission_open), sig'im o'zgarmaydi",
+      all(o.returncode == 0 for o in outs) and snapshot() == snap_m and cap_now() == 11222
+      and sql("select value::text from checkin.settings where key='admission_open'")[0][0] == adm_before
+      and sql("select count(*) from pg_proc where proname = 'ci_issue_replacement'")[0][0] == 1,
+      [o.stderr[-200:] for o in outs if o.returncode])
 
 json.dump(R, open("db_test_results.json", "w"), ensure_ascii=False, indent=1)
 print(f"\n{sum(r['ok'] for r in R)}/{len(R)} PASS")

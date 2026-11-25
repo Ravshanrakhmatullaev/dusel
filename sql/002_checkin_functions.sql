@@ -73,7 +73,7 @@ $$;
 create or replace function checkin._copies(p_ticket text) returns int
 language sql stable security definer set search_path = checkin, pg_temp as $$
   select count(*)::int from checkin.inventory_scans s
-  where s.ticket_no = p_ticket and not exists (select 1 from checkin.inventory_voids v where v.scan_id = s.id)
+  where s.ticket_no = p_ticket and s.ticket_no is not null and not exists (select 1 from checkin.inventory_voids v where v.scan_id = s.id)
 $$;
 
 create or replace function checkin._tz(t timestamptz) returns text language sql immutable as $$
@@ -87,7 +87,7 @@ begin
   select id into v_case from checkin.review_cases where ticket_no = t.ticket_no and status in ('OPEN', 'IN_REVIEW', 'ESCALATED_NO_SEAT') limit 1;
   j := jsonb_build_object(
     'type', 'TICKET', 'ticket_no', t.ticket_no, 'zone', t.zone, 'kind', t.kind, 'sector', t.sector,
-    'row', t.row_no, 'seat', t.seat_no, 'status', t.status,
+    'row', t.row_no, 'seat', t.seat_no, 'status', t.status, 'seat_key', t.seat_key, 'print_sheet', t.print_page,
     'admitted_at', checkin._tz(t.admitted_at), 'admitted_gate', t.admitted_gate,
     'admitted_by', (select username from checkin.staff where user_id = t.admitted_by),
     'distribution', checkin._dist(t.ticket_no), 'inventory_copies', checkin._copies(t.ticket_no),
@@ -159,7 +159,7 @@ create or replace function public.ci_me() returns jsonb
 language plpgsql security definer set search_path = checkin, pg_temp as $$
 declare me checkin.staff;
 begin
-  me := checkin._me(array['GATE', 'SUPERVISOR', 'ADMIN']);
+  me := checkin._me(array['INVENTORY', 'GATE', 'SUPERVISOR', 'ADMIN']);
   return jsonb_build_object('username', me.username, 'display_name', me.display_name, 'role', me.role,
     'environment', checkin._setting('environment'), 'event', checkin._setting('event_label'),
     'admission_open', checkin._setting('admission_open'),
@@ -205,14 +205,19 @@ declare
   v_decision text; v_case bigint; v_replay boolean := false; v_cred jsonb; v_prev jsonb; v_hold boolean;
 begin
   me := checkin._me(array['GATE', 'SUPERVISOR', 'ADMIN']);
+  perform set_config('checkin.mode', 'ADMISSION', true);
   if p_request is null then raise exception 'REQUEST_ID_REQUIRED'; end if;
   -- 1) shu so'rov avval bajarilgan bo'lsa — aynan o'sha natijani qaytaramiz (qayta yuborish / ikki marta bosish)
   select * into ev from checkin.admission_events where request_id = p_request;
   if found then return checkin._event_json(ev) || jsonb_build_object('replay', true); end if;
   perform checkin._rate(me);
   perform checkin._gate_ok(p_gate);
-  if p_offline_at is not null and (p_offline_at > now() + interval '5 minutes' or p_offline_at < now() - interval '2 days') then
-    raise exception 'OFFLINE_TIME_INVALID';
+  if p_offline_at is not null then
+    -- nazoratli favqulodda rejim: faqat Admin belgilagan YAGONA qurilma va faqat nazoratchi/admin (darvozalar mustaqil oflayn kirita olmaydi)
+    if me.role not in ('SUPERVISOR', 'ADMIN') or p_device is distinct from (checkin._setting('contingency_device') #>> '{}') then
+      raise exception 'CONTINGENCY_DEVICE_ONLY' using hint = 'Oflayn yozuvni faqat belgilangan nazoratchi qurilmasi yubora oladi';
+    end if;
+    if p_offline_at > now() + interval '5 minutes' or p_offline_at < now() - interval '2 days' then raise exception 'OFFLINE_TIME_INVALID'; end if;
   end if;
   pr := checkin._parse(p_payload);
   v_hold := coalesce(checkin._setting('block_held_stock')::text::boolean, true);
@@ -369,6 +374,7 @@ language plpgsql security definer set search_path = checkin, pg_temp as $$
 declare me checkin.staff; c checkin.review_cases; t checkin.tickets; ev checkin.admission_events;
 begin
   me := checkin._me(array['SUPERVISOR', 'ADMIN']);
+  perform set_config('checkin.mode', 'ADMISSION', true);
   select * into ev from checkin.admission_events where request_id = p_request;
   if found then return checkin._event_json(ev) || jsonb_build_object('replay', true); end if;
   perform checkin._gate_ok(p_gate);
@@ -427,10 +433,12 @@ begin
   if length(coalesce(p_note, '')) < 5 then raise exception 'NOTE_REQUIRED' using hint = 'Joy qanday tekshirilganini yozing'; end if;
   v_key := upper(p_kind) || ':' || upper(p_sector) || ':' || p_row || ':' || p_seat;
   select * into s from checkin.seats where seat_key = v_key for update;
-  if found then
+  if found and s.origin = 'MASTER' then
     if not checkin._seat_free(v_key) then
       raise exception 'SEAT_OCCUPIED' using hint = 'Bu joy amaldagi biletga yoki almashtirishga biriktirilgan';
     end if;
+    raise exception 'USE_STOCK_RETIREMENT' using hint = 'Asl joy faqat isbot bilan (ci_spare_from_stock) zaxiraga o''tadi';
+  elsif found then
     if s.spare_status <> 'NONE' then raise exception 'ALREADY_SPARE'; end if;
     update checkin.seats set spare_status = 'AVAILABLE', spare_note = p_note, spare_verified_by = me.user_id, spare_verified_at = now()
      where seat_key = v_key returning * into s;
@@ -438,8 +446,9 @@ begin
     insert into checkin.seats (seat_key, kind, zone, sector, row_no, seat_no, origin, spare_status, spare_note, spare_verified_by, spare_verified_at)
     values (v_key, upper(p_kind), p_zone, upper(p_sector), p_row, p_seat, 'EXTRA', 'AVAILABLE', p_note, me.user_id, now()) returning * into s;
   end if;
-  perform checkin._audit(me, 'SPARE_ADD', 'seat', v_key, jsonb_build_object('origin', s.origin, 'note', p_note));
-  return to_jsonb(s);
+  perform checkin._audit(me, 'SPARE_ADD', 'seat', v_key, jsonb_build_object('origin', s.origin, 'note', p_note,
+          'warning', 'EXTRA joy sig''imni oshirmaydi; unga almashtirish faqat sig''imda bo''sh o''rin bo''lsa beriladi'));
+  return to_jsonb(s) || jsonb_build_object('headroom', checkin._setting('capacity')::text::int - checkin._entitlements());
 end $$;
 
 create or replace function public.ci_admin_spare_remove(p_seat_key text, p_note text) returns jsonb
@@ -482,37 +491,56 @@ begin
   return to_jsonb(s);
 end $$;
 
-create or replace function public.ci_issue_replacement(p_case bigint, p_seat_key text, p_reason text, p_evidence text) returns jsonb
+create or replace function public.ci_issue_replacement(p_case bigint, p_seat_key text, p_reason text, p_evidence text, p_supersede boolean default false)
+returns jsonb
 language plpgsql security definer set search_path = checkin, extensions, pg_temp as $$
-declare me checkin.staff; c checkin.review_cases; s checkin.seats; v_token text; r checkin.replacements; v_cap int;
+declare me checkin.staff; c checkin.review_cases; s checkin.seats; t checkin.tickets; v_token text; r checkin.replacements;
+        v_cap int; v_after int; v_same_seat boolean := false;
 begin
   me := checkin._me(array['SUPERVISOR', 'ADMIN']);
   if length(coalesce(p_reason, '')) < 5 or length(coalesce(p_evidence, '')) < 5 then raise exception 'REASON_AND_EVIDENCE_REQUIRED'; end if;
   select * into c from checkin.review_cases where id = p_case and status in ('OPEN', 'IN_REVIEW', 'ESCALATED_NO_SEAT') for update;
   if not found then raise exception 'CASE_NOT_FOUND_OR_CLOSED'; end if;
+  if p_supersede then
+    -- asl bilet hali kiritilmagan: yangi xavfsiz QR uning O'RNIGA beriladi (shikastlangan/yo'qolgan bilet). Ruxsatlar soni o'zgarmaydi.
+    if c.ticket_no is null then raise exception 'NO_ORIGINAL_TICKET'; end if;
+    select * into t from checkin.tickets where ticket_no = c.ticket_no for update;
+    if t.status not in ('NOT_ADMITTED', 'HELD_FOR_REVIEW') then
+      raise exception 'ORIGINAL_NOT_SUPERSEDABLE' using hint = 'Asl bilet holati: ' || t.status;
+    end if;
+    v_same_seat := (p_seat_key = t.seat_key);
+  end if;
   select * into s from checkin.seats where seat_key = p_seat_key for update;
-  if not found or s.spare_status <> 'RESERVED' or s.reserved_case is distinct from p_case then
+  if not found then raise exception 'SEAT_NOT_FOUND'; end if;
+  if not v_same_seat and (s.spare_status <> 'RESERVED' or s.reserved_case is distinct from p_case) then
     raise exception 'SEAT_NOT_RESERVED_FOR_CASE' using hint = 'Avval joyni shu holat uchun band qiling';
   end if;
-  if not checkin._seat_free(p_seat_key) then raise exception 'SEAT_OCCUPIED'; end if;
   perform pg_advisory_xact_lock(777001);                                    -- sig'im tekshiruvi ketma-ket
   v_cap := coalesce(checkin._setting('capacity')::text::int, 11222);
-  if checkin._entitlements() + 1 > v_cap then
-    -- xato qaytaramiz (exception emas), shunda holat 'ESCALATED_NO_SEAT' bo'lib saqlanadi
+  v_after := checkin._entitlements() + 1 - case when p_supersede then 1 else 0 end;
+  if v_after > v_cap then
+    -- sig'im OSHIRILMAYDI: holat tashkilotchiga o'tadi (exception emas — holat saqlanadi)
     update checkin.review_cases set status = 'ESCALATED_NO_SEAT', resolution_note = 'Sig''im to''lgan — tashkilotchi qarori kerak' where id = p_case;
     perform checkin._audit(me, 'REPLACEMENT_CAPACITY_BLOCK', 'case', p_case::text, jsonb_build_object('capacity', v_cap, 'entitlements', checkin._entitlements()));
     return jsonb_build_object('error', 'CAPACITY_EXCEEDED', 'message', 'Ruxsat etilgan sig''im to''lgan — tashkilotchi qarori kerak', 'case_id', p_case);
   end if;
+  if p_supersede then
+    update checkin.tickets set status = 'CANCELLED_BY_AUTHORIZED_SUPERVISOR', status_changed_at = now(), status_changed_by = me.user_id,
+           status_reason = 'SUPERSEDED_BY_REPLACEMENT case #' || p_case || ': ' || p_reason, superseded_by_case = p_case
+     where ticket_no = t.ticket_no;
+  end if;
+  if not checkin._seat_free(p_seat_key) then raise exception 'SEAT_OCCUPIED'; end if;
   v_token := translate(encode(extensions.gen_random_bytes(18), 'base64'), '+/', '-_');   -- 144 bit, taxmin qilib bo'lmaydi
   insert into checkin.replacements (token_hash, token_hint, original_ticket, case_id, seat_key, reason, evidence_summary, issued_by)
   values (encode(extensions.digest(v_token, 'sha256'), 'hex'), right(v_token, 4), c.ticket_no, p_case, p_seat_key, p_reason, p_evidence, me.user_id)
   returning * into r;
-  update checkin.seats set spare_status = 'ASSIGNED' where seat_key = p_seat_key;
+  update checkin.seats set spare_status = 'ASSIGNED', reserved_case = p_case where seat_key = p_seat_key;
   update checkin.review_cases set status = 'RESOLVED_REPLACEMENT', evidence_summary = p_evidence, resolution_note = p_reason,
          resolved_by = me.user_id, resolved_at = now() where id = p_case;
   perform checkin._audit(me, 'REPLACEMENT_ISSUE', 'replacement', r.id::text,
-          jsonb_build_object('case', p_case, 'original_ticket', c.ticket_no, 'seat', p_seat_key, 'reason', p_reason, 'evidence', p_evidence, 'token_hint', r.token_hint));
-  return checkin._repl_json(r) || jsonb_build_object('payload', 'DUSELR1:' || v_token,
+          jsonb_build_object('case', p_case, 'original_ticket', c.ticket_no, 'seat', p_seat_key, 'supersede', p_supersede,
+                             'reason', p_reason, 'evidence', p_evidence, 'token_hint', r.token_hint));
+  return checkin._repl_json(r) || jsonb_build_object('payload', 'DUSELR1:' || v_token, 'superseded_original', p_supersede,
          'notice', 'Token faqat hozir ko''rsatiladi — QR''ni chop eting yoki saqlang');
 end $$;
 
@@ -531,13 +559,18 @@ begin
 end $$;
 
 -- ============================================================ INVENTAR (kirishga ta'sir qilmaydi)
-create or replace function public.ci_inventory_batch_open(p_name text, p_location text) returns jsonb
+drop function if exists public.ci_inventory_batch_open(text, text);
+create or replace function public.ci_inventory_batch_open(p_name text, p_location text, p_sector text default null, p_box text default null, p_stack text default null, p_device text default null) returns jsonb
 language plpgsql security definer set search_path = checkin, pg_temp as $$
 declare me checkin.staff; b checkin.inventory_batches;
 begin
-  me := checkin._me(array['SUPERVISOR', 'ADMIN']);
-  insert into checkin.inventory_batches (name, location, created_by) values (left(p_name, 100), left(p_location, 100), me.user_id) returning * into b;
-  perform checkin._audit(me, 'INVENTORY_BATCH_OPEN', 'batch', b.id::text, jsonb_build_object('name', p_name, 'location', p_location));
+  me := checkin._me(array['INVENTORY', 'SUPERVISOR', 'ADMIN']);
+  perform set_config('checkin.mode', 'INVENTORY', true);
+  if length(btrim(coalesce(p_name, ''))) < 2 then raise exception 'NAME_REQUIRED'; end if;
+  insert into checkin.inventory_batches (name, location, sector, box, stack, device, created_by)
+  values (left(btrim(p_name), 100), left(p_location, 100), nullif(upper(btrim(coalesce(p_sector, ''))), ''), left(nullif(btrim(coalesce(p_box, '')), ''), 60),
+          left(nullif(btrim(coalesce(p_stack, '')), ''), 60), left(p_device, 80), me.user_id) returning * into b;
+  perform checkin._audit(me, 'INVENTORY_BATCH_OPEN', 'batch', b.id::text, jsonb_build_object('name', p_name, 'location', p_location, 'sector', b.sector, 'box', b.box, 'stack', b.stack));
   return to_jsonb(b);
 end $$;
 
@@ -545,10 +578,13 @@ create or replace function public.ci_inventory_batch_close(p_batch bigint) retur
 language plpgsql security definer set search_path = checkin, pg_temp as $$
 declare me checkin.staff; b checkin.inventory_batches;
 begin
-  me := checkin._me(array['SUPERVISOR', 'ADMIN']);
-  update checkin.inventory_batches set closed_at = now() where id = p_batch and closed_at is null returning * into b;
-  if not found then raise exception 'BATCH_NOT_OPEN'; end if;
-  perform checkin._audit(me, 'INVENTORY_BATCH_CLOSE', 'batch', p_batch::text, '{}');
+  me := checkin._me(array['INVENTORY', 'SUPERVISOR', 'ADMIN']);
+  perform set_config('checkin.mode', 'INVENTORY', true);
+  update checkin.inventory_batches set closed_at = now()
+   where id = p_batch and closed_at is null and (created_by = me.user_id or me.role in ('SUPERVISOR', 'ADMIN')) returning * into b;
+  if not found then raise exception 'BATCH_NOT_OPEN' using hint = 'Partiya yopiq yoki boshqa xodimniki'; end if;
+  perform checkin._audit(me, 'INVENTORY_BATCH_CLOSE', 'batch', p_batch::text,
+          jsonb_build_object('scans', (select count(*) from checkin.inventory_scans where batch_id = p_batch)));
   return to_jsonb(b);
 end $$;
 
@@ -556,44 +592,62 @@ create or replace function public.ci_inventory_batches() returns jsonb
 language plpgsql security definer set search_path = checkin, pg_temp as $$
 declare me checkin.staff;
 begin
-  me := checkin._me(array['GATE', 'SUPERVISOR', 'ADMIN']);
-  return (select coalesce(jsonb_agg(jsonb_build_object('id', b.id, 'name', b.name, 'location', b.location, 'open', b.closed_at is null,
-            'created_at', checkin._tz(b.created_at),
-            'scans', (select count(*) from checkin.inventory_scans s where s.batch_id = b.id and not exists (select 1 from checkin.inventory_voids v where v.scan_id = s.id)))
+  me := checkin._me(array['INVENTORY', 'SUPERVISOR', 'ADMIN']);
+  return (select coalesce(jsonb_agg(jsonb_build_object('id', b.id, 'name', b.name, 'location', b.location, 'sector', b.sector, 'box', b.box,
+            'stack', b.stack, 'open', b.closed_at is null, 'created_at', checkin._tz(b.created_at), 'closed_at', checkin._tz(b.closed_at),
+            'operator', (select username from checkin.staff where user_id = b.created_by), 'mine', b.created_by = me.user_id,
+            'scans', (select count(*) from checkin.inventory_scans s where s.batch_id = b.id and s.ticket_no is not null and not exists (select 1 from checkin.inventory_voids v where v.scan_id = s.id)),
+            'rejected', (select count(*) from checkin.inventory_scans s where s.batch_id = b.id and s.ticket_no is null))
             order by b.id desc), '[]') from checkin.inventory_batches b);
 end $$;
 
-create or replace function public.ci_inventory_scan(p_request uuid, p_batch bigint, p_payload text, p_seat_note text default null) returns jsonb
+drop function if exists public.ci_inventory_scan(uuid, bigint, text, text);
+create or replace function public.ci_inventory_scan(p_request uuid, p_batch bigint, p_payload text, p_seat_note text default null,
+                                                    p_source text default null, p_device text default null, p_client_at timestamptz default null) returns jsonb
 language plpgsql security definer set search_path = checkin, pg_temp as $$
+-- FAQAT inventar: biletlar, kirish hodisalari, almashtirishlar va holatlarga TEGMAYDI (bundan tashqari _mode_guard trigger buni bazada taqiqlaydi)
 declare me checkin.staff; pr record; t checkin.tickets; s checkin.inventory_scans; w jsonb := '[]'::jsonb; v_copies int; v_in_batch int;
+        v_replay boolean := false; v_first_dup boolean := false;
 begin
-  me := checkin._me(array['GATE', 'SUPERVISOR', 'ADMIN']);
+  me := checkin._me(array['INVENTORY', 'SUPERVISOR', 'ADMIN']);
+  perform set_config('checkin.mode', 'INVENTORY', true);
   if p_request is null then raise exception 'REQUEST_ID_REQUIRED'; end if;
+  if p_source is not null and p_source not in ('CAMERA', 'SCANNER', 'MANUAL') then raise exception 'SOURCE_INVALID'; end if;
+  if p_client_at is not null and (p_client_at > now() + interval '5 minutes' or p_client_at < now() - interval '30 days') then raise exception 'CLIENT_TIME_INVALID'; end if;
   select * into s from checkin.inventory_scans where request_id = p_request;
-  if not found then
+  if found then
+    v_replay := true;                                      -- oflayn navbat qayta yuborgan: yangi nusxa qo'shilmaydi
+  else
     perform checkin._rate(me);
     if not exists (select 1 from checkin.inventory_batches where id = p_batch and closed_at is null) then raise exception 'BATCH_NOT_OPEN'; end if;
     pr := checkin._parse(p_payload);
-    if pr.kind <> 'TICKET' then
-      return jsonb_build_object('result', pr.kind, 'message', case pr.kind when 'FOREIGN' then 'Kupon/vaucher — bilet emas' else 'Bilet QR emas' end);
-    end if;
-    insert into checkin.inventory_scans (request_id, batch_id, ticket_no, payload_kind, payload_sample, seat_note, seat_mismatch, operator)
-    values (p_request, p_batch, pr.ticket_no, pr.kind, left(p_payload, 120), nullif(btrim(coalesce(p_seat_note, '')), ''),
-            nullif(btrim(coalesce(p_seat_note, '')), '') is not null, me.user_id)
+    insert into checkin.inventory_scans (request_id, batch_id, ticket_no, payload_kind, payload_sample, seat_note, seat_mismatch, operator, device, source, client_at)
+    values (p_request, p_batch, case when pr.kind = 'TICKET' then pr.ticket_no end,
+            case when pr.kind = 'TICKET' then 'TICKET' else pr.kind end, left(p_payload, 120),
+            nullif(btrim(coalesce(p_seat_note, '')), ''), nullif(btrim(coalesce(p_seat_note, '')), '') is not null,
+            me.user_id, left(p_device, 80), p_source, p_client_at)
     on conflict (request_id) do nothing returning * into s;
-    if s.id is null then select * into s from checkin.inventory_scans where request_id = p_request; end if;
-    insert into checkin.scan_log (staff, gate, device, mode, payload_kind, ticket_no, result) values (me.user_id, null, null, 'INVENTORY', pr.kind, pr.ticket_no, 'RECORDED');
+    if s.id is null then select * into s from checkin.inventory_scans where request_id = p_request; v_replay := true; end if;
+    insert into checkin.scan_log (staff, gate, device, mode, payload_kind, ticket_no, result)
+    values (me.user_id, null, left(p_device, 80), 'INVENTORY', pr.kind, pr.ticket_no, 'RECORDED');
+  end if;
+  if s.ticket_no is null then
+    return jsonb_build_object('result', s.payload_kind, 'scan_id', s.id, 'replay', v_replay,
+      'message', case s.payload_kind when 'FOREIGN' then 'GOLD/SILVER/GAL kupon — konsert bileti emas' when 'REPLACEMENT' then 'Almashtirish bileti — inventarga kirmaydi'
+                 else 'Noma''lum yoki noto''g''ri QR' end);
   end if;
   select * into t from checkin.tickets where ticket_no = s.ticket_no;
   v_copies := checkin._copies(t.ticket_no);
   select count(*) into v_in_batch from checkin.inventory_scans x where x.ticket_no = t.ticket_no and x.batch_id = s.batch_id
      and not exists (select 1 from checkin.inventory_voids v where v.scan_id = x.id);
-  if v_copies > 1 then w := w || jsonb_build_object('code', 'DUPLICATE_COPY', 'text', 'Bu raqamning ' || v_copies || '-nusxasi'); end if;
+  v_first_dup := v_copies = 2 and not v_replay;
+  if v_copies > 1 then w := w || jsonb_build_object('code', 'DUPLICATE_COPY', 'text', 'DUBLIKAT: bu raqamning ' || v_copies || '-nusxasi'); end if;
   if t.status = 'ADMITTED' then w := w || jsonb_build_object('code', 'ALREADY_ADMITTED', 'text', 'Bu bilet bilan kirish qayd etilgan!'); end if;
   if checkin._dist(t.ticket_no) = 'DISTRIBUTED' then w := w || jsonb_build_object('code', 'RECORDED_DISTRIBUTED', 'text', 'Tarqatilgan deb qayd etilgan, lekin zaxirada turibdi'); end if;
   if s.seat_mismatch then w := w || jsonb_build_object('code', 'SEAT_MISMATCH', 'text', 'Qog''ozdagi joy masterdan farq qiladi: ' || s.seat_note); end if;
-  return jsonb_build_object('result', 'RECORDED', 'scan_id', s.id, 'credential', checkin._ticket_json(t), 'copies_total', v_copies,
-                            'copies_in_batch', v_in_batch, 'warnings', w);
+  return jsonb_build_object('result', 'RECORDED', 'scan_id', s.id, 'replay', v_replay, 'credential', checkin._ticket_json(t),
+                            'copies_total', v_copies, 'copies_in_batch', v_in_batch, 'first_duplicate', v_first_dup,
+                            'print_sheet', t.print_page, 'warnings', w);
 end $$;
 
 create or replace function public.ci_inventory_void(p_scan bigint, p_reason text) returns jsonb
@@ -601,10 +655,46 @@ language plpgsql security definer set search_path = checkin, pg_temp as $$
 declare me checkin.staff;
 begin
   me := checkin._me(array['SUPERVISOR', 'ADMIN']);
+  perform set_config('checkin.mode', 'INVENTORY', true);
   if length(coalesce(p_reason, '')) < 3 then raise exception 'REASON_REQUIRED'; end if;
+  if not exists (select 1 from checkin.inventory_scans where id = p_scan) then raise exception 'SCAN_NOT_FOUND'; end if;
   insert into checkin.inventory_voids (scan_id, reason, voided_by) values (p_scan, p_reason, me.user_id);
   perform checkin._audit(me, 'INVENTORY_VOID', 'inventory_scan', p_scan::text, jsonb_build_object('reason', p_reason));
   return jsonb_build_object('voided', p_scan);
+end $$;
+
+-- Inventar xodimi uchun hisobotlar (kirish ma'lumotlarini o'zgartirmaydi; tarqatish oluvchilari ko'rsatilmaydi)
+create or replace function public.ci_inventory_report(p_name text, p_sector text default null) returns jsonb
+language plpgsql security definer set search_path = checkin, pg_temp as $$
+declare me checkin.staff; v jsonb;
+begin
+  me := checkin._me(array['INVENTORY', 'SUPERVISOR', 'ADMIN']);
+  if p_name not in ('observed', 'not_observed', 'duplicates', 'rejected_scans', 'scans') then raise exception 'UNKNOWN_REPORT'; end if;
+  with lc as materialized (select * from checkin._live_copies()),
+  dist as materialized (select distinct on (ticket_no) ticket_no, status from checkin.distribution_records order by ticket_no, id desc),
+  tk as materialized (select t.ticket_no, t.kind, t.zone, t.sector, t.row_no, t.seat_no, t.print_page, t.print_slot, t.status,
+                coalesce(d.status, 'UNKNOWN') dist, coalesce(lc.copies, 0) copies,
+                checkin._recon_category(t.status, coalesce(d.status, 'UNKNOWN'), coalesce(lc.copies, 0), t.retired_to_spare_at is not null) cat
+         from checkin.tickets t left join dist d using (ticket_no) left join lc using (ticket_no) where p_sector is null or t.sector = upper(p_sector))
+  select case p_name
+    when 'observed' then (select jsonb_agg(to_jsonb(tk) - 'cat' order by ticket_no) from tk where copies > 0)
+    when 'not_observed' then (select jsonb_agg(jsonb_build_object('ticket_no', ticket_no, 'kind', kind, 'sector', sector, 'row', row_no, 'seat', seat_no,
+         'print_sheet', print_page, 'distribution', dist, 'status', status,
+         'category', case when status = 'ADMITTED' then 'ADMITTED' when dist = 'DISTRIBUTED' then 'NOT_OBSERVED_DISTRIBUTED'
+                          when dist in ('HELD', 'RETURNED') then 'NOT_OBSERVED_HELD_BUT_MISSING' else 'NOT_OBSERVED_UNKNOWN' end) order by ticket_no) from tk where copies = 0)
+    when 'duplicates' then (select jsonb_agg(to_jsonb(tk) - 'cat' order by ticket_no) from tk where copies > 1)
+    when 'rejected_scans' then (select jsonb_agg(jsonb_build_object('scan_id', s.id, 'at', checkin._tz(s.at), 'batch', s.batch_id, 'kind', s.payload_kind,
+         'payload', s.payload_sample, 'operator', (select username from checkin.staff where user_id = s.operator)) order by s.id)
+         from checkin.inventory_scans s where s.ticket_no is null)
+    when 'scans' then (select jsonb_agg(jsonb_build_object('scan_id', s.id, 'at', checkin._tz(s.at), 'client_at', checkin._tz(s.client_at), 'batch', s.batch_id,
+         'batch_name', b.name, 'box', b.box, 'stack', b.stack, 'ticket_no', s.ticket_no, 'kind', s.payload_kind, 'source', s.source, 'device', s.device,
+         'seat_note', s.seat_note, 'voided', exists (select 1 from checkin.inventory_voids v where v.scan_id = s.id),
+         'operator', (select username from checkin.staff where user_id = s.operator)) order by s.id)
+         from checkin.inventory_scans s join checkin.inventory_batches b on b.id = s.batch_id
+         where p_sector is null or b.sector = upper(p_sector) or s.ticket_no in (select ticket_no from tk))
+    end into v;
+  perform checkin._audit(me, 'INVENTORY_REPORT_EXPORT', 'report', p_name, jsonb_build_object('sector', p_sector));
+  return coalesce(v, '[]'::jsonb);
 end $$;
 
 -- ============================================================ ADMIN: tarqatish importi
@@ -751,6 +841,21 @@ begin
            'last_scan', (select checkin._tz(max(at)) from checkin.scan_log l where l.staff = s.user_id)) order by role, username), '[]') from checkin.staff s);
 end $$;
 
+-- Supabase Auth sessiyalari va refresh tokenlarini bekor qilish (aks holda eski refresh token yangi access token olishi mumkin)
+create or replace function checkin._kill_auth_sessions(p_users uuid[]) returns int
+language plpgsql security definer set search_path = checkin, pg_temp as $$
+declare n int := 0;
+begin
+  if to_regclass('auth.refresh_tokens') is not null then
+    execute 'update auth.refresh_tokens set revoked = true where user_id = any ($1) and not revoked' using (select array_agg(x::text) from unnest(p_users) x);
+  end if;
+  if to_regclass('auth.sessions') is not null then
+    execute 'delete from auth.sessions where user_id = any ($1)' using p_users;
+    get diagnostics n = row_count;
+  end if;
+  return n;
+end $$;
+
 create or replace function public.ci_staff_set(p_email text, p_display text, p_role text, p_active boolean) returns jsonb
 language plpgsql security definer set search_path = checkin, auth, pg_temp as $$
 declare me checkin.staff; v_uid uuid; s checkin.staff;
@@ -764,6 +869,7 @@ begin
   on conflict (user_id) do update set display_name = excluded.display_name, role = excluded.role, active = excluded.active,
      sessions_valid_after = case when excluded.active = false or excluded.role <> checkin.staff.role then now() else checkin.staff.sessions_valid_after end
   returning * into s;
+  if not s.active or s.sessions_valid_after > now() - interval '1 second' then perform checkin._kill_auth_sessions(array[s.user_id]); end if;
   perform checkin._audit(me, 'STAFF_SET', 'staff', s.username, jsonb_build_object('role', p_role, 'active', p_active));
   return jsonb_build_object('username', s.username, 'role', s.role, 'active', s.active);
 end $$;
@@ -775,6 +881,7 @@ begin
   me := checkin._me(array['ADMIN']);
   update checkin.staff set sessions_valid_after = now() where username = lower(p_username) or p_username = '*';
   get diagnostics n = row_count;
+  perform checkin._kill_auth_sessions(array(select user_id from checkin.staff where username = lower(p_username) or p_username = '*'));
   perform checkin._audit(me, 'SESSIONS_REVOKE', 'staff', p_username, jsonb_build_object('count', n));
   return jsonb_build_object('revoked', n);
 end $$;
@@ -795,10 +902,12 @@ language plpgsql security definer set search_path = checkin, pg_temp as $$
 declare me checkin.staff; v_old jsonb;
 begin
   me := checkin._me(array['ADMIN']);
-  if p_key not in ('admission_open', 'block_held_stock', 'capacity', 'rate_limit_per_10s', 'event_label') then raise exception 'SETTING_NOT_ALLOWED'; end if;
-  if p_key in ('admission_open', 'block_held_stock') and jsonb_typeof(p_value) <> 'boolean' then raise exception 'BOOLEAN_REQUIRED'; end if;
-  if p_key in ('capacity', 'rate_limit_per_10s') and jsonb_typeof(p_value) <> 'number' then raise exception 'NUMBER_REQUIRED'; end if;
-  if p_key = 'capacity' and (p_value::text::int) < checkin._entitlements() then raise exception 'CAPACITY_BELOW_ENTITLEMENTS'; end if;
+  if p_key = 'capacity' then raise exception 'USE_CAPACITY_CHANGE' using hint = 'Sig''im faqat tashkilotchi qarori bilan (ci_capacity_change)'; end if;
+  if p_key = 'admission_open' then raise exception 'USE_ADMISSION_SET'; end if;
+  if p_key not in ('block_held_stock', 'rate_limit_per_10s', 'event_label') then raise exception 'SETTING_NOT_ALLOWED'; end if;
+  if p_key = 'block_held_stock' and jsonb_typeof(p_value) <> 'boolean' then raise exception 'BOOLEAN_REQUIRED'; end if;
+  if p_key = 'rate_limit_per_10s' and (jsonb_typeof(p_value) <> 'number' or (p_value::text::numeric) not between 5 and 200) then raise exception 'NUMBER_5_200_REQUIRED'; end if;
+  if p_key = 'event_label' and (jsonb_typeof(p_value) <> 'string' or length(p_value #>> '{}') > 120) then raise exception 'TEXT_REQUIRED'; end if;
   v_old := checkin._setting(p_key);
   insert into checkin.settings (key, value, updated_at, updated_by) values (p_key, p_value, now(), me.user_id)
   on conflict (key) do update set value = excluded.value, updated_at = now(), updated_by = me.user_id;
@@ -807,25 +916,57 @@ begin
 end $$;
 
 -- oflayn favqulodda rejim kodi (faqat tuzli xeshi saqlanadi)
+create or replace function checkin._pbkdf2_sha256(p_pass text, p_salt text, p_iter int) returns text
+language plpgsql immutable security definer set search_path = checkin, extensions, pg_temp as $$
+-- PBKDF2-HMAC-SHA256, bitta 32 baytli blok (WebCrypto deriveBits(256) bilan bir xil)
+declare u bytea; acc bit(256);
+begin
+  u := extensions.hmac(convert_to(p_salt, 'UTF8') || '\x00000001'::bytea, convert_to(p_pass, 'UTF8'), 'sha256');
+  acc := ('x' || encode(u, 'hex'))::bit(256);
+  for i in 2 .. p_iter loop
+    u := extensions.hmac(u, convert_to(p_pass, 'UTF8'), 'sha256');
+    acc := acc # ('x' || encode(u, 'hex'))::bit(256);
+  end loop;
+  return (select string_agg(lpad(to_hex(substring(acc from k * 64 + 1 for 64)::bit(64)::bigint), 16, '0'), '' order by k) from generate_series(0, 3) k);
+end $$;
+
 create or replace function public.ci_set_contingency_code(p_code text) returns jsonb
 language plpgsql security definer set search_path = checkin, extensions, pg_temp as $$
-declare me checkin.staff; v_salt text := encode(extensions.gen_random_bytes(12), 'hex');
+declare me checkin.staff; v_salt text := encode(extensions.gen_random_bytes(16), 'hex'); v_iter int := 300000;
 begin
   me := checkin._me(array['ADMIN']);
-  if p_code !~ '^[0-9]{8,12}$' then raise exception 'CODE_FORMAT' using hint = '8–12 raqam'; end if;
+  if p_code !~ '^[0-9]{10,12}$' then raise exception 'CODE_FORMAT' using hint = '10–12 raqam'; end if;
   insert into checkin.settings (key, value, updated_at, updated_by)
-  values ('contingency', jsonb_build_object('salt', v_salt, 'hash', encode(extensions.digest(v_salt || ':' || p_code, 'sha256'), 'hex')), now(), me.user_id)
+  values ('contingency', jsonb_build_object('alg', 'PBKDF2-SHA256', 'iter', v_iter, 'salt', v_salt, 'hash', checkin._pbkdf2_sha256(p_code, v_salt, v_iter)), now(), me.user_id)
   on conflict (key) do update set value = excluded.value, updated_at = now(), updated_by = me.user_id;
   perform checkin._audit(me, 'CONTINGENCY_CODE_SET', 'setting', 'contingency', '{}');
   return jsonb_build_object('ok', true);
 end $$;
 
-create or replace function public.ci_contingency() returns jsonb
+-- Favqulodda rejim faqat bitta, oldindan belgilangan nazoratchi qurilmasida (mustaqil ko'p darvozali oflayn kirish taqiqlangan)
+create or replace function public.ci_contingency_device_set(p_device text) returns jsonb
 language plpgsql security definer set search_path = checkin, pg_temp as $$
-declare me checkin.staff;
+declare me checkin.staff; v_old jsonb;
+begin
+  me := checkin._me(array['ADMIN']);
+  if p_device is not null and p_device !~ '^[A-Za-z0-9_-]{8,80}$' then raise exception 'DEVICE_INVALID'; end if;
+  v_old := checkin._setting('contingency_device');
+  insert into checkin.settings (key, value, updated_at, updated_by) values ('contingency_device', to_jsonb(p_device), now(), me.user_id)
+  on conflict (key) do update set value = excluded.value, updated_at = now(), updated_by = me.user_id;
+  perform checkin._audit(me, 'CONTINGENCY_DEVICE_SET', 'setting', 'contingency_device', jsonb_build_object('old', v_old, 'new', p_device));
+  return jsonb_build_object('contingency_device', p_device);
+end $$;
+
+drop function if exists public.ci_contingency();
+create or replace function public.ci_contingency(p_device text) returns jsonb
+language plpgsql security definer set search_path = checkin, pg_temp as $$
+declare me checkin.staff; v_dev text := checkin._setting('contingency_device') #>> '{}';
 begin
   me := checkin._me(array['GATE', 'SUPERVISOR', 'ADMIN']);
-  return coalesce(checkin._setting('contingency'), '{}'::jsonb);
+  if me.role not in ('SUPERVISOR', 'ADMIN') or v_dev is null or p_device is distinct from v_dev then
+    return jsonb_build_object('allowed', false);
+  end if;
+  return jsonb_build_object('allowed', true) || coalesce(checkin._setting('contingency'), '{}'::jsonb);
 end $$;
 
 create or replace function public.ci_audit_verify() returns jsonb
@@ -855,6 +996,218 @@ begin
           from (select * from checkin.audit_log order by id desc limit least(greatest(p_limit, 1), 1000)) q);
 end $$;
 
+-- ============================================================ yordamchilar
+create or replace function checkin._live_copies() returns table (ticket_no text, copies int, closed_copies int)
+language sql stable security definer set search_path = checkin, pg_temp as $$
+  select s.ticket_no, count(*)::int, count(*) filter (where b.closed_at is not null)::int
+  from checkin.inventory_scans s join checkin.inventory_batches b on b.id = s.batch_id
+  where s.ticket_no is not null and not exists (select 1 from checkin.inventory_voids v where v.scan_id = s.id)
+  group by s.ticket_no
+$$;
+
+-- Bilet bo'yicha solishtiruv toifasi (bir-birini istisno qiladi). "Noma'lum" hech qachon "sotilmagan" deb hisoblanmaydi.
+create or replace function checkin._recon_category(p_status text, p_dist text, p_copies int, p_retired boolean) returns text
+language sql immutable as $$
+  select case
+    when p_status = 'ADMITTED' then 'ADMITTED'
+    when p_retired then 'RETIRED_TO_SPARE'
+    when p_status = 'CANCELLED_BY_AUTHORIZED_SUPERVISOR' then 'CANCELLED'
+    when p_dist = 'DISTRIBUTED' and p_copies > 0 then 'CONFLICT_DISTRIBUTED_BUT_IN_STOCK'
+    when p_dist = 'DISTRIBUTED' then 'DISTRIBUTED_CONFIRMED'
+    when p_dist in ('HELD', 'RETURNED') and p_copies > 0 then 'IN_STOCK_CONFIRMED'
+    when p_dist in ('HELD', 'RETURNED') then 'HELD_BUT_NOT_FOUND'
+    when p_copies > 0 then 'IN_STOCK_NO_RECORD'
+    else 'UNKNOWN' end
+$$;
+
+-- ============================================================ tasdiqlangan sig'im (faqat tashkilotchi qarori bilan)
+create or replace function public.ci_capacity_change(p_new int, p_approval_ref text, p_confirm text) returns jsonb
+language plpgsql security definer set search_path = checkin, pg_temp as $$
+declare me checkin.staff; v_old int;
+begin
+  me := checkin._me(array['ADMIN']);
+  if length(btrim(coalesce(p_approval_ref, ''))) < 10 then
+    raise exception 'APPROVAL_REF_REQUIRED' using hint = 'Tashkilotchining yozma qarori (sana, raqam, imzolagan shaxs) kerak';
+  end if;
+  if p_confirm is distinct from ('SIGIM ' || p_new) then raise exception 'CONFIRMATION_MISMATCH' using hint = 'Tasdiq matni: SIGIM <yangi qiymat>'; end if;
+  perform pg_advisory_xact_lock(777001);
+  v_old := checkin._setting('capacity')::text::int;
+  if p_new < checkin._entitlements() then raise exception 'CAPACITY_BELOW_ENTITLEMENTS'; end if;
+  if p_new = v_old then raise exception 'NO_CHANGE'; end if;
+  insert into checkin.capacity_changes (old_value, new_value, approval_ref, changed_by) values (v_old, p_new, btrim(p_approval_ref), me.user_id);
+  perform set_config('checkin.capacity_change', 'approved', true);
+  update checkin.settings set value = to_jsonb(p_new), updated_at = now(), updated_by = me.user_id where key = 'capacity';
+  perform set_config('checkin.capacity_change', '', true);
+  perform checkin._audit(me, 'CAPACITY_CHANGE', 'setting', 'capacity', jsonb_build_object('old', v_old, 'new', p_new, 'approval_ref', p_approval_ref));
+  return jsonb_build_object('capacity', p_new, 'old', v_old);
+end $$;
+
+-- ============================================================ kirishni ochish/yopish (avtomatik ochilmaydi)
+create or replace function public.ci_admission_set(p_open boolean, p_confirm text default null) returns jsonb
+language plpgsql security definer set search_path = checkin, pg_temp as $$
+declare me checkin.staff; v_old jsonb;
+begin
+  me := checkin._me(array['ADMIN']);
+  if p_open is null then raise exception 'BOOLEAN_REQUIRED'; end if;
+  if p_open and p_confirm is distinct from 'KIRISHNI OCHISH' then
+    raise exception 'CONFIRMATION_MISMATCH' using hint = 'Ochish uchun tasdiq matni: KIRISHNI OCHISH';
+  end if;
+  v_old := checkin._setting('admission_open');
+  perform set_config('checkin.admission_change', 'approved', true);
+  update checkin.settings set value = to_jsonb(p_open), updated_at = now(), updated_by = me.user_id where key = 'admission_open';
+  perform set_config('checkin.admission_change', '', true);
+  perform checkin._audit(me, case when p_open then 'ADMISSION_OPEN' else 'ADMISSION_CLOSE' end, 'setting', 'admission_open',
+                         jsonb_build_object('old', v_old, 'new', p_open));
+  return jsonb_build_object('admission_open', p_open);
+end $$;
+
+-- ============================================================ isbotli zaxira joy
+-- Tashkilotchi zaxirasidagi biletni (isbot bilan) chiqarib, uning joyini zaxiraga o'tkazish.
+-- Natija: asl bilet bekor bo'ladi (-1 ruxsat), joy zaxiraga o'tadi; keyingi almashtirish (+1) — jami sig'im o'zgarmaydi.
+create or replace function public.ci_spare_from_stock(p_ticket text, p_evidence text) returns jsonb
+language plpgsql security definer set search_path = checkin, pg_temp as $$
+declare me checkin.staff; t checkin.tickets; v_dist text; c record; v_sheet_dup int; s checkin.seats;
+begin
+  me := checkin._me(array['ADMIN']);
+  if length(btrim(coalesce(p_evidence, ''))) < 10 then raise exception 'EVIDENCE_REQUIRED' using hint = 'Isbot: tarqatish hujjati, inventar partiyasi, kim tekshirdi'; end if;
+  select * into t from checkin.tickets where ticket_no = p_ticket for update;
+  if not found then raise exception 'TICKET_NOT_FOUND'; end if;
+  if t.status <> 'NOT_ADMITTED' then raise exception 'TICKET_NOT_ELIGIBLE' using hint = 'Holati: ' || t.status; end if;
+  v_dist := checkin._dist(p_ticket);
+  if v_dist not in ('HELD', 'RETURNED') then
+    raise exception 'NO_DISTRIBUTION_PROOF' using hint = 'Tarqatish yozuvida HELD/RETURNED emas (' || v_dist || ') — noma''lum bilet zaxira bo''lmaydi';
+  end if;
+  select * into c from checkin._live_copies() x where x.ticket_no = p_ticket;
+  if c.ticket_no is null or c.closed_copies < 1 then
+    raise exception 'NOT_PHYSICALLY_VERIFIED' using hint = 'Bilet yopilgan inventar partiyasida skanerlanmagan';
+  end if;
+  if c.copies > 1 then
+    raise exception 'DUPLICATE_COPIES_RISK' using hint = 'Bu raqamning ' || c.copies || ' nusxasi topilgan — boshqa nusxa mijozda bo''lishi mumkin';
+  end if;
+  select count(*) into v_sheet_dup from checkin.tickets x join checkin._live_copies() lc on lc.ticket_no = x.ticket_no
+   where x.print_page = t.print_page and lc.copies > 1;
+  if t.print_page is not null and v_sheet_dup > 0 then
+    raise exception 'SHEET_REPRINT_RISK' using hint = t.print_page || '-varaqda dublikat bor — varaq ikki marta bosilgan bo''lishi mumkin';
+  end if;
+  if exists (select 1 from checkin.admission_events where ticket_no = p_ticket)
+     or exists (select 1 from checkin.review_cases where ticket_no = p_ticket) then
+    raise exception 'GATE_ACTIVITY_EXISTS' using hint = 'Bu bilet darvozada skanerlangan yoki holat ochilgan';
+  end if;
+  update checkin.tickets set status = 'CANCELLED_BY_AUTHORIZED_SUPERVISOR', status_changed_at = now(), status_changed_by = me.user_id,
+         status_reason = 'RETIRED_TO_SPARE: ' || btrim(p_evidence), retired_to_spare_at = now()
+   where ticket_no = p_ticket returning * into t;
+  update checkin.seats set spare_status = 'AVAILABLE', spare_note = 'Zaxiradan chiqarilgan bilet ' || p_ticket || ': ' || btrim(p_evidence),
+         spare_verified_by = me.user_id, spare_verified_at = now()
+   where seat_key = t.seat_key returning * into s;
+  perform checkin._audit(me, 'SPARE_FROM_STOCK', 'ticket', p_ticket, jsonb_build_object('seat', t.seat_key, 'distribution', v_dist,
+          'copies', c.copies, 'print_page', t.print_page, 'evidence', p_evidence));
+  return jsonb_build_object('ticket', checkin._ticket_json(t), 'seat', to_jsonb(s),
+         'notice', 'Asl bilet bekor qilindi; uning nusxasi darvozada skanerlansa — rad etiladi va nazoratga tushadi');
+end $$;
+
+-- ============================================================ boshqaruv paneli: sig'im modeli aniq ko'rsatiladi
+create or replace function public.ci_capacity_status() returns jsonb
+language plpgsql security definer set search_path = checkin, pg_temp as $$
+declare me checkin.staff; v_cap int; v_ent int;
+begin
+  me := checkin._me(array['SUPERVISOR', 'ADMIN']);
+  v_cap := checkin._setting('capacity')::text::int; v_ent := checkin._entitlements();
+  return jsonb_build_object(
+    'approved_capacity', v_cap,
+    'original_tickets', (select count(*) from checkin.tickets),
+    'original_active', (select count(*) from checkin.tickets where status <> 'CANCELLED_BY_AUTHORIZED_SUPERVISOR'),
+    'retired_to_spare', (select count(*) from checkin.tickets where retired_to_spare_at is not null),
+    'superseded', (select count(*) from checkin.tickets where superseded_by_case is not null),
+    'cancelled_other', (select count(*) from checkin.tickets where status = 'CANCELLED_BY_AUTHORIZED_SUPERVISOR' and retired_to_spare_at is null and superseded_by_case is null),
+    'replacements_live', (select count(*) from checkin.replacements where status <> 'CANCELLED'),
+    'entitlements', v_ent, 'headroom', v_cap - v_ent,
+    'extra_seats', (select count(*) from checkin.seats where origin = 'EXTRA'),
+    'capacity_changes', (select coalesce(jsonb_agg(jsonb_build_object('at', checkin._tz(at), 'old', old_value, 'new', new_value, 'approval_ref', approval_ref) order by id), '[]') from checkin.capacity_changes),
+    'invariant_ok', v_ent <= v_cap
+       and not exists (select seat_key from (select seat_key from checkin.tickets where status <> 'CANCELLED_BY_AUTHORIZED_SUPERVISOR'
+                       union all select seat_key from checkin.replacements where status <> 'CANCELLED') a group by seat_key having count(*) > 1));
+end $$;
+
+-- ============================================================ fizik bilet solishtiruvi
+-- Sektor bo'yicha (p_sector null = hamma sektorlar). Toifalar bir-birini istisno qiladi.
+create or replace function public.ci_reconciliation(p_sector text default null) returns jsonb
+language plpgsql security definer set search_path = checkin, pg_temp as $$
+declare me checkin.staff; v jsonb;
+begin
+  me := checkin._me(array['INVENTORY', 'SUPERVISOR', 'ADMIN']);
+  with lc as materialized (select * from checkin._live_copies()),
+  dist as materialized (select distinct on (ticket_no) ticket_no, status from checkin.distribution_records order by ticket_no, id desc),
+  tk as materialized (
+    select t.ticket_no, t.kind, t.zone, t.sector, t.status, t.print_page, coalesce(d.status, 'UNKNOWN') dist, coalesce(lc.copies, 0) copies,
+           checkin._recon_category(t.status, coalesce(d.status, 'UNKNOWN'), coalesce(lc.copies, 0), t.retired_to_spare_at is not null) cat
+    from checkin.tickets t left join dist d using (ticket_no) left join lc using (ticket_no)
+    where p_sector is null or t.print_page in (select print_page from checkin.tickets where sector = upper(p_sector))),
+  shc as materialized (
+    select print_page, case
+             when max(copies) > 1 then 'REPRINTED_SUSPECTED'
+             when count(*) filter (where copies > 0) = count(*) then 'FULL_SHEET_IN_STOCK'
+             when count(*) filter (where copies > 0) > 0 then 'PARTIAL_SHEET_IN_STOCK'
+             when count(*) filter (where dist = 'DISTRIBUTED' or status = 'ADMITTED') = count(*) then 'SHEET_ACCOUNTED_OUTSIDE'
+             when count(*) filter (where dist = 'UNKNOWN') = count(*) then 'SHEET_NOT_FOUND_NO_RECORD'
+             else 'SHEET_NOT_FOUND_PARTIAL_RECORD' end sheet_cat
+    from tk where print_page is not null group by print_page),
+  sp as (select distinct sector, print_page from tk where print_page is not null),
+  ssc as (select sp.sector, shc.sheet_cat, count(*) n from sp join shc using (print_page) group by 1, 2),
+  ss as (select sp.sector,
+           coalesce(jsonb_agg(sp.print_page order by sp.print_page) filter (where shc.sheet_cat = 'REPRINTED_SUSPECTED'), '[]') reprinted_sheets,
+           coalesce(jsonb_agg(sp.print_page order by sp.print_page) filter (where shc.sheet_cat = 'SHEET_NOT_FOUND_NO_RECORD'), '[]') sheets_not_found_no_record
+         from sp join shc using (print_page) group by sp.sector),
+  sso as (select sector, jsonb_object_agg(sheet_cat, n) sheets_by_status from ssc group by sector),
+  agg as (
+    select kind, zone, sector, count(*) allocated, min(ticket_no) first_ticket, max(ticket_no) last_ticket,
+      min(print_page) first_sheet, max(print_page) last_sheet, count(distinct print_page) sheets,
+      count(*) filter (where cat = 'ADMITTED') admitted,
+      count(*) filter (where cat = 'DISTRIBUTED_CONFIRMED') distributed_confirmed,
+      count(*) filter (where cat = 'IN_STOCK_CONFIRMED') in_stock_confirmed,
+      count(*) filter (where cat = 'IN_STOCK_NO_RECORD') in_stock_no_record,
+      count(*) filter (where cat = 'CONFLICT_DISTRIBUTED_BUT_IN_STOCK') conflict_distributed_in_stock,
+      count(*) filter (where cat = 'HELD_BUT_NOT_FOUND') held_but_not_found,
+      count(*) filter (where cat = 'RETIRED_TO_SPARE') retired_to_spare,
+      count(*) filter (where cat = 'CANCELLED') cancelled,
+      count(*) filter (where cat = 'UNKNOWN') unknown,
+      coalesce(sum(copies), 0) physical_copies_scanned,
+      count(*) filter (where copies > 1) duplicate_numbers,
+      coalesce(sum(greatest(copies - 1, 0)), 0) surplus_copies
+    from tk where p_sector is null or sector = upper(p_sector) group by kind, zone, sector)
+  select jsonb_agg(to_jsonb(agg) || jsonb_build_object('sheets_by_status', coalesce(sso.sheets_by_status, '{}'),
+                   'reprinted_sheets', coalesce(ss.reprinted_sheets, '[]'), 'sheets_not_found_no_record', coalesce(ss.sheets_not_found_no_record, '[]'))
+                   order by agg.kind, agg.sector)
+    into v from agg left join ss using (sector) left join sso using (sector);
+  perform checkin._audit(me, 'REPORT_EXPORT', 'report', 'reconciliation', jsonb_build_object('sector', p_sector));
+  return coalesce(v, '[]'::jsonb);
+end $$;
+
+-- Varaq bo'yicha batafsil (bitta sektor)
+create or replace function public.ci_reconciliation_sheets(p_sector text) returns jsonb
+language plpgsql security definer set search_path = checkin, pg_temp as $$
+declare me checkin.staff;
+begin
+  me := checkin._me(array['INVENTORY', 'SUPERVISOR', 'ADMIN']);
+  if p_sector is null or p_sector !~ '^[A-Za-z0-9]{1,8}$' then raise exception 'SECTOR_REQUIRED'; end if;
+  return (with lc as materialized (select * from checkin._live_copies()),
+    dist as materialized (select distinct on (ticket_no) ticket_no, status from checkin.distribution_records order by ticket_no, id desc),
+    tk as (select t.ticket_no, t.sector, t.row_no, t.seat_no, t.print_page, t.print_slot, t.status, coalesce(d.status, 'UNKNOWN') dist,
+                  coalesce(lc.copies, 0) copies,
+                  checkin._recon_category(t.status, coalesce(d.status, 'UNKNOWN'), coalesce(lc.copies, 0), t.retired_to_spare_at is not null) cat
+           from checkin.tickets t left join dist d using (ticket_no) left join lc using (ticket_no)
+           where t.print_page in (select print_page from checkin.tickets where sector = upper(p_sector)))
+    select coalesce(jsonb_agg(jsonb_build_object('sheet', print_page, 'tickets', tickets, 'in_stock', in_stock, 'max_copies', max_copies,
+             'status', case when max_copies > 1 then 'REPRINTED_SUSPECTED' when in_stock = n then 'FULL_SHEET_IN_STOCK'
+                            when in_stock > 0 then 'PARTIAL_SHEET_IN_STOCK' when acc = n then 'SHEET_ACCOUNTED_OUTSIDE'
+                            when unknown_n = n then 'SHEET_NOT_FOUND_NO_RECORD' else 'SHEET_NOT_FOUND_PARTIAL_RECORD' end)
+             order by print_page), '[]')
+    from (select print_page, count(*) n, count(*) filter (where copies > 0) in_stock, max(copies) max_copies,
+                 count(*) filter (where dist = 'DISTRIBUTED' or status = 'ADMITTED') acc, count(*) filter (where dist = 'UNKNOWN') unknown_n,
+                 jsonb_agg(jsonb_build_object('ticket_no', ticket_no, 'sector', sector, 'row', row_no, 'seat', seat_no, 'slot', print_slot,
+                           'copies', copies, 'distribution', dist, 'category', cat) order by print_slot) tickets
+          from tk group by print_page) g);
+end $$;
+
 -- ============================================================ huquqlar: faqat tizimga kirgan xodimlar
 do $$ declare f record; begin
   for f in select p.oid::regprocedure sig from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -865,5 +1218,7 @@ do $$ declare f record; begin
   end loop;
   for f in select p.oid::regprocedure sig from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'checkin' loop
     execute format('revoke all on function %s from public', f.sig);
+    if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on function %s from anon', f.sig); end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('revoke all on function %s from authenticated', f.sig); end if;
   end loop;
 end $$;

@@ -1,0 +1,72 @@
+# DUSEL check-in — avtomatik testlar (faqat sinov bazalari; production'ga yozmaydi)
+name: Check-in CI
+on:
+  push:
+    branches: [checkin-backend]
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  PGHOST: localhost
+  PGPORT: 5432
+  PGUSER: postgres
+  PGPASSWORD: postgres
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install "psycopg[binary]==3.2.3"
+      - name: Sxema + 11 222 bilet (sinov bazasi)
+        run: ./e2e/reset_db.sh ci_test
+      - name: Ma'lumotlar bazasi testlari
+        run: cd tests && python3 test_db.py "host=localhost port=5432 dbname=ci_test user=postgres password=postgres"
+      - name: Yuklama testi (16 parallel qurilma, 11 222 kirish)
+        run: ./e2e/reset_db.sh ci_load && cd tests && python3 load_test.py "host=localhost port=5432 dbname=ci_load user=postgres password=postgres" 16
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: db-results, path: "tests/*.json" }
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with: { ref: feature/checkin, path: site }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - run: pip install segno==1.6.1 && ./e2e/make_media.sh e2e/media
+      - run: cd e2e && npm init -y >/dev/null && npm install pg@8.13.1 playwright@1.49.1 && npx playwright install --with-deps chromium
+      - run: ./e2e/reset_db.sh ci_e2e seed
+      - name: Brauzer testlari (xodim ilovasi + ommaviy sahifalar)
+        run: |
+          node e2e/mock_supabase.js "$GITHUB_WORKSPACE/site" 8799 ci_e2e > mock.log 2>&1 &
+          sleep 2
+          cd e2e && MEDIA_DIR="$GITHUB_WORKSPACE/e2e/media" node test_e2e.mjs http://127.0.0.1:8799 shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: e2e-screenshots, path: "e2e/shots" }
+  production-compat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: cd tests && npm init -y >/dev/null && npm install playwright@1.49.1 && npx playwright install --with-deps chromium
+      - name: Production faqat o'qish — tarixiy bilet QR formatlari, kuponlar, /checkin holati, staging preview
+        run: cd tests && node prod_compat.mjs compat
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: production-compat, path: "tests/compat" }

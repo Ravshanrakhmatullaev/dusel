@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>DUSEL — Skaner sinovi (qurilma tekshiruvi)</title>
+<link rel="stylesheet" href="assets/checkin/app.css">
+</head>
+<body>
+<div class="env">SKANER SINOVI — serverga hech narsa yuborilmaydi, hech kim kiritilmaydi</div>
+<main id="app">
+  <section class="card"><h1>Qurilma va skaner tekshiruvi</h1>
+    <p class="small muted">Konsertdan oldin har bir telefon va tashqi skaner shu sahifada sinaladi. Natija faqat shu ekranda ko'rinadi.</p>
+    <div id="env" class="kv small"></div>
+  </section>
+  <div id="cam"></div>
+  <section class="card">
+    <form id="f" class="row"><input id="manual" placeholder="Tashqi skaner shu yerga yozadi yoki maydonni bo'sh qoldiring" autocomplete="off"><button class="primary" style="flex:0 0 auto">Tekshir</button></form>
+    <p class="small" id="camstatus"></p>
+  </section>
+  <div id="out"></div>
+  <section class="card"><h3>Natijalar</h3><ul id="log" class="list small"></ul>
+    <button id="copy" class="small">Hisobotni nusxalash</button></section>
+</main>
+<script src="assets/checkin/vendor/jsQR-1.4.0.js"></script>
+<script src="assets/common/scanner.js"></script>
+<script src="assets/common/scan-test.js"></script>
+</body>
+</html>

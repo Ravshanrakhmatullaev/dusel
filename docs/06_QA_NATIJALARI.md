@@ -7,7 +7,7 @@ Barcha yozuvchi testlar **alohida sinov bazalarida**; production sayt faqat o'qi
 |---|---|---|
 | Baza testlari (`tests/test_db.py`) | **73/73 PASS** | lokal + CI |
 | Sig'imni aylanib o'tish urinishlari (`tests/test_capacity_attack.py`, toza baza, parallel) | **9/9 PASS** | lokal + CI |
-| Brauzer E2E (`e2e/test_e2e.mjs`: `/checkin`, `/inventory`, `/scan-test`) | **48/48 PASS** | lokal + CI |
+| Brauzer E2E (`e2e/test_e2e.mjs`: `/checkin`, `/inventory`, `/scan-test`) | **49/49 PASS** | lokal + CI |
 | Staging tutun testi (`tests/staging_smoke.mjs`, HTTP; staging'da HTTPS) | **7/7 PASS** (lokal HTTP) | lokal + CI |
 | Qurilma testlari HTTPS orqali (WebKit/iPhone 15, Chromium/Pixel 7) | **23/23 PASS** | CI |
 | Yuklama — baza (16 ishchi) va HTTP (8 darvoza, Auth + /rpc, 20 mijoz poygasi) | **PASS** | lokal + CI |
@@ -34,6 +34,8 @@ Barcha yozuvchi testlar **alohida sinov bazalarida**; production sayt faqat o'qi
 | P2 migratsiyalari ulagich chegarasiga mos (< 1 MB) | seed 1.34 MB → 294 KB, natija bayt-ma-bayt bir xil (identifikator xeshi) | production_verify |
 | Supabase standart huquqlari ostida ham anon/authenticated yopiq | 20/20 OK | production_verify |
 | P3 tutun testi tayyor | 7/7 (lokal HTTP); staging'da CI `staging-smoke` | `tests/staging_smoke.mjs` |
+| Topilgan nuqson (CI) | darvozada qaror kutayotgan bilet ekranda turganda kamera boshqa QR'ni ko'rsa ekran almashardi → noto'g'ri odamni kiritish xavfi. Tuzatildi: ekran qulfi | E2E T05d |
+| CI barqarorligi | brauzer o'rnatish osilib qoldi (GitHub infratuzilmasi) → timeout + qayta urinish | workflow |
 
 ## Egasining talab qilgan 14 ta testi
 

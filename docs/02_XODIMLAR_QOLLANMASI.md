@@ -37,6 +37,7 @@ Sinov (staging): `https://feature-checkin.dusel.pages.dev/checkin`.
 | KIRISH HALI OCHILMAGAN | qizil | Admin kirishni ochmagan |
 | **NATIJA NOMA'LUM — KIRITMANG** | kulrang | Internet uzildi. "Qayta urinish" bosing (xuddi shu so'rov qayta yuboriladi, ikki marta kiritilmaydi). Davom etsa — 4-bo'lim |
 
+3a. **Ekran qulfi:** ekranda "KIRITISH MUMKIN" bilet turganda yangi skan uni almashtirmaydi — "Avval joriy biletni yakunlang" chiqadi. KIRITISH, "Nazoratchiga" yoki "Bekor" bosing, keyin keyingi mijoz. Natija noma'lum bo'lsa ham ekran qulflanadi: "Qayta urinish" yoki ongli "Bekor (o'tkazmaslik)".
 4. **Tez rejim** belgilansa, skandan keyin tugmasiz darhol kiritadi (navbat katta bo'lganda). Joyni solishtirish xodim zimmasida qoladi.
 5. Shubha bo'lsa — **"Nazoratga yuborish"**, sababini yozing. Bilet kiritilmaydi, holat ochiladi.
 

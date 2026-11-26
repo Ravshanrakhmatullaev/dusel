@@ -54,7 +54,9 @@
     return;
   }
   var sb = window.supabase.createClient(CFG.url, CFG.key, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'dusel_inv_auth_' + CFG.env, detectSessionInUrl: false } });
-  var ERR = { NOT_YOUR_SCAN: 'Bu skan boshqa xodimniki — nazoratchi qaror beradi', ALREADY_DECIDED: 'Qaror allaqachon berilgan — o\'zgartirish faqat nazoratchi orqali',
+  var ERR = { ENVELOPE_REQUIRED: 'Dublikat konvertini tanlang', ENVELOPE_NOT_OPEN: 'Konvert muhrlangan — yangi konvert oching', COUNT_MISMATCH: 'Sanoq mos emas — konvertni qayta sanang',
+              ENVELOPE_EMPTY: 'Konvert bo\'sh', NOT_YOUR_ENVELOPE: 'Bu konvertni ochgan xodim yoki nazoratchi muhrlaydi', LOCATION_REQUIRED: 'Konvert joyini yozing', ENVELOPE_NOT_SEALED: 'Avval muhrlang', RECIPIENT_REQUIRED: 'Kimga topshirilganini yozing',
+              NOT_YOUR_SCAN: 'Bu skan boshqa xodimniki — nazoratchi qaror beradi', ALREADY_DECIDED: 'Qaror allaqachon berilgan — o\'zgartirish faqat nazoratchi orqali',
               NOTE_REQUIRED: 'Ikkinchi qog\'oz qayerga qo\'yilganini yozing', NOT_A_REPEAT: 'Bu birinchi skan — qaror kerak emas', AUTH_DENIED: 'Siz xodimlar ro\'yxatida yo\'qsiz', SESSION_REVOKED: 'Sessiya tugagan — qayta kiring', ROLE_DENIED: 'Bu ilova faqat inventar xodimlari uchun',
               RATE_LIMIT: 'Juda tez — bir necha soniya kuting', BATCH_NOT_OPEN: 'Partiya yopiq', NAME_REQUIRED: 'Partiya nomini yozing' };
   function errText(e) { if (!e) return 'Xato'; if (e.network) return 'Server bilan aloqa yo\'q'; var m = (e.message || '').split('\n')[0]; return ERR[m] || e.hint || m || 'Xato'; }
@@ -71,7 +73,7 @@
       }, function (e) { if (done) return; done = true; clearTimeout(tm); setOnline(false); rej({ network: true, err: e }); });
     });
   }
-  var S = { me: null, device: LS.get('device', null), batch: LS.get('batch', null), tab: 'scan', online: navigator.onLine, queue: [], recent: [], local: {}, stats: { ok: 0, dup: 0, bad: 0, rep: 0 }, pendingN: 0 };
+  var S = { me: null, device: LS.get('device', null), batch: LS.get('batch', null), tab: 'scan', online: navigator.onLine, queue: [], recent: [], local: {}, stats: { ok: 0, dup: 0, bad: 0, rep: 0 }, pendingN: 0, envelope: LS.get('envelope', null) };
   if (!S.device) { S.device = 'inv-' + uuid().slice(0, 8); LS.set('device', S.device); }
   function setOnline(v) {
     S.online = v; var n = document.getElementById('net');
@@ -164,13 +166,13 @@
 
   // ---------------------------------------------------------------- qobiq
   function shell() {
-    var tabs = [['scan', 'Skanerlash'], ['pending', 'Qarorlar' + (S.pendingN ? ' (' + S.pendingN + ')' : '')], ['batches', 'Partiyalar'], ['report', 'Solishtiruv']];
+    var tabs = [['scan', 'Skanerlash'], ['pending', 'Qarorlar' + (S.pendingN ? ' (' + S.pendingN + ')' : '')], ['env', 'Konvertlar'], ['batches', 'Partiyalar'], ['report', 'Solishtiruv']];
     var bar = document.querySelector('.tabs'); if (!bar) { bar = el('nav', { class: 'tabs' }); document.body.appendChild(bar); }
     bar.replaceChildren(); tabs.forEach(function (t) { bar.appendChild(el('button', { class: S.tab === t[0] ? 'on' : '', on: { click: function () { S.tab = t[0]; shell(); } }, text: t[1] })); });
     var head = el('div', { class: 'top' }, el('div', {}, el('b', { text: S.me.display_name }), ' ', el('span', { class: 'pill', text: S.me.role }), ' ', el('span', { class: 'pill', text: 'INVENTAR' })),
       el('button', { class: 'small', on: { click: function () { signOut(); } }, text: 'Chiqish' }));
     window.DuselScanner.unmount();
-    ({ scan: scanView, pending: pendingView, batches: batchesView, report: reportView }[S.tab] || scanView)(head);
+    ({ scan: scanView, pending: pendingView, env: envelopesView, batches: batchesView, report: reportView }[S.tab] || scanView)(head);
   }
 
   // ---------------------------------------------------------------- skanerlash
@@ -183,6 +185,9 @@
     render(head,
       el('section', { class: 'card' }, el('div', { class: 'row', style: 'justify-content:space-between;align-items:center' }, bsel,
         el('button', { class: 'small', on: { click: function () { S.tab = 'batches'; shell(); } }, text: 'Partiyani almashtirish' })),
+        el('div', { class: 'row', style: 'justify-content:space-between;align-items:center;margin-top:6px' },
+          el('div', { class: 'small', text: 'Dublikat konverti: ' + (S.envelope || 'tanlanmagan (birinchi dublikatda ochiladi)') }),
+          el('button', { class: 'small', on: { click: function () { S.tab = 'env'; shell(); } }, text: 'Konvertlar' })),
         el('div', { class: 'stats', style: 'margin-top:8px' }, el('div', { class: 'stat' }, el('b', { id: 'st_ok', text: S.stats.ok }), el('span', { text: 'Qayd etildi (sessiya)' })),
           el('div', { class: 'stat' }, el('b', { id: 'st_rep', text: S.stats.rep || 0 }), el('span', { text: 'Takror (qaror kerak)' })),
           el('div', { class: 'stat' }, el('b', { id: 'st_dup', text: S.stats.dup }), el('span', { text: 'Tasdiqlangan 2-qog\'oz' })),
@@ -239,8 +244,10 @@
     return el('div', { style: 'display:flex;flex-direction:column;gap:8px;margin-top:10px' },
       el('button', { style: B, on: { click: function () { decide(scanId, 'SAME_PAPER', null, ticket, done); } }, text: 'YO\'Q — o\'sha qog\'ozni qayta skanerladim' }),
       el('button', { class: 'stop', style: B, on: { click: function () {
-        var where = prompt('Ikkinchi qog\'oz № ' + ticket + ' — uni "DUBLIKAT" konvertiga soling va konvert raqamini yozing (masalan: D-3)');
-        if (where && where.trim()) decide(scanId, 'SECOND_COPY', where.trim(), ticket, done);
+        withEnvelope(function (code) {
+          if (!confirm('Ikkinchi qog\'oz № ' + ticket + ' ni ' + code + ' DUBLIKAT konvertiga soling.\nSoldingizmi?')) return;
+          decide(scanId, 'SECOND_COPY', null, ticket, done, code);
+        });
       } }, text: 'HA — qo\'limda IKKINCHI qog\'oz bor' }),
       el('button', { style: 'width:100%', on: { click: function () { if (done) done(); else $out.replaceChildren(); } }, text: 'Keyinroq ("Qarorlar" bo\'limida qoladi)' }));
   }
@@ -252,8 +259,16 @@
       el('p', { class: 'small', text: c.sector + ' · qator ' + c.row + ' · joy ' + c.seat + ' · varaq ' + (r.print_sheet || '—') + '. Qaror berilmaguncha bu skan nusxa hisoblanmaydi.' }),
       verdictButtons(r.scan_id, c.ticket_no)));
   }
-  function decide(scanId, verdict, note, ticket, done) {
-    call('ci_inventory_verdict', { p_scan: scanId, p_verdict: verdict, p_note: note }).then(function (v) {
+  function withEnvelope(cb) {
+    if (S.envelope) return cb(S.envelope);
+    var loc = prompt('Yangi DUBLIKAT konverti ochiladi. Konvert qayerda turadi? (masalan: 1-stol, A403 qutisi)');
+    if (!loc || !loc.trim()) return;
+    call('ci_envelope_open', { p_location: loc.trim(), p_note: null }).then(function (e) {
+      S.envelope = e.code; LS.set('envelope', e.code); toast('Konvert ' + e.code + ' ochildi — ustiga yozing'); cb(e.code);
+    }, function (e) { toast(errText(e)); });
+  }
+  function decide(scanId, verdict, note, ticket, done, envelope) {
+    call('ci_inventory_verdict', { p_scan: scanId, p_verdict: verdict, p_note: note, p_envelope: envelope || null }).then(function (v) {
       S.pendingN = Math.max(0, (S.pendingN || 0) - 1);
       if (verdict === 'SECOND_COPY') { setStat('dup'); beep('dup'); } else beep('ok');
       feedItem(ticket + ' · ' + (verdict === 'SECOND_COPY' ? 'IKKINCHI QOG\'OZ tasdiqlandi (' + note + ')' : 'o\'sha qog\'oz — nusxa emas'), verdict === 'SECOND_COPY' ? 'bad' : '');
@@ -261,7 +276,49 @@
       if ($out && document.body.contains($out)) $out.replaceChildren(el('div', { class: 'result ' + (verdict === 'SECOND_COPY' ? 'bad' : 'ok') },
         el('div', { class: 'big', text: verdict === 'SECOND_COPY' ? 'TASDIQLANGAN DUBLIKAT № ' + ticket : 'Qayta skan — nusxa hisoblanmadi' }),
         el('p', { class: 'small', text: 'Tasdiqlangan qog\'ozlar: ' + v.confirmed_copies + (verdict === 'SECOND_COPY' ? ' · nazoratchiga belgi yuborildi · bilet bekor qilinmaydi' : '') })));
-    }, function (e) { toast(errText(e)); });
+    }, function (e) {
+      if (/ENVELOPE_NOT_OPEN|ENVELOPE_NOT_FOUND/.test(e.message || '')) { S.envelope = null; LS.del('envelope'); }
+      toast(errText(e));
+    });
+  }
+  // ---------------------------------------------------------------- dublikat konvertlari
+  function envelopesView(head) {
+    var list = el('div');
+    render(head, el('section', { class: 'card' }, el('h2', { text: 'DUBLIKAT konvertlari' }),
+      el('p', { class: 'small muted', text: 'Tasdiqlangan ikkinchi qog\'ozlar shu konvertlarga solinadi. Konvert ustiga kodini yozing (D-001…). Muhrlashda qog\'ozlarni qo\'lda sanang — son tizimdagi bilan teng bo\'lishi shart. Muhrlangandan keyin yorliqni chop etib konvertga yopishtiring.' }),
+      el('button', { class: 'primary', on: { click: function () {
+        var loc = prompt('Konvert qayerda turadi?'); if (!loc) return;
+        call('ci_envelope_open', { p_location: loc, p_note: null }).then(function (e) { S.envelope = e.code; LS.set('envelope', e.code); envelopesView(head); }, function (er) { toast(errText(er)); });
+      } }, text: 'Yangi konvert' })), list);
+    call('ci_envelopes', { p_status: null }).then(function (es) {
+      list.replaceChildren(el('section', { class: 'card' }, el('ul', { class: 'list' }, es.length ? es.map(function (e) {
+        return el('li', {}, el('b', { text: e.code + ' · ' + e.status + ' · ' + e.count + ' ta qog\'oz' + (S.envelope === e.code ? ' · TANLANGAN' : '') }),
+          el('div', { class: 'small', text: (e.tickets || []).join(', ') || '—' }),
+          el('div', { class: 'small muted', text: [e.location, e.opened_by, e.opened_at, e.sealed_at && 'muhr ' + e.sealed_at + ' (' + e.seal_count + ')', e.handed_to && 'topshirildi: ' + e.handed_to + ' ' + e.handed_at].filter(Boolean).join(' · ') }),
+          el('div', { class: 'row', style: 'margin-top:6px' },
+            e.status === 'OPEN' && S.envelope !== e.code ? el('button', { class: 'small', on: { click: function () { S.envelope = e.code; LS.set('envelope', e.code); envelopesView(head); } }, text: 'Tanlash' }) : null,
+            e.status === 'OPEN' && (e.mine || S.me.role !== 'INVENTORY') ? el('button', { class: 'small warn', on: { click: function () {
+              var n = prompt(e.code + ' ichidagi qog\'ozlarni qo\'lda sanang. Nechta?'); if (n === null) return;
+              call('ci_envelope_seal', { p_code: e.code, p_counted: parseInt(n, 10) }).then(function (c) { if (S.envelope === e.code) { S.envelope = null; LS.del('envelope'); } label(c, head); }, function (er) { toast(errText(er)); });
+            } }, text: 'Muhrlash' }) : null,
+            el('button', { class: 'small', on: { click: function () { call('ci_envelope_contents', { p_code: e.code }).then(function (c) { label(c, head); }, function (er) { toast(errText(er)); }); } }, text: 'Yorliq' }),
+            e.status === 'SEALED' && S.me.role !== 'INVENTORY' ? el('button', { class: 'small', on: { click: function () {
+              var to = prompt(e.code + ' kimga topshirildi? (ism, lavozim, seyf)'); if (!to) return;
+              call('ci_envelope_handover', { p_code: e.code, p_to: to, p_note: null }).then(function () { envelopesView(head); }, function (er) { toast(errText(er)); });
+            } }, text: 'Topshirish' }) : null));
+      }) : el('li', { class: 'muted', text: 'Konvert yo\'q' }))));
+    }, function (e) { list.replaceChildren(el('div', { class: 'result bad', text: errText(e) })); });
+  }
+  function label(c, head) {
+    render(el('section', { class: 'card qrbox envlabel' },
+      el('div', { style: 'font-size:34px;font-weight:900', text: c.code }),
+      el('div', { style: 'font-weight:800', text: 'DUSEL · DUBLIKAT qog\'ozlar · ' + (c.items || []).length + ' ta · ' + c.status }),
+      el('div', { class: 'small', text: 'Joy: ' + (c.location || '—') + ' · ochdi: ' + (c.opened_by_name || '') + ' ' + c.opened_at + (c.sealed_at ? ' · muhr: ' + c.sealed_at : '') + (c.handed_to ? ' · topshirildi: ' + c.handed_to : '') }),
+      el('table', { style: 'margin-top:8px;color:#000' }, el('tr', {}, ['№', 'Bilet', 'Sektor', 'Qator', 'Joy', 'Varaq'].map(function (h) { return el('th', { text: h }); })),
+        (c.items || []).map(function (it, i) { return el('tr', {}, [i + 1, it.ticket_no, it.sector, it.row, it.seat, it.print_sheet].map(function (v) { return el('td', { text: v }); })); })),
+      el('p', { class: 'small', style: 'margin-top:14px', text: 'Muhrladi: ____________   Topshirdi: ____________   Qabul qildi: ____________' })),
+      el('div', { class: 'row noprint', style: 'margin-top:10px' }, el('button', { class: 'primary', on: { click: function () { window.print(); } }, text: 'Chop etish' }),
+        el('button', { on: { click: function () { S.tab = 'env'; shell(); } }, text: 'Orqaga' })));
   }
   function pendingView(head) {
     var list = el('div');

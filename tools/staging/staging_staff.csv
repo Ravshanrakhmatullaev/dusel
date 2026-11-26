@@ -1,0 +1,10 @@
+email,display_name,role
+stg-admin@dusel.test,Staging Admin,ADMIN
+stg-sup1@dusel.test,Staging Nazoratchi 1,SUPERVISOR
+stg-sup2@dusel.test,Staging Nazoratchi 2,SUPERVISOR
+stg-gate1@dusel.test,Staging Darvoza 1,GATE
+stg-gate2@dusel.test,Staging Darvoza 2,GATE
+stg-gate3@dusel.test,Staging Darvoza 3,GATE
+stg-gate4@dusel.test,Staging Darvoza 4,GATE
+stg-inv1@dusel.test,Staging Inventar 1,INVENTORY
+stg-inv2@dusel.test,Staging Inventar 2,INVENTORY

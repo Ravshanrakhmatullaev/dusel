@@ -5,12 +5,13 @@ Barcha yozuvchi testlar **alohida sinov bazalarida**; production sayt faqat o'qi
 
 | To'plam | Natija | Qayerda |
 |---|---|---|
-| Baza testlari (`tests/test_db.py`) | **72/72 PASS** | lokal + CI |
+| Baza testlari (`tests/test_db.py`) | **73/73 PASS** | lokal + CI |
 | Sig'imni aylanib o'tish urinishlari (`tests/test_capacity_attack.py`, toza baza, parallel) | **9/9 PASS** | lokal + CI |
-| Brauzer E2E (`e2e/test_e2e.mjs`: `/checkin`, `/inventory`, `/scan-test`) | **47/47 PASS** | lokal + CI |
+| Brauzer E2E (`e2e/test_e2e.mjs`: `/checkin`, `/inventory`, `/scan-test`) | **48/48 PASS** | lokal + CI |
+| Staging tutun testi (`tests/staging_smoke.mjs`, HTTP; staging'da HTTPS) | **7/7 PASS** (lokal HTTP) | lokal + CI |
 | Qurilma testlari HTTPS orqali (WebKit/iPhone 15, Chromium/Pixel 7) | **23/23 PASS** | CI |
 | Yuklama — baza (16 ishchi) va HTTP (8 darvoza, Auth + /rpc, 20 mijoz poygasi) | **PASS** | lokal + CI |
-| Toza migratsiya → production tekshiruvi (`tools/production_verify.sql`) | **17/17 OK** | lokal + CI |
+| Toza migratsiya → production tekshiruvi (`tools/production_verify.sql`, Supabase standart huquqlari taqlidi bilan) | **20/20 OK** | lokal + CI |
 | Production moslik (faqat o'qish) + ommaviy sahifalar `main` bilan bayt-ma-bayt bir xil | **27/27 PASS** + diff bo'sh | CI |
 
 ## 3-bosqich (25.11.2026, kechki) — qo'shilgan tekshiruvlar
@@ -24,6 +25,15 @@ Barcha yozuvchi testlar **alohida sinov bazalarida**; production sayt faqat o'qi
 | Staging ≠ production | sinov QR production'da yaroqsiz; sayt↔baza muhiti mos kelmasa ilova to'xtaydi; tayyorlik tekshiruvi sinov bazasini rad etadi | T25, T26, E2E T26/T27 |
 | Topilgan nuqson | qarorsiz takrori bor varaqdagi bilet zaxiraga o'tishi mumkin edi → tuzatildi (T13h) | — |
 | Topilgan nuqson | sinov varaqasidagi qisqa QR segno tomonidan Micro QR (telefonlar o'qimaydi) bo'lib chiqardi → oddiy QR majburiy | `tools/make_test_kit.py` |
+
+## 4-bosqich (26.11.2026)
+
+| Talab | Natija | Dalil |
+|---|---|---|
+| Dublikat qog'ozlar alohida konvertda, raqamlar tizimda | D-001…; muhr qo'lda sanoq bilan; muhrlangandan keyin o'zgarmaydi; yorliq; topshirish | T28 (baza, E2E) |
+| P2 migratsiyalari ulagich chegarasiga mos (< 1 MB) | seed 1.34 MB → 294 KB, natija bayt-ma-bayt bir xil (identifikator xeshi) | production_verify |
+| Supabase standart huquqlari ostida ham anon/authenticated yopiq | 20/20 OK | production_verify |
+| P3 tutun testi tayyor | 7/7 (lokal HTTP); staging'da CI `staging-smoke` | `tests/staging_smoke.mjs` |
 
 ## Egasining talab qilgan 14 ta testi
 

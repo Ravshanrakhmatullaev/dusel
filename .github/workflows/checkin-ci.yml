@@ -65,6 +65,11 @@ jobs:
           node e2e/mock_supabase.js "$GITHUB_WORKSPACE/site" 8799 ci_e2e > mock.log 2>&1 &
           sleep 2
           cd e2e && MEDIA_DIR="$GITHUB_WORKSPACE/e2e/media" node test_e2e.mjs http://127.0.0.1:8799 shots
+      - name: Staging tutun testi (lokal HTTP taqlidida; haqiqiy staging'da xuddi shu skript)
+        run: |
+          cd tests && BASE=http://127.0.0.1:8799 ANON_KEY=local-test-anon-key OUT=../e2e/shots/staging_smoke_local.json \
+            ACCOUNTS='{"admin":{"email":"admin@dusel.test","password":"Admin-Test-2026"},"sup":{"email":"sup@dusel.test","password":"Sup-Test-2026"},"gate":{"email":"gate1@dusel.test","password":"Gate-Test-2026"},"inv":{"email":"inv@dusel.test","password":"Inv-Test-2026"}}' \
+            node staging_smoke.mjs
       - name: HTTP yuklama (8 darvoza, Auth + /rpc orqali, 20 mijoz poygasi)
         run: |
           ./e2e/reset_db.sh ci_http seed && psql -d ci_http -v ON_ERROR_STOP=1 -q -f e2e/seed_http_load.sql
@@ -109,6 +114,24 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: devices-https, path: "e2e/devices" }
+  staging-smoke:
+    # Haqiqiy STAGING branch'da tutun testi. Yoqish: variable RUN_STAGING_SMOKE=1 + secrets STAGING_URL, STAGING_ANON_KEY, STAGING_ACCOUNTS (JSON)
+    if: ${{ vars.RUN_STAGING_SMOKE == '1' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: HTTPS tutun testi (staging)
+        env:
+          BASE: ${{ secrets.STAGING_URL }}
+          ANON_KEY: ${{ secrets.STAGING_ANON_KEY }}
+          ACCOUNTS: ${{ secrets.STAGING_ACCOUNTS }}
+          OUT: staging_smoke.json
+        run: cd tests && node staging_smoke.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: staging-smoke, path: tests/staging_smoke.json }
   cloud-load:
     # BULUT (HTTPS) yuklama — faqat STAGING branch'ga. Yoqish: repo variable RUN_CLOUD_LOAD=1 va secrets
     # STAGING_URL, STAGING_ANON_KEY, LOAD_GATES (JSON), LOAD_ADMIN (JSON); parametrlar: vars LOAD_PACE_MS, LOAD_TICKETS, LOAD_RACE.

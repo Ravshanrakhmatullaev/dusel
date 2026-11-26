@@ -17,22 +17,22 @@
  {
   "name": "C3 Bitta isbotli bo'sh o'rin, 10 parallel almashtirish → aynan 1 muvaffaqiyat; ruxsatlar 11 222",
   "ok": true,
-  "detail": "['OK', 'CAPACITY_EXCEEDED', 'CAPACITY_EXCEEDED', 'CAPACITY_EXCEEDED', 'CAPACITY_EXCEEDED', 'CAPACITY_EXCEEDED', 'CAPACITY_EXCEEDED', 'CAPACITY_EXCEEDED', 'CAPACITY_EXCEEDED', 'CAPACITY_EXCEEDED']"
+  "detail": "['CAPACITY_EXCEEDED', 'CAPACITY_EXCEEDED', 'OK', 'CAPACITY_EXCEEDED', 'CAPACITY_EXCEEDED', 'CAPACITY_EXCEEDED', 'CAPACITY_EXCEEDED', 'CAPACITY_EXCEEDED', 'CAPACITY_EXCEEDED', 'CAPACITY_EXCEEDED']"
  },
  {
   "name": "C4 Superuser 8 ta parallel to'g'ridan-to'g'ri INSERT (bo'sh o'rin 2) → aynan 2; trigger qulfi poygani to'xtatadi",
   "ok": true,
-  "detail": "['OK', 'CAPACITY_EXCEEDED', 'OK', 'CAPACITY_EXCEEDED', 'CAPACITY_EXCEEDED', 'CAPACITY_EXCEEDED', 'CAPACITY_EXCEEDED', 'CAPACITY_EXCEEDED']"
+  "detail": "['OK', 'OK', 'CAPACITY_EXCEEDED', 'CAPACITY_EXCEEDED', 'CAPACITY_EXCEEDED', 'CAPACITY_EXCEEDED', 'CAPACITY_EXCEEDED', 'CAPACITY_EXCEEDED']"
  },
  {
   "name": "C5 8 poyga: asl bilet kiritish va uning o'rniga yangi QR bir vaqtda → hech qachon ikkalasi emas (bir joyga bitta huquq)",
   "ok": true,
-  "detail": "[('DENIED_CANCELLED', 'REPL', 'CANCELLED_BY_AUTHORIZED_SUPERVISOR', 1), ('DENIED_CANCELLED', 'REPL', 'CANCELLED_BY_AUTHORIZED_SUPERVISOR', 1), ('DENIED_CANCELLED', 'REPL', 'CANCELLED_BY_AUTHORIZED_SUPERVISOR', 1), ('ADMITTED', 'ORIGINAL_NOT_SUPERSEDABLE', 'ADMITTED', 0)]"
+  "detail": "[('DENIED_CANCELLED', 'REPL', 'CANCELLED_BY_AUTHORIZED_SUPERVISOR', 1), ('ADMITTED', 'ORIGINAL_NOT_SUPERSEDABLE', 'ADMITTED', 0), ('ADMITTED', 'ORIGINAL_NOT_SUPERSEDABLE', 'ADMITTED', 0), ('DENIED_CANCELLED', 'REPL', 'CANCELLED_BY_AUTHORIZED_SUPERVISOR', 1)]"
  },
  {
   "name": "C6 6 poyga: bilet darvozada kiritilayotgan paytda zaxiraga o'tkazish → hech qachon ikkalasi emas (kirgan biletning joyi zaxiraga o'tmaydi)",
   "ok": true,
-  "detail": "[('DENIED_CANCELLED', 'SPARE', 'CANCELLED_BY_AUTHORIZED_SUPERVISOR', 'AVAILABLE'), ('ADMITTED', 'TICKET_NOT_ELIGIBLE', 'ADMITTED', 'NONE'), ('DENIED_CANCELLED', 'SPARE', 'CANCELLED_BY_AUTHORIZED_SUPERVISOR', 'AVAILABLE'), ('DENIED_CANCELLED', 'SPARE', 'CANCELLED_BY_AUTHORIZED_SUPERVISOR', 'AVAILABLE'), ('ADMITTED', 'TICKET_NOT_ELIGIBLE', 'ADMITTED', 'NONE'), ('DENIED_CANCELLED', 'SPARE', 'CANCELLE"
+  "detail": "[('ADMITTED', 'TICKET_NOT_ELIGIBLE', 'ADMITTED', 'NONE'), ('DENIED_CANCELLED', 'SPARE', 'CANCELLED_BY_AUTHORIZED_SUPERVISOR', 'AVAILABLE'), ('DENIED_CANCELLED', 'SPARE', 'CANCELLED_BY_AUTHORIZED_SUPERVISOR', 'AVAILABLE'), ('ADMITTED', 'TICKET_NOT_ELIGIBLE', 'ADMITTED', 'NONE'), ('DENIED_CANCELLED', 'SPARE', 'CANCELLED_BY_AUTHORIZED_SUPERVISOR', 'AVAILABLE'), ('ADMITTED', 'TICKET_NOT_ELIGIBLE', 'AD"
  },
  {
   "name": "C7 Zaxiraga o'tgan asl biletni nazoratchi ham kirita olmaydi; kiritilgan almashtirishni bekor qilib joyni qayta berib bo'lmaydi; sig'imni ruxsatlardan pastga tushirib bo'lmaydi",
@@ -40,8 +40,8 @@
   "detail": "('TICKET_NOT_ADMISSIBLE', 'NOT_ACTIVE', 'REPLACEMENT_STATUS_FINAL', 'CAPACITY_BELOW_ENTITLEMENTS')"
  },
  {
-  "name": "C8 Zal to'ldi: jami kirishlar ≤ ruxsatlar ≤ 11 222; qolgan bo'sh o'rin (4) aynan to'ldi, keyingi almashtirishlar rad; bir joyga ikki huquq yo'q",
+  "name": "C8 Zal to'ldi: jami kirishlar ≤ ruxsatlar ≤ 11 222; qolgan bo'sh o'rin (3) aynan to'ldi, keyingi almashtirishlar rad; bir joyga ikki huquq yo'q",
   "ok": true,
-  "detail": "{'total': 11210, 'ent': 11218, 'issued': 4, 'ent_after': 11222}"
+  "detail": "{'total': 11213, 'ent': 11219, 'issued': 3, 'ent_after': 11222}"
  }
 ]

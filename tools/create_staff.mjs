@@ -35,3 +35,9 @@ const out = await rr.json();
 if (!rr.ok) { console.error('Rollarni yozishda xato:', out); process.exit(5); }
 fs.writeFileSync(outFile, 'email,ism,rol,parol\n' + creds.map((c) => c.map((x) => '"' + String(x).replace(/"/g, '""') + '"').join(',')).join('\n') + '\n', { mode: 0o600 });
 console.log(`OK: ${out.staff} xodim rolga ega. Parollar: ${outFile} (0600). Topshirgandan keyin faylni o'chiring.`);
+// Yuklama akkauntlari uchun: LOAD_GATES secret (JSON) — faqat yangi yaratilgan load-gN akkauntlar, darvoza LN
+if (process.env.LOAD_GATES_OUT) {
+  const g = creds.filter((c) => /^load-g(\d+)@/.test(c[0]) && !c[3].startsWith('(')).map((c) => ({ email: c[0], password: c[3], gate: 'L' + /^load-g(\d+)@/.exec(c[0])[1] }));
+  fs.writeFileSync(process.env.LOAD_GATES_OUT, JSON.stringify(g), { mode: 0o600 });
+  console.log(`LOAD_GATES: ${g.length} ta darvoza akkaunti → ${process.env.LOAD_GATES_OUT} (GitHub secret sifatida joylang, keyin o'chiring)`);
+}

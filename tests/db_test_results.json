@@ -37,17 +37,17 @@
  {
   "name": "T05 Birinchi ruxsatli kirish muvaffaqiyatli (ENTRY APPROVED)",
   "ok": true,
-  "detail": "{'row': 6, 'kind': 'BLITCHER', 'seat': 3, 'type': 'TICKET', 'zone': 'Blitcher (1-qavat)', 'sector': 'A202', 'status': 'ADMITTED', 'seat_key': 'BLITCHER:A202:6:3', 'open_case': None, 'ticket_no': '00330', 'open_flags': [], 'admitted_at': '25.11.2026 19:53:14', 'admitted_by': 'gate1@test.local', 'print_sheet': 55, 'distribution': 'UNKNOWN', 'admitted_gate': 'G1', 'inventory_copies': 0, 'inventory_pe"
+  "detail": "{'row': 6, 'kind': 'BLITCHER', 'seat': 3, 'type': 'TICKET', 'zone': 'Blitcher (1-qavat)', 'sector': 'A202', 'status': 'ADMITTED', 'seat_key': 'BLITCHER:A202:6:3', 'open_case': None, 'ticket_no': '00330', 'open_flags': [], 'admitted_at': '26.11.2026 12:00:03', 'admitted_by': 'gate1@test.local', 'print_sheet': 55, 'distribution': 'UNKNOWN', 'admitted_gate': 'G1', 'inventory_copies': 0, 'inventory_pe"
  },
  {
   "name": "T05b Kirish yozuvi: darvoza, qurilma, xodim, vaqt (Asia/Tashkent)",
   "ok": true,
-  "detail": "('G1', 'dev-1', '83be065e-a6a4-4284-8846-b6e12ea8d78a')"
+  "detail": "('G1', 'dev-1', '9c5be476-ceb5-496b-a7f9-86effdf93029')"
  },
  {
   "name": "T06 Ikkinchi kirish bloklanadi (boshqa URL formati bilan ham — bitta bilet holati)",
   "ok": true,
-  "detail": "{'at': '25.11.2026 19:53:14', 'replay': False, 'case_id': 1, 'message': None, 'decision': 'DENIED_ALREADY_ADMITTED', 'previous': {'at': '25.11.2026 19:53:14', 'by': 'gate1@test.local', 'gate': 'G1'}, 'credential': {'row': 6, 'kind': 'BLITCHER', 'seat': 3, 'type': 'TICKET', 'zone': 'Blitcher (1-qavat)', 'sector': 'A202', 'status': 'ADMITTED', 'seat_key': 'BLITCHER:A202:6:3', 'open_case': 1, 'ticket"
+  "detail": "{'at': '26.11.2026 12:00:03', 'replay': False, 'case_id': 1, 'message': None, 'decision': 'DENIED_ALREADY_ADMITTED', 'previous': {'at': '26.11.2026 12:00:03', 'by': 'gate1@test.local', 'gate': 'G1'}, 'credential': {'row': 6, 'kind': 'BLITCHER', 'seat': 3, 'type': 'TICKET', 'zone': 'Blitcher (1-qavat)', 'sector': 'A202', 'status': 'ADMITTED', 'seat_key': 'BLITCHER:A202:6:3', 'open_case': 1, 'ticket"
  },
  {
   "name": "T06b Takroriy skanlar bitta ko'rib chiqish holatiga yig'iladi (avtomatik ayblov yo'q, nazoratchiga yuboriladi)",
@@ -87,10 +87,15 @@
  {
   "name": "T10v Qaror: SECOND_COPY (joyi yozilgan) → 2 qog'oz, SAME_PAPER → nusxa emas; birinchi skanga qaror yo'q; operator qarorini o'zi o'zgartira olmaydi, boshqa operator/darvoza qaror bera olmaydi; nazoratchi o'zgartirsa sabab shart; skan tarixi o'chmaydi",
   "ok": true,
-  "detail": "('NOT_A_REPEAT', 'NOTE_REQUIRED', 'ALREADY_DECIDED', 'NOT_YOUR_SCAN', 'NOTE_REQUIRED', 2, [('DUPLICATE_PRINT_CONFIRMED', 'OPEN')])"
+  "detail": "('NOT_A_REPEAT', 'ENVELOPE_REQUIRED', 'ALREADY_DECIDED', 'NOT_YOUR_SCAN', 'NOTE_REQUIRED', 2, [('DUPLICATE_PRINT_CONFIRMED', 'OPEN')])"
  },
  {
-  "name": "T10b Hisobot: tasdiqlangan dublikatlar (06100 — 2 qog'oz)",
+  "name": "T28 Dublikat konvertlari: D-001 dagi raqamlar (06100, 08500, 08501) tizimda; muhrlashda qo'lda sanoq teng bo'lishi shart; muhrlangan konvertga qo'shib/qarorni o'zgartirib bo'lmaydi; topshirish faqat nazoratchi, kimga — yoziladi; bo'sh konvert muhrlanmaydi",
+  "ok": true,
+  "detail": "('COUNT_MISMATCH', 'NOT_YOUR_ENVELOPE', 'ENVELOPE_NOT_OPEN', 'ENVELOPE_NOT_OPEN', 'ROLE_DENIED', 'ENVELOPE_EMPTY', ['06100', '08500', '08501'])"
+ },
+ {
+  "name": "T10b Hisobot: tasdiqlangan dublikatlar (A403: 06100 — 2 qog'oz) va qarorsiz takrorlar alohida ustunda",
   "ok": true,
   "detail": "[{'row': 1, 'kind': 'SEKTOR', 'seat': 21, 'copies': 2, 'sector': 'A403', 'status': 'NOT_ADMITTED', 'batches': '1', 'ticket_no': '06100', 'distribution': 'UNKNOWN', 'pending_repeats': 0}]"
  },
@@ -107,7 +112,7 @@
  {
   "name": "T11 Qog'ozdagi joy master bilan farq qilsa (boshqa raqam bir joyga) — belgilanadi va hisobotga tushadi",
   "ok": true,
-  "detail": "[{'type': 'PRINTED_SEAT_MISMATCH', 'printed': 'A403 qator 1 joy 5', 'scan_id': 7, 'ticket_no': '06110', 'master_seat': 'SEKTOR:A403:1:31'}]"
+  "detail": "[{'type': 'PRINTED_SEAT_MISMATCH', 'printed': 'A403 qator 1 joy 5', 'scan_id': 13, 'ticket_no': '06110', 'master_seat': 'SEKTOR:A403:1:31'}]"
  },
  {
   "name": "T11b Baza ikki biletni bitta joyga biriktirishga yo'l qo'ymaydi (unique)",
@@ -162,7 +167,7 @@
  {
   "name": "T07r Almashtirish bileti: taxmin qilib bo'lmaydigan token (144 bit), bazada faqat xeshi",
   "ok": true,
-  "detail": "DUSELR1:USln…"
+  "detail": "DUSELR1:ocKs…"
  },
  {
   "name": "T07s Almashtirish bileti bir marta kiritadi, ikkinchisi bloklanadi",
@@ -277,7 +282,7 @@
  {
   "name": "T16 Barcha muhim amallar audit jurnalida; xesh-zanjir butun",
   "ok": true,
-  "detail": "([], {'ok': True, 'head': 'e03498d49c50f146e8c54728ac765c08d070282c2cd359bdcd137eccc6f3ef49', 'checked': 1028})"
+  "detail": "([], {'ok': True, 'head': '0f62f27f2715eeca76e3fb4cd5db73315d1b4cf1dd6373618a90ab4404cffd63', 'checked': 1037})"
  },
  {
   "name": "T16b Audit va kirish yozuvlarini o'zgartirish/o'chirish bloklangan",
@@ -332,12 +337,12 @@
  {
   "name": "T23 Tarqatish nizolari avtomatik belgilanadi: ikki diler bitta biletni da'vo qilsa, turli manbalar zid holat aytsa, tarqatilgan bilet zaxirada topilsa; bir manbaning o'z yangilanishi nizo emas",
   "ok": true,
-  "detail": "[('06100', 'DUPLICATE_PRINT_CONFIRMED'), ('06110', 'SEAT_MISMATCH'), ('06300', 'DISTRIBUTED_BUT_IN_STOCK'), ('06300', 'DISTRIBUTION_DISPUTED'), ('06302', 'DISTRIBUTION_DISPUTED'), ('06655', 'DUPLICATE_PRINT_CONFIRMED')]"
+  "detail": "[('06100', 'DUPLICATE_PRINT_CONFIRMED'), ('06110', 'SEAT_MISMATCH'), ('06300', 'DISTRIBUTED_BUT_IN_STOCK'), ('06300', 'DISTRIBUTION_DISPUTED'), ('06302', 'DISTRIBUTION_DISPUTED'), ('06655', 'DUPLICATE_PRINT_CONFIRMED'), ('08500', 'DUPLICATE_PRINT_CONFIRMED'), ('08501', 'DUPLICATE_PRINT_CONFIRMED')]"
  },
  {
   "name": "T24 Nazoratchi belgilari: ro'yxat, holat ochish, hal qilish (sabab bilan), qo'lda belgi; darvoza/inventar xodimi boshqara olmaydi; bilet holati O'ZGARMAYDI va kirish ishlaydi",
   "ok": true,
-  "detail": "(6, 'ADMITTED')"
+  "detail": "(8, 'ADMITTED')"
  },
  {
   "name": "T25 Sinov QR (DUSELTEST:/&t=SINOV) STAGING'da ishlaydi, PRODUCTION'da kirishda ham, inventarda ham yaroqsiz — chop etilgan sinov varaqlari haqiqiy kirish bera olmaydi",
@@ -352,7 +357,7 @@
  {
   "name": "T10j 11737 ta inventar skani (barcha 11 222 + dublikatlar + eski URL formatlari + kupon + almashtirish QR): kirish holati, hodisalar, holatlar va almashtirishlar O'ZGARMADI",
   "ok": true,
-  "detail": "{'recorded': 11735, 'seconds': 31.0, 'events': 1000}"
+  "detail": "{'recorded': 11735, 'seconds': 28.0, 'events': 1000}"
  },
  {
   "name": "T22 Migratsiyalarni qayta qo'llash xavfsiz: biletlar, kirish holati (admission_open), sig'im o'zgarmaydi",

@@ -5,6 +5,7 @@ with k(tekshiruv, ok, qiymat) as (values
   ('biletlar = 11222', (select count(*) from checkin.tickets) = 11222, (select count(*)::text from checkin.tickets)),
   ('master sha256', (select value #>> '{}' from checkin.settings where key='master_sha256') = 'e50b9a597d5e7f5f74a3270ad6689968c8f1572c3a2fbdeac71eadc417b831bb', (select value #>> '{}' from checkin.settings where key='master_sha256')),
   ('bosma varaq sha256', (select value #>> '{}' from checkin.settings where key='print_layout_sha256') = '3e35be16c86f445b1c551b46f5a11add694a9c0d6f42790c405a1dce472e13d4', (select value #>> '{}' from checkin.settings where key='print_layout_sha256')),
+  ('11 222 bilet identifikatori (raqam/joy/zona/varaq) xeshi', (select md5(string_agg(ticket_no||'|'||seat_key||'|'||zone||'|'||kind||'|'||sector||'|'||row_no||'|'||seat_no||'|'||print_page||'|'||print_slot, ',' order by ticket_no)) from checkin.tickets) = '1cf5c18dec394e54a913b2ef982ca6ec', (select md5(string_agg(ticket_no||'|'||seat_key||'|'||zone||'|'||kind||'|'||sector||'|'||row_no||'|'||seat_no||'|'||print_page||'|'||print_slot, ',' order by ticket_no)) from checkin.tickets)),
   ('hamma bilet NOT_ADMITTED', not exists (select 1 from checkin.tickets where status <> 'NOT_ADMITTED'), (select count(*)::text from checkin.tickets where status <> 'NOT_ADMITTED')),
   ('kirish hodisalari = 0', not exists (select 1 from checkin.admission_events), (select count(*)::text from checkin.admission_events)),
   ('almashtirishlar = 0', not exists (select 1 from checkin.replacements), (select count(*)::text from checkin.replacements)),
@@ -18,6 +19,10 @@ with k(tekshiruv, ok, qiymat) as (values
   ('RLS hamma checkin jadvalida', not exists (select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'checkin' and c.relkind = 'r' and not c.relrowsecurity),
      (select string_agg(c.relname, ',') from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'checkin' and c.relkind = 'r' and not c.relrowsecurity)),
   ('anon ci_* funksiyalarini chaqira olmaydi', not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname like 'ci\_%' and has_function_privilege('anon', p.oid, 'execute')), ''),
+  ('anon/authenticated checkin jadvallarini o''qiy olmaydi', not exists (select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'checkin' and c.relkind = 'r'
+       and (has_table_privilege('anon', c.oid, 'select') or has_table_privilege('authenticated', c.oid, 'select'))), ''),
+  ('checkin yordamchi funksiyalari anon/authenticated uchun yopiq', not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'checkin'
+       and (has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute'))), ''),
   ('bootstrap faqat service_role', not has_function_privilege('authenticated', 'public.ci_staff_bootstrap(jsonb)', 'execute'), '')
 )
 select case when ok then 'OK' else 'XATO' end as natija, tekshiruv, qiymat from k;

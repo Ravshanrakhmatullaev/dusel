@@ -1,0 +1,26 @@
+{
+ "workers": 16,
+ "operations": 25400,
+ "seconds": 39.3,
+ "ops_per_sec": 646.4,
+ "admits_per_sec": 285.6,
+ "lookup_ms": {
+  "p50": 5.0,
+  "p95": 10.3,
+  "p99": 14.0
+ },
+ "admit_ms": {
+  "p50": 43.3,
+  "p95": 57.7,
+  "p99": 71.1
+ },
+ "admitted_tickets": 11222,
+ "events": {
+  "DENIED_FOREIGN_SYSTEM": 230,
+  "DENIED_ALREADY_ADMITTED": 1124,
+  "ADMITTED": 11222
+ },
+ "max_admitted_events_per_ticket": 1,
+ "errors": 0,
+ "error_samples": []
+}

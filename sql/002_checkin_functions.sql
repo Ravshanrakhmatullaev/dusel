@@ -717,9 +717,10 @@ begin
 end $$;
 
 -- Takror skan bo'yicha qaror: SAME_PAPER (o'sha qog'oz) yoki SECOND_COPY (ikkinchi bosma qog'oz). Tarix o'chmaydi; nazoratchi keyin o'zgartira oladi.
-create or replace function public.ci_inventory_verdict(p_scan bigint, p_verdict text, p_note text default null) returns jsonb
+drop function if exists public.ci_inventory_verdict(bigint, text, text);
+create or replace function public.ci_inventory_verdict(p_scan bigint, p_verdict text, p_note text default null, p_envelope text default null) returns jsonb
 language plpgsql security definer set search_path = checkin, pg_temp as $$
-declare me checkin.staff; s checkin.inventory_scans; v_obs int; v_prev text; lc record;
+declare me checkin.staff; s checkin.inventory_scans; v_obs int; v_prev text; v_prev_env text; lc record; e checkin.dup_envelopes;
 begin
   me := checkin._me(array['INVENTORY', 'SUPERVISOR', 'ADMIN']);
   perform set_config('checkin.mode', 'INVENTORY', true);
@@ -737,20 +738,121 @@ begin
   elsif v_prev is not null and length(btrim(coalesce(p_note, ''))) < 5 then
     raise exception 'NOTE_REQUIRED' using hint = 'Qarorni o''zgartirish sababini yozing';
   end if;
-  if p_verdict = 'SECOND_COPY' and length(btrim(coalesce(p_note, ''))) < 2 then
-    raise exception 'NOTE_REQUIRED' using hint = 'Ikkinchi qog''oz qayerga qo''yilganini yozing (masalan: D-konvert 3)';
+  -- avvalgi qaror muhrlangan konvertga bog'liq bo'lsa — o'zgartirib bo'lmaydi (qog'oz jismonan muhrlangan konvertda)
+  select envelope_code into v_prev_env from checkin.inventory_verdicts where scan_id = p_scan order by id desc limit 1;
+  if v_prev_env is not null and exists (select 1 from checkin.dup_envelopes where code = v_prev_env and status <> 'OPEN') then
+    raise exception 'ENVELOPE_NOT_OPEN' using hint = v_prev_env || ' muhrlangan — qarorni o''zgartirish uchun belgida izoh yozing';
   end if;
-  insert into checkin.inventory_verdicts (scan_id, verdict, note, decided_by) values (p_scan, p_verdict, nullif(btrim(coalesce(p_note, '')), ''), me.user_id);
+  if p_verdict = 'SECOND_COPY' then
+    if p_envelope is null then raise exception 'ENVELOPE_REQUIRED' using hint = 'Ikkinchi qog''oz qaysi DUBLIKAT konvertiga solinganini tanlang'; end if;
+    select * into e from checkin.dup_envelopes where code = upper(btrim(p_envelope)) for update;
+    if not found then raise exception 'ENVELOPE_NOT_FOUND'; end if;
+    if e.status <> 'OPEN' then raise exception 'ENVELOPE_NOT_OPEN' using hint = e.code || ' muhrlangan'; end if;
+  end if;
+  insert into checkin.inventory_verdicts (scan_id, verdict, note, decided_by, envelope_code)
+  values (p_scan, p_verdict, nullif(btrim(coalesce(p_note, '')), ''), me.user_id, case when p_verdict = 'SECOND_COPY' then e.code end);
   if p_verdict = 'SECOND_COPY' then
     insert into checkin.ticket_flags (ticket_no, kind, details, source, source_ref, raised_by)
-    values (s.ticket_no, 'DUPLICATE_PRINT_CONFIRMED', 'Ikkinchi qog''oz tasdiqlandi (skan #' || p_scan || ', ' || coalesce(p_note, '') || ')', 'INVENTORY', 'scan:' || p_scan, me.user_id)
-    on conflict (ticket_no, kind) where status <> 'RESOLVED' do nothing;
+    values (s.ticket_no, 'DUPLICATE_PRINT_CONFIRMED', 'Ikkinchi qog''oz tasdiqlandi: konvert ' || e.code || ' (skan #' || p_scan || coalesce(', ' || nullif(btrim(p_note), ''), '') || ')', 'INVENTORY', 'scan:' || p_scan, me.user_id)
+    on conflict (ticket_no, kind) where status <> 'RESOLVED' do update set details = checkin.ticket_flags.details || ' | konvert ' || e.code || ' (skan #' || p_scan || ')';
   end if;
   perform checkin._audit(me, 'INVENTORY_VERDICT', 'inventory_scan', p_scan::text,
-          jsonb_build_object('ticket', s.ticket_no, 'verdict', p_verdict, 'previous', v_prev, 'note', p_note));
+          jsonb_build_object('ticket', s.ticket_no, 'verdict', p_verdict, 'previous', v_prev, 'note', p_note, 'envelope', e.code));
   select * into lc from checkin._live_copies(s.ticket_no);
-  return jsonb_build_object('scan_id', p_scan, 'ticket_no', s.ticket_no, 'verdict', p_verdict, 'previous', v_prev,
+  return jsonb_build_object('scan_id', p_scan, 'ticket_no', s.ticket_no, 'verdict', p_verdict, 'previous', v_prev, 'envelope', e.code,
                             'confirmed_copies', coalesce(lc.copies, 0), 'pending_repeats', coalesce(lc.pending, 0), 'observations', coalesce(lc.observations, 0));
+end $$;
+
+-- ============================================================ DUBLIKAT KONVERTLARI
+create or replace function checkin._envelope_items(p_code text)
+returns table (scan_id bigint, ticket_no text, sector text, row_no int, seat_no int, print_page int, at timestamptz, operator text)
+language sql stable security definer set search_path = checkin, pg_temp as $$
+  -- konvertda: oxirgi (amaldagi) qarori SECOND_COPY va shu konvert bo'lgan skanlar
+  select s.id, s.ticket_no, t.sector, t.row_no, t.seat_no, t.print_page, v.at, (select username from checkin.staff where user_id = v.decided_by)
+  from checkin.inventory_scans s
+  join lateral (select * from checkin.inventory_verdicts x where x.scan_id = s.id order by x.id desc limit 1) v on true
+  join checkin.tickets t using (ticket_no)
+  where v.verdict = 'SECOND_COPY' and v.envelope_code = p_code
+    and not exists (select 1 from checkin.inventory_voids w where w.scan_id = s.id)
+$$;
+
+create or replace function public.ci_envelope_open(p_location text, p_note text default null) returns jsonb
+language plpgsql security definer set search_path = checkin, pg_temp as $$
+declare me checkin.staff; e checkin.dup_envelopes; v_n int;
+begin
+  me := checkin._me(array['INVENTORY', 'SUPERVISOR', 'ADMIN']);
+  perform set_config('checkin.mode', 'INVENTORY', true);
+  if length(btrim(coalesce(p_location, ''))) < 2 then raise exception 'LOCATION_REQUIRED' using hint = 'Konvert qayerda turadi (stol, quti)'; end if;
+  perform pg_advisory_xact_lock(777002);
+  select coalesce(max(substring(code from 3)::int), 0) + 1 into v_n from checkin.dup_envelopes;
+  insert into checkin.dup_envelopes (code, location, note, opened_by) values ('D-' || lpad(v_n::text, 3, '0'), left(btrim(p_location), 100), left(p_note, 200), me.user_id)
+  returning * into e;
+  perform checkin._audit(me, 'ENVELOPE_OPEN', 'envelope', e.code, jsonb_build_object('location', p_location));
+  return to_jsonb(e);
+end $$;
+
+create or replace function public.ci_envelopes(p_status text default null) returns jsonb
+language plpgsql security definer set search_path = checkin, pg_temp as $$
+declare me checkin.staff;
+begin
+  me := checkin._me(array['INVENTORY', 'SUPERVISOR', 'ADMIN']);
+  return (select coalesce(jsonb_agg(jsonb_build_object('code', e.code, 'status', e.status, 'location', e.location, 'note', e.note,
+            'opened_at', checkin._tz(e.opened_at), 'opened_by', (select username from checkin.staff where user_id = e.opened_by), 'mine', e.opened_by = me.user_id,
+            'sealed_at', checkin._tz(e.sealed_at), 'seal_count', e.seal_count, 'handed_to', e.handed_to, 'handed_at', checkin._tz(e.handed_at),
+            'count', (select count(*) from checkin._envelope_items(e.code)),
+            'tickets', (select coalesce(jsonb_agg(i.ticket_no order by i.ticket_no), '[]') from checkin._envelope_items(e.code) i)) order by e.code), '[]')
+          from checkin.dup_envelopes e where p_status is null or e.status = p_status);
+end $$;
+
+create or replace function public.ci_envelope_contents(p_code text) returns jsonb
+language plpgsql security definer set search_path = checkin, pg_temp as $$
+declare me checkin.staff; e checkin.dup_envelopes;
+begin
+  me := checkin._me(array['INVENTORY', 'SUPERVISOR', 'ADMIN']);
+  select * into e from checkin.dup_envelopes where code = upper(btrim(p_code));
+  if not found then raise exception 'ENVELOPE_NOT_FOUND'; end if;
+  return to_jsonb(e) || jsonb_build_object('opened_at', checkin._tz(e.opened_at), 'sealed_at', checkin._tz(e.sealed_at), 'handed_at', checkin._tz(e.handed_at),
+    'opened_by_name', (select username from checkin.staff where user_id = e.opened_by),
+    'items', (select coalesce(jsonb_agg(jsonb_build_object('ticket_no', i.ticket_no, 'sector', i.sector, 'row', i.row_no, 'seat', i.seat_no,
+                'print_sheet', i.print_page, 'scan_id', i.scan_id, 'at', checkin._tz(i.at), 'operator', i.operator) order by i.ticket_no, i.scan_id), '[]')
+              from checkin._envelope_items(e.code) i));
+end $$;
+
+-- Muhrlash: konvertdagi qog'ozlar QO'LDA sanaladi va tizimdagi son bilan teng bo'lishi shart
+create or replace function public.ci_envelope_seal(p_code text, p_counted int) returns jsonb
+language plpgsql security definer set search_path = checkin, pg_temp as $$
+declare me checkin.staff; e checkin.dup_envelopes; v_n int;
+begin
+  me := checkin._me(array['INVENTORY', 'SUPERVISOR', 'ADMIN']);
+  perform set_config('checkin.mode', 'INVENTORY', true);
+  select * into e from checkin.dup_envelopes where code = upper(btrim(p_code)) for update;
+  if not found then raise exception 'ENVELOPE_NOT_FOUND'; end if;
+  if e.status <> 'OPEN' then raise exception 'ENVELOPE_NOT_OPEN'; end if;
+  if me.role = 'INVENTORY' and e.opened_by <> me.user_id then raise exception 'NOT_YOUR_ENVELOPE'; end if;
+  select count(*) into v_n from checkin._envelope_items(e.code);
+  if v_n = 0 then raise exception 'ENVELOPE_EMPTY'; end if;
+  if p_counted is distinct from v_n then
+    raise exception 'COUNT_MISMATCH' using hint = 'Qo''lda sanalgan: ' || coalesce(p_counted::text, '?') || ', tizimda: ' || v_n || ' — konvertni qayta tekshiring';
+  end if;
+  update checkin.dup_envelopes set status = 'SEALED', sealed_by = me.user_id, sealed_at = now(), seal_count = v_n where code = e.code returning * into e;
+  perform checkin._audit(me, 'ENVELOPE_SEAL', 'envelope', e.code, jsonb_build_object('count', v_n,
+          'tickets', (select jsonb_agg(ticket_no order by ticket_no) from checkin._envelope_items(e.code))));
+  return public.ci_envelope_contents(e.code);
+end $$;
+
+create or replace function public.ci_envelope_handover(p_code text, p_to text, p_note text default null) returns jsonb
+language plpgsql security definer set search_path = checkin, pg_temp as $$
+declare me checkin.staff; e checkin.dup_envelopes;
+begin
+  me := checkin._me(array['SUPERVISOR', 'ADMIN']);
+  perform set_config('checkin.mode', 'INVENTORY', true);
+  if length(btrim(coalesce(p_to, ''))) < 3 then raise exception 'RECIPIENT_REQUIRED' using hint = 'Kimga topshirildi (ism, lavozim)'; end if;
+  update checkin.dup_envelopes set status = 'HANDED_OVER', handed_to = left(btrim(p_to), 120), handed_by = me.user_id, handed_at = now(),
+         note = coalesce(note || ' | ', '') || coalesce(p_note, '')
+   where code = upper(btrim(p_code)) and status = 'SEALED' returning * into e;
+  if not found then raise exception 'ENVELOPE_NOT_SEALED' using hint = 'Avval konvert muhrlanishi kerak'; end if;
+  perform checkin._audit(me, 'ENVELOPE_HANDOVER', 'envelope', e.code, jsonb_build_object('to', p_to, 'note', p_note, 'count', e.seal_count));
+  return public.ci_envelope_contents(e.code);
 end $$;
 
 -- Qaror kutilayotgan takror skanlar
@@ -838,7 +940,7 @@ language plpgsql security definer set search_path = checkin, pg_temp as $$
 declare me checkin.staff; v jsonb;
 begin
   me := checkin._me(array['INVENTORY', 'SUPERVISOR', 'ADMIN']);
-  if p_name not in ('observed', 'not_observed', 'duplicates', 'rejected_scans', 'scans') then raise exception 'UNKNOWN_REPORT'; end if;
+  if p_name not in ('observed', 'not_observed', 'duplicates', 'rejected_scans', 'scans', 'envelopes') then raise exception 'UNKNOWN_REPORT'; end if;
   -- 'not_observed' = hech skanerlanmagan; 'duplicates' = tasdiqlangan ikkinchi qog'oz YOKI qarorsiz takror
   with lc as materialized (select * from checkin._live_copies()),
   dist as materialized (select distinct on (ticket_no) ticket_no, status from checkin.distribution_records order by ticket_no, id desc),
@@ -853,6 +955,10 @@ begin
          'category', case when status = 'ADMITTED' then 'ADMITTED' when dist = 'DISTRIBUTED' then 'NOT_OBSERVED_DISTRIBUTED'
                           when dist in ('HELD', 'RETURNED') then 'NOT_OBSERVED_HELD_BUT_MISSING' else 'NOT_OBSERVED_UNKNOWN' end) order by ticket_no) from tk where observations = 0)
     when 'duplicates' then (select jsonb_agg(to_jsonb(tk) - 'cat' order by ticket_no) from tk where copies > 1 or pending_repeats > 0)
+    when 'envelopes' then (select jsonb_agg(jsonb_build_object('envelope', e.code, 'status', e.status, 'location', e.location, 'seal_count', e.seal_count,
+         'handed_to', e.handed_to, 'ticket_no', i.ticket_no, 'sector', i.sector, 'row', i.row_no, 'seat', i.seat_no, 'print_sheet', i.print_page,
+         'scan_id', i.scan_id, 'at', checkin._tz(i.at), 'operator', i.operator) order by e.code, i.ticket_no)
+         from checkin.dup_envelopes e cross join lateral checkin._envelope_items(e.code) i where p_sector is null or i.sector = upper(p_sector))
     when 'rejected_scans' then (select jsonb_agg(jsonb_build_object('scan_id', s.id, 'at', checkin._tz(s.at), 'batch', s.batch_id, 'kind', s.payload_kind,
          'payload', s.payload_sample, 'operator', (select username from checkin.staff where user_id = s.operator)) order by s.id)
          from checkin.inventory_scans s where s.ticket_no is null)
@@ -1453,6 +1559,7 @@ begin
     ('tickets_11222', (select count(*) from checkin.tickets) = 11222, (select count(*) from checkin.tickets)::text),
     ('master_sha256', (checkin._setting('master_sha256') #>> '{}') = 'e50b9a597d5e7f5f74a3270ad6689968c8f1572c3a2fbdeac71eadc417b831bb', checkin._setting('master_sha256') #>> '{}'),
     ('print_layout_sha256', (checkin._setting('print_layout_sha256') #>> '{}') = '3e35be16c86f445b1c551b46f5a11add694a9c0d6f42790c405a1dce472e13d4', checkin._setting('print_layout_sha256') #>> '{}'),
+    ('ticket_identity_md5', (select md5(string_agg(ticket_no||'|'||seat_key||'|'||zone||'|'||kind||'|'||sector||'|'||row_no||'|'||seat_no||'|'||print_page||'|'||print_slot, ',' order by ticket_no)) from checkin.tickets) = '1cf5c18dec394e54a913b2ef982ca6ec', (select md5(string_agg(ticket_no||'|'||seat_key||'|'||zone||'|'||kind||'|'||sector||'|'||row_no||'|'||seat_no||'|'||print_page||'|'||print_slot, ',' order by ticket_no)) from checkin.tickets)),
     ('print_pages_11222', (select count(*) from checkin.tickets where print_page is not null) = 11222, (select count(*) from checkin.tickets where print_page is not null)::text),
     ('all_not_admitted', not exists (select 1 from checkin.tickets where status <> 'NOT_ADMITTED'), (select count(*) from checkin.tickets where status <> 'NOT_ADMITTED')::text),
     ('no_admission_events', not exists (select 1 from checkin.admission_events), (select count(*) from checkin.admission_events)::text),

@@ -357,7 +357,7 @@ create trigger replacements_no_delete before delete on checkin.replacements for 
 create or replace function checkin._mode_guard() returns trigger language plpgsql as $$
 declare v_mode text := coalesce(current_setting('checkin.mode', true), '');
 begin
-  if tg_table_name in ('inventory_scans', 'inventory_verdicts') then
+  if tg_table_name in ('inventory_scans', 'inventory_verdicts', 'dup_envelopes') then
     if v_mode <> 'INVENTORY' then raise exception 'INVENTORY_WRITE_OUTSIDE_INVENTORY_MODE'; end if;
   elsif v_mode = 'INVENTORY' then
     raise exception 'INVENTORY_MODE_CANNOT_TOUCH_ADMISSION' using hint = tg_table_name || ' jadvaliga inventar rejimida yozib bo''lmaydi';
@@ -372,6 +372,27 @@ do $$ declare t text; begin
   end loop;
 end $$;
 
+-- ---------------------------------------------------------------- DUBLIKAT KONVERTLARI: tasdiqlangan ikkinchi qog'ozlar jismonan alohida konvertga solinadi
+-- Kod D-001, D-002 … Muhrlashda qo'lda sanalgan son tizimdagi bilan teng bo'lishi shart. Topshirish (kimga, qachon) yoziladi.
+create table if not exists checkin.dup_envelopes (
+  code        text primary key check (code ~ '^D-[0-9]{3,4}$'),
+  location    text,
+  note        text,
+  opened_by   uuid not null,
+  opened_at   timestamptz not null default now(),
+  status      text not null default 'OPEN' check (status in ('OPEN', 'SEALED', 'HANDED_OVER')),
+  sealed_by   uuid,
+  sealed_at   timestamptz,
+  seal_count  int,
+  handed_to   text,
+  handed_by   uuid,
+  handed_at   timestamptz
+);
+alter table checkin.dup_envelopes enable row level security;
+revoke all on checkin.dup_envelopes from public, anon, authenticated;
+drop trigger if exists dup_envelopes_no_delete on checkin.dup_envelopes;
+create trigger dup_envelopes_no_delete before delete on checkin.dup_envelopes for each row execute function checkin._immutable();
+
 -- ---------------------------------------------------------------- inventar: takror skan ≠ ikkinchi qog'oz (operator/nazoratchi qarori, tarix saqlanadi)
 -- Bir raqamning birinchi skanidan keyingi har bir skan "takror"; u qaror bo'lmaguncha nusxa hisoblanmaydi.
 -- SAME_PAPER — o'sha qog'oz qayta skanerlangan; SECOND_COPY — qo'lda haqiqatan ikkinchi bosma qog'oz bor.
@@ -380,9 +401,13 @@ create table if not exists checkin.inventory_verdicts (
   scan_id     bigint not null references checkin.inventory_scans (id),
   verdict     text not null check (verdict in ('SAME_PAPER', 'SECOND_COPY')),
   note        text,
+  envelope_code text references checkin.dup_envelopes (code),     -- SECOND_COPY: ikkinchi qog'oz solingan konvert
   decided_by  uuid not null,
   at          timestamptz not null default now()
 );
+alter table checkin.inventory_verdicts add column if not exists envelope_code text references checkin.dup_envelopes (code);
+alter table checkin.inventory_verdicts drop constraint if exists inventory_verdicts_second_copy_envelope;
+alter table checkin.inventory_verdicts add constraint inventory_verdicts_second_copy_envelope check (verdict <> 'SECOND_COPY' or envelope_code is not null);
 create index if not exists inventory_verdicts_scan on checkin.inventory_verdicts (scan_id, id desc);
 alter table checkin.inventory_verdicts enable row level security;
 revoke all on checkin.inventory_verdicts from public, anon, authenticated;
@@ -412,3 +437,5 @@ drop trigger if exists ticket_flags_no_delete on checkin.ticket_flags;
 create trigger ticket_flags_no_delete before delete on checkin.ticket_flags for each row execute function checkin._immutable();
 drop trigger if exists mode_guard_inventory_verdicts on checkin.inventory_verdicts;
 create trigger mode_guard_inventory_verdicts before insert or update or delete on checkin.inventory_verdicts for each row execute function checkin._mode_guard();
+drop trigger if exists mode_guard_dup_envelopes on checkin.dup_envelopes;
+create trigger mode_guard_dup_envelopes before insert or update or delete on checkin.dup_envelopes for each row execute function checkin._mode_guard();

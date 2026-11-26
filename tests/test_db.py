@@ -156,8 +156,9 @@ check("T10 Inventar: 06100 uch marta — takrorlar QARORSIZ nusxa hisoblanmaydi 
       (inv[3]["confirmed_copies"], inv[3]["pending_repeats"]))
 # operator qarori: 2-skan — ikkinchi qog'oz (konvertga), 3-skan — o'sha qog'oz qayta skanerlangan
 e_first = err(I1, "ci_inventory_verdict", inv[0]["scan_id"], "SECOND_COPY", "x")
-e_nonote = err(I1, "ci_inventory_verdict", inv[2]["scan_id"], "SECOND_COPY", "")
-v2 = rpc(I1, "ci_inventory_verdict", inv[2]["scan_id"], "SECOND_COPY", "D-konvert 1")
+e_nonote = err(I1, "ci_inventory_verdict", inv[2]["scan_id"], "SECOND_COPY", "", None)
+env1 = rpc(I1, "ci_envelope_open", "Ombor-1, 1-stol", None)["code"]
+v2 = rpc(I1, "ci_inventory_verdict", inv[2]["scan_id"], "SECOND_COPY", "", env1)
 v3 = rpc(I1, "ci_inventory_verdict", inv[3]["scan_id"], "SAME_PAPER", None)
 e_again = err(I1, "ci_inventory_verdict", inv[3]["scan_id"], "SECOND_COPY", "D-konvert 1")
 e_other = err(I2, "ci_inventory_verdict", inv[3]["scan_id"], "SECOND_COPY", "D-konvert 1")
@@ -167,12 +168,37 @@ hist = sql("select count(*) from checkin.inventory_verdicts v join checkin.inven
 obs = sql("select count(*) from checkin.inventory_scans where ticket_no = '06100'")[0][0]
 flag06100 = sql("select kind, status from checkin.ticket_flags where ticket_no = '06100'")
 check("T10v Qaror: SECOND_COPY (joyi yozilgan) → 2 qog'oz, SAME_PAPER → nusxa emas; birinchi skanga qaror yo'q; operator qarorini o'zi o'zgartira olmaydi, boshqa operator/darvoza qaror bera olmaydi; nazoratchi o'zgartirsa sabab shart; skan tarixi o'chmaydi",
-      v2["confirmed_copies"] == 2 and v3["confirmed_copies"] == 2 and v3["pending_repeats"] == 0 and e_first == "NOT_A_REPEAT" and e_nonote == "NOTE_REQUIRED"
+      v2["confirmed_copies"] == 2 and v2["envelope"] == env1 == "D-001" and v3["confirmed_copies"] == 2 and v3["pending_repeats"] == 0 and e_first == "NOT_A_REPEAT" and e_nonote == "ENVELOPE_REQUIRED"
       and e_again == "ALREADY_DECIDED" and e_other == "NOT_YOUR_SCAN" and e_supnote == "NOTE_REQUIRED" and e_gate_v == "ROLE_DENIED" and hist == 2 and obs == 3
       and flag06100 == [("DUPLICATE_PRINT_CONFIRMED", "OPEN")] and sql("select status from checkin.tickets where ticket_no='06100'")[0][0] == "NOT_ADMITTED",
       (e_first, e_nonote, e_again, e_other, e_supnote, hist, flag06100))
+# ---------------------------------------------------------------- DUBLIKAT KONVERTLARI: raqamlar tizimda, muhrlash sanoq bilan, topshirish
+dupb = rpc(I1, "ci_inventory_batch_open", "Konvert sinovi", "Ombor-1", None, None, None, "inv-dev-1")["id"]
+ks = [rpc(I1, "ci_inventory_scan", str(uuid.uuid4()), dupb, U(t), None, "SCANNER", "inv-dev-1", None) for t in [8500, 8500, 8501, 8501]]
+rpc(I1, "ci_inventory_verdict", ks[1]["scan_id"], "SECOND_COPY", None, env1); rpc(I1, "ci_inventory_verdict", ks[3]["scan_id"], "SECOND_COPY", "burchagi yirtiq", env1)
+cont = rpc(I1, "ci_envelope_contents", env1)
+e_cnt = err(I1, "ci_envelope_seal", env1, 2)
+e_other_seal = err(I2, "ci_envelope_seal", env1, 3)
+sealed = rpc(I1, "ci_envelope_seal", env1, 3)
+ks2 = [rpc(I1, "ci_inventory_scan", str(uuid.uuid4()), dupb, U(8502), None, "SCANNER", "inv-dev-1", None) for _ in range(2)]
+e_closed = err(I1, "ci_inventory_verdict", ks2[1]["scan_id"], "SECOND_COPY", None, env1)
+e_override = err(S1, "ci_inventory_verdict", ks[1]["scan_id"], "SAME_PAPER", "nazoratchi qayta ko'rdi")
+e_inv_hand = err(I1, "ci_envelope_handover", env1, "Tashkilotchi seyfi")
+hand = rpc(S1, "ci_envelope_handover", env1, "Tashkilotchi (A. Karimov), seyf №2", "dalolatnoma №5")
+envs = {e["code"]: e for e in rpc(S1, "ci_envelopes", None)}
+erep = rpc(I1, "ci_inventory_report", "envelopes", None)
+e_empty_code = rpc(I1, "ci_envelope_open", "1-stol", None)["code"]; e_empty = err(I1, "ci_envelope_seal", e_empty_code, 0)
+check("T28 Dublikat konvertlari: D-001 dagi raqamlar (06100, 08500, 08501) tizimda; muhrlashda qo'lda sanoq teng bo'lishi shart; muhrlangan konvertga qo'shib/qarorni o'zgartirib bo'lmaydi; topshirish faqat nazoratchi, kimga — yoziladi; bo'sh konvert muhrlanmaydi",
+      sorted(i["ticket_no"] for i in cont["items"]) == ["06100", "08500", "08501"] and e_cnt == "COUNT_MISMATCH" and e_other_seal == "NOT_YOUR_ENVELOPE"
+      and sealed["status"] == "SEALED" and sealed["seal_count"] == 3 and e_closed == "ENVELOPE_NOT_OPEN" and e_override == "ENVELOPE_NOT_OPEN"
+      and e_inv_hand == "ROLE_DENIED" and hand["status"] == "HANDED_OVER" and "Karimov" in hand["handed_to"]
+      and envs["D-001"]["tickets"] == ["06100", "08500", "08501"] and len([r for r in erep if r["envelope"] == "D-001"]) == 3
+      and e_empty == "ENVELOPE_EMPTY" and e_empty_code == "D-002",
+      (e_cnt, e_other_seal, e_closed, e_override, e_inv_hand, e_empty, envs["D-001"]["tickets"]))
 rep = rpc(S1, "ci_report", "inventory_duplicates")
-check("T10b Hisobot: tasdiqlangan dublikatlar (06100 — 2 qog'oz)", [x["ticket_no"] for x in rep] == ["06100"] and rep[0]["copies"] == 2 and rep[0]["pending_repeats"] == 0, rep)
+rep_a403 = [x for x in rep if x["sector"] == "A403"]
+check("T10b Hisobot: tasdiqlangan dublikatlar (A403: 06100 — 2 qog'oz) va qarorsiz takrorlar alohida ustunda", [x["ticket_no"] for x in rep_a403] == ["06100"] and rep_a403[0]["copies"] == 2
+      and rep_a403[0]["pending_repeats"] == 0 and any(x["ticket_no"] == "08502" and x["pending_repeats"] == 1 and x["copies"] == 1 for x in rep), rep_a403)
 rid_inv = str(uuid.uuid4()); a = rpc(I1, "ci_inventory_scan", rid_inv, batch, U(6103), None, "CAMERA", "inv-dev-1", None); b = rpc(I1, "ci_inventory_scan", rid_inv, batch, U(6103), None, "CAMERA", "inv-dev-1", None)
 check("T10c Inventar skani ham idempotent (bir xil so'rov ikki marta = 1 nusxa)", a["scan_id"] == b["scan_id"] and b["copies_total"] == 1)
 lk = rpc(G2, "ci_lookup", U(6100), "G2", "dev-2")
@@ -228,7 +254,8 @@ rpc(AD, "ci_import_distribution", json.dumps([{"ticket_no": t, "status": "HELD"}
 sb = rpc(I2, "ci_inventory_batch_open", "A405 zaxira qutisi", "Ofis seyf", "A405", "Q-7", "D-1", "inv-dev-2")["id"]
 a405 = [rpc(I2, "ci_inventory_scan", str(uuid.uuid4()), sb, U(t), None, "SCANNER", "inv-dev-2", None) for t in [6650, 6655, 6655, 6656, 6661, 6667, 6668]]
 e_pend = err(AD, "ci_spare_from_stock", "06655", "Ombor tekshiruvi 25.11, quti Q-7")     # qarorsiz takror
-rpc(I2, "ci_inventory_verdict", a405[2]["scan_id"], "SECOND_COPY", "D-konvert 7")
+env2 = rpc(I2, "ci_envelope_open", "Ofis seyf", "A405 qutisi")["code"]
+rpc(I2, "ci_inventory_verdict", a405[2]["scan_id"], "SECOND_COPY", None, env2)
 e_open = err(AD, "ci_spare_from_stock", "06650", "Ombor tekshiruvi 25.11, quti Q-7")
 rpc(I2, "ci_inventory_batch_close", sb)
 gh = rpc(G1, "ci_admit", str(uuid.uuid4()), U(6661), "G1", "dev-1")      # zaxiradagi bilet darvozada ko'rindi → nazorat

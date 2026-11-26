@@ -176,10 +176,10 @@ const sctx = await b.newContext(PHONE); const s = await sctx.newPage();
 await login(s, 'sup@dusel.test', 'Sup-Test-2026');
 const evBefore = (await q('select count(*)::int n from checkin.admission_events'))[0].n;
 const ictx = await b.newContext(PHONE); const iv = await ictx.newPage(); const ierrs = []; iv.on('pageerror', (e) => ierrs.push(e.message));
-iv.on('dialog', (d) => (d.type() === 'prompt' ? d.accept('D-1') : d.accept()));
+let invPrompt = '1-stol (A403)'; iv.on('dialog', (d) => (d.type() === 'prompt' ? d.accept(invPrompt) : d.accept()));
 await iv.goto(base + '/inventory'); await iv.fill('input[type=email]', 'inv@dusel.test'); await iv.fill('input[type=password]', 'Inv-Test-2026'); await iv.click('button[type=submit]');
 await iv.waitForSelector('nav.tabs');
-ok('T10a /inventory alohida ilova: inventar xodimi kiradi, faqat Skanerlash/Qarorlar/Partiyalar/Solishtiruv', (await iv.locator('nav.tabs button').allTextContents()).join(',') === 'Skanerlash,Qarorlar,Partiyalar,Solishtiruv');
+ok('T10a /inventory alohida ilova: inventar xodimi kiradi, faqat Skanerlash/Qarorlar/Konvertlar/Partiyalar/Solishtiruv', (await iv.locator('nav.tabs button').allTextContents()).join(',') === 'Skanerlash,Qarorlar,Konvertlar,Partiyalar,Solishtiruv');
 await iv.click('nav.tabs button:has-text("Partiyalar")'); await iv.waitForSelector('text=Yangi partiya');
 await iv.fill('input[placeholder^="Nomi"]', 'A403 qoldiq — 1-quti'); await iv.fill('input[placeholder^="Sektor"]', 'A403'); await iv.fill('input[placeholder="Quti"]', 'Q-1'); await iv.fill('input[placeholder="Dasta"]', 'D-1');
 await iv.click('button:has-text("Ochish va skanerlashni boshlash")'); await iv.waitForSelector('#qcount');
@@ -201,6 +201,18 @@ const copies = await q("select (select count(*) from checkin.inventory_verdicts 
 ok('T10 Inventar: takror skan darhol "TAKROR — qaror bering"; 06114 → operator "ikkinchi qog\'oz" (D-1) → TASDIQLANGAN DUBLIKAT; 06101 (boshqa URL formati) → "o\'sha qog\'oz"; kupon rad; skan tarixi saqlanadi; biletlar kiritilmagan',
    /Qayd etildi/.test(r1) && /TAKROR SKAN/.test(r2) && /TASDIQLANGAN DUBLIKAT/.test(r2b) && /TAKROR SKAN/.test(r3) && copies[0].a === 1 && copies[0].b === 1 && /KUPON/.test(rg)
    && JSON.stringify(inv) === JSON.stringify([{ ticket_no: '06087', n: 1 }, { ticket_no: '06101', n: 2 }, { ticket_no: '06114', n: 2 }]) && (await status('06114')) === 'NOT_ADMITTED', r2 + ' | ' + JSON.stringify(inv));
+// dublikat konverti: 06114 ning ikkinchi qog'ozi D-001 da; muhrlash — qo'lda sanoq bilan; yorliqda raqamlar
+await iv.click('nav.tabs button:has-text("Konvertlar")'); await iv.waitForSelector('li:has-text("D-001")', { timeout: 8000 });
+const envTxt = await iv.locator('main').textContent();
+invPrompt = '2'; await iv.click('button:has-text("Muhrlash")'); await iv.waitForTimeout(700);
+const badSeal = (await q("select status from checkin.dup_envelopes where code='D-001'"))[0].status;
+invPrompt = '1'; await iv.click('button:has-text("Muhrlash")'); await iv.waitForSelector('.envlabel', { timeout: 8000 });
+const lbl = await iv.locator('.envlabel').textContent();
+await iv.screenshot({ path: out + '/08d_envelope_label.png', fullPage: true });
+const envDb = (await q("select status, seal_count from checkin.dup_envelopes where code='D-001'"))[0];
+ok('T28 Dublikat konverti: 06114 ikkinchi qog\'ozi D-001 da; noto\'g\'ri sanoq bilan muhrlanmaydi; to\'g\'ri sanoq → MUHRLANGAN, yorliqda bilet raqami va joyi',
+   /D-001/.test(envTxt) && /06114/.test(envTxt) && badSeal === 'OPEN' && envDb.status === 'SEALED' && envDb.seal_count === 1 && /06114/.test(lbl) && /A403/.test(lbl), JSON.stringify({ envDb, badSeal, env: /D-001/.test(envTxt) + '/' + /06114/.test(envTxt), lbl: lbl.slice(0, 120) }));
+await iv.click('button:has-text("Orqaga")'); await iv.click('nav.tabs button:has-text("Skanerlash")'); await iv.waitForSelector('#qcount');
 // oflayn: skanlar qurilmada saqlanadi, sahifa yopilsa ham yo'qolmaydi, keyin aynan bir marta yuboriladi
 await ictx.setOffline(true);
 for (const c of ['06120', '06121', '06121']) { await iv.fill('input[placeholder^="Raqam yoki QR"]', c); await iv.click('button:has-text("Qayd")'); await iv.waitForTimeout(150); }

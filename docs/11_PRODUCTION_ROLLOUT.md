@@ -43,7 +43,7 @@ Soliq/bank to'lovlari alohida bo'lishi mumkin. Branch soatbay hisoblanadi — si
 - [ ] SQL editor yoki `supabase db push` bilan tartibda: `…01_checkin_schema` → `…02_checkin_functions` → `…03_seed_tickets` → `…04_settings_seed` → `…05_print_sheets`.
 - [ ] **Qo'llanmaydi**: `sql/local/*`, `e2e/seed_*.sql`, `tests/*` (sinov xodimlari/kirishlari).
 - [ ] Bir marta (migratsiya emas): `update checkin.settings set value='"PRODUCTION"' where key='environment';`
-- [ ] `tools/production_verify.sql` → **17 qatorning hammasi `OK`** (11 222 bilet, 0 kirish, 0 hodisa, 0 almashtirish, 0 holat, **0 zaxira joy**, 0 EXTRA, sig'im 11 222, kirish YOPIQ, sinov xodimlari 0, RLS, anon huquqsiz, bootstrap faqat service_role, master va varaq sha256).
+- [ ] `tools/production_verify.sql` → **20 qatorning hammasi `OK`** (11 222 bilet va identifikator xeshi, 0 kirish, 0 hodisa, 0 almashtirish, 0 holat, **0 zaxira joy**, 0 EXTRA, sig'im 11 222, kirish YOPIQ, sinov xodimlari 0, RLS, anon huquqsiz, bootstrap faqat service_role, master va varaq sha256).
 - [ ] Advisors → Security va Performance: ogohlantirishlar yo'q yoki izohlangan.
 
 ### C3. Xodimlar (P6)

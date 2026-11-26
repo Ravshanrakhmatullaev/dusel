@@ -39,11 +39,17 @@ Bitta raqam ikkinchi marta skanerlansa, tizim buni **avtomatik nusxa deb hisobla
 1. Ekranda sariq **"TAKROR SKAN № … — Qo'lingizda IKKI xil qog'oz bormi?"**.
 2. Operator qog'ozlarni yonma-yon qo'yib tekshiradi:
    - **"YO'Q — o'sha qog'ozni qayta skanerladim"** → `SAME_PAPER`: nusxa hisoblanmaydi;
-   - **"HA — qo'limda IKKINCHI qog'oz bor"** → ikkinchi qog'ozni **"DUBLIKAT" konvertiga** soladi va konvert raqamini yozadi → `SECOND_COPY`: tasdiqlangan 2-qog'oz, nazoratchiga **belgi** (`DUPLICATE_PRINT_CONFIRMED`) avtomatik ketadi;
+   - **"HA — qo'limda IKKINCHI qog'oz bor"** → ilova ochiq DUBLIKAT konvertini ko'rsatadi (yo'q bo'lsa yangisini ochadi: **D-001, D-002 …**) → qog'oz shu konvertga solinadi → `SECOND_COPY` konvert kodi bilan saqlanadi; nazoratchiga **belgi** (`DUPLICATE_PRINT_CONFIRMED`) avtomatik ketadi;
    - **"Keyinroq"** → "Qarorlar" bo'limida qoladi (qarorsiz takror nusxa ham, zaxira ham hisoblanmaydi).
 3. Operator faqat **o'z** skaniga va faqat **bir marta** qaror beradi; o'zgartirish faqat nazoratchi orqali, sabab bilan.
 4. Hech bir skan o'chirilmaydi: barcha kuzatuvlar, qarorlar (kim, qachon, izoh) va bekor qilingan skanlar saqlanadi.
 5. Hisoblash: `tasdiqlangan qog'ozlar = birinchi kuzatuv + SECOND_COPY takrorlar`. Qarorsiz takror bo'lgan varaq `REPEAT_UNVERIFIED`.
+
+## 2a-2. Dublikat konvertlari
+
+- **Konvertlar** bo'limi: ochish (joyi bilan), tanlash, **muhrlash** (qo'lda sanoq = tizimdagi son, aks holda `COUNT_MISMATCH`), **yorliq** chop etish (kod, son, bilet raqamlari, sektor/qator/joy/varaq, imzo joylari), **topshirish** (faqat nazoratchi; kimga — yoziladi).
+- Muhrlangan konvertga qog'oz qo'shib bo'lmaydi va ichidagi qarorlarni o'zgartirib bo'lmaydi. Bo'sh konvert muhrlanmaydi.
+- Har konvertning to'liq tarkibi va tarixi bazada; CSV hisobot: "envelopes".
 
 ## 2b. Nazoratchi belgilari — bilet bekor qilinmaydi
 

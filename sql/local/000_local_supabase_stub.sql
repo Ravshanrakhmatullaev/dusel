@@ -19,3 +19,9 @@ grant usage on schema public to anon, authenticated;
 create table if not exists auth.sessions (id uuid primary key default gen_random_uuid(), user_id uuid not null, created_at timestamptz default now());
 create table if not exists auth.refresh_tokens (id bigserial primary key, token text, user_id varchar(255), revoked boolean default false,
   session_id uuid references auth.sessions (id) on delete cascade);
+-- Supabase standart huquqlari taqlidi: public sxemasida yangi jadval/funksiya/sequence avtomatik anon, authenticated, service_role ga beriladi.
+-- Migratsiyalarimiz buni bekor qilishi (revoke) kerak — production_verify va testlar shu sharoitda tekshiradi.
+grant usage on schema public to anon, authenticated, service_role;
+alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
+alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;

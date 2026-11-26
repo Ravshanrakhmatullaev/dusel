@@ -234,24 +234,36 @@
         el('p', { class: 'small', id: 'camstatus' }),
         S.queue.length ? el('p', { class: 'small', text: 'Sinxronlanmagan favqulodda yozuvlar: ' + S.queue.length }) : null,
         el('p', { class: 'muted small', text: 'Xodim: ' + S.me.username + ' · qurilma ' + S.device + ' · server vaqti ' + S.me.server_time })));
+    S.lock = null;
     Scanner.start(cam, function (code) { handle(code, out); });
   }
+  // Ekranda qaror kutayotgan bilet (KIRITISH/Bekor), yuborilayotgan so'rov yoki natijasi noma'lum kiritish bo'lsa —
+  // yangi skan uni ALMASHTIRMAYDI (operator boshqa odamni kiritib yubormasligi uchun).
+  function setLock(v) { S.lock = v; }
+  function unlock(out) { S.lock = null; out.replaceChildren(); Scanner.reset(); }
   function handle(payload, out) {
     if (S.offlineMode) return offlineAdmit(payload, out);
+    if (S.lock) {
+      if (!current || payload !== current.payload) toast(S.lock === 'UNKNOWN' ? 'Avval natijasi noma\'lum kiritishni hal qiling' : 'Avval joriy biletni yakunlang: KIRITISH yoki Bekor');
+      return;
+    }
+    setLock('BUSY');
     current = { payload: payload, request_id: uuid() };
     if (S.quick) return doAdmit(current, out);
     out.replaceChildren(el('div', { class: 'result info' }, el('div', { class: 'big', text: 'Tekshirilmoqda…' })));
     call('ci_lookup', { p_payload: payload, p_gate: S.gate, p_device: S.device }).then(function (r) {
       showLookup(r, current, out);
-    }, function (e) { showError(e, out, function () { handle(payload, out); }); });
+    }, function (e) { setLock(null); showError(e, out, function () { handle(payload, out); }); });
   }
   function showLookup(r, req, out) {
+    setLock(null);
     if (r.result === 'FOREIGN' || r.result === 'INVALID' || r.result === 'NOT_FOUND') {
       beep(false);
       return out.replaceChildren(el('div', { class: 'result bad' }, el('div', { class: 'big', text: r.result === 'FOREIGN' ? 'BU KONSERT BILETI EMAS' : 'YAROQSIZ QR' }),
         el('p', { text: r.message || 'Bilet topilmadi' })));
     }
     var c = r.credential, ok = r.admissible;
+    if (ok) setLock('AWAIT');
     var cls = ok ? (r.warnings.length ? 'warn' : 'ok') : 'bad';
     out.replaceChildren(el('div', { class: 'result ' + cls },
       el('div', { class: 'big', text: ok ? 'KIRITISH MUMKIN' : (c.status === 'ADMITTED' ? 'ALLAQACHON KIRITILGAN' : 'KIRITIB BO\'LMAYDI') }),
@@ -259,18 +271,19 @@
       warnList(r.warnings),
       el('div', { class: 'row', style: 'margin-top:12px' },
         ok ? el('button', { class: 'go big', on: { click: function () { doAdmit(req, out); } }, text: 'KIRITISH' }) : null,
-        c.type === 'TICKET' ? el('button', { class: 'warn', on: { click: function () { refer(req.payload, out); } }, text: 'Nazoratchiga' }) : null,
-        el('button', { on: { click: function () { out.replaceChildren(); Scanner.reset(); } }, text: 'Bekor' }))));
+        c.type === 'TICKET' ? el('button', { class: 'warn', on: { click: function () { setLock(null); refer(req.payload, out); } }, text: 'Nazoratchiga' }) : null,
+        el('button', { on: { click: function () { unlock(out); } }, text: 'Bekor' }))));
     if (!ok) beep(false);
   }
   function doAdmit(req, out, attempt) {
-    attempt = attempt || 1;
+    attempt = attempt || 1; setLock('BUSY');
     out.replaceChildren(el('div', { class: 'result info' }, el('div', { class: 'big', text: attempt > 1 ? 'Qayta yuborilmoqda (' + attempt + ')…' : 'Kiritilmoqda…' })));
     call('ci_admit', { p_request: req.request_id, p_payload: req.payload, p_gate: S.gate, p_device: S.device }).then(function (r) {
-      showAdmit(r, req, out);
+      setLock(null); showAdmit(r, req, out);
     }, function (e) {
       // tarmoq xatosi: AYNAN o'sha request_id bilan qayta urinish — ikki marta kiritish mumkin emas
       if (e.network && attempt < 3) return setTimeout(function () { doAdmit(req, out, attempt + 1); }, 700 * attempt);
+      if (e.network) setLock('UNKNOWN'); else setLock(null);
       showError(e, out, function () { doAdmit(req, out, 1); }, true);
     });
   }
@@ -310,6 +323,9 @@
       el('p', { text: e.network ? (unknown ? 'Server javob bermadi. Mijozni o\'tkazmang. "Qayta urinish" xavfsiz — bir xil so\'rov ikki marta kiritmaydi.' : 'Internet aloqasini tekshiring.') : errText(e) }),
       e.network ? el('p', { style: 'font-weight:800', text: 'Avtomatik kirish TO\'XTATILDI. Nazoratchini chaqiring.' }) : null,
       el('div', { class: 'row' }, el('button', { class: 'primary', on: { click: retry }, text: 'Qayta urinish' }),
+        unknown && e.network ? el('button', { on: { click: function () {
+          if (confirm('Natija noma\'lum bo\'lgan kiritishni yopasizmi? Mijoz O\'TKAZILMAYDI; bilet holatini keyin nazoratchi tekshiradi.')) unlock(out);
+        } }, text: 'Bekor (o\'tkazmaslik)' }) : null,
         e.network && contingencyAllowed() ? el('button', { class: 'warn', on: { click: startOffline }, text: 'Nazoratli favqulodda rejim' }) : null)));
   }
 

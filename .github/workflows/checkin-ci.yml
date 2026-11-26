@@ -44,6 +44,7 @@ jobs:
         with: { name: db-results, path: "tests/*.json" }
   e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:16
@@ -100,13 +101,18 @@ jobs:
   devices-https:
     # Haqiqiy HTTPS: Cloudflare staging preview (feature-checkin) + production faqat o'qish. WebKit = iPhone Safari dvigateli.
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
       - run: pip install segno==1.6.1 && ./e2e/make_media.sh e2e/media
-      - run: cd e2e && npm init -y >/dev/null && npm install playwright@1.63.0 && npx playwright install --with-deps chromium webkit
+      - name: Playwright brauzerlari (osilib qolsa — qayta urinish)
+        timeout-minutes: 20
+        run: |
+          cd e2e && npm init -y >/dev/null && npm install playwright@1.63.0
+          for i in 1 2 3; do timeout 360 npx playwright install --with-deps chromium webkit && break; echo "o'rnatish qayta ($i)"; sleep 10; done
       - uses: actions/checkout@v4
         with: { ref: feature/checkin, path: site }
       - name: iPhone Safari (WebKit) va Android Chrome (Chromium) — HTTPS orqali

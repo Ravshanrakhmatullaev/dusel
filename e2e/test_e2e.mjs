@@ -135,6 +135,14 @@ ok('T08 Aloqa tiklangach "Qayta urinish" — bir xil so\'rov: bitta kirish yozuv
   const txt = await cp.locator('.result:not(.info) .big').first().textContent().catch(() => '');
   await cp.screenshot({ path: out + '/07_camera_scan.png' });
   ok('T05c Telefon kamerasi orqali QR o\'qiladi (05000 → KIRITISH MUMKIN)', /KIRITISH MUMKIN/.test(txt) && /05000/.test(await cp.locator('.seat').first().textContent()), txt);
+  // ekranda qaror kutayotgan bilet turganda yangi skan uni almashtirmaydi (boshqa odamni kiritib yuborish xavfi)
+  await cp.evaluate(() => document.activeElement && document.activeElement.blur());
+  await cp.keyboard.type('https://dusel.pages.dev/?code=00343', { delay: 2 }); await cp.keyboard.press('Enter');
+  await cp.waitForTimeout(600);
+  const still = await cp.locator('.seat').first().textContent();
+  const tst = await cp.locator('.toast').first().textContent().catch(() => '');
+  await cp.click('button:has-text("Bekor")');
+  ok('T05d Qaror kutayotgan bilet (05000) ekranda turganda boshqa skan (00343) uni almashtirmaydi — ogohlantirish chiqadi', /05000/.test(still) && /yakunlang/.test(tst), tst);
   await cb.close();
 }
 // tashqi 2D skaner (klaviatura rejimi): tez belgilar + Enter; kirill tartibida ham
